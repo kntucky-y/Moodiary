@@ -1,0 +1,632 @@
+import 'package:flutter/material.dart';
+import '../auth/login_screen.dart';
+
+// ─── Palette ──────────────────────────────────────────────────────────────────
+const _kBg = Color(0xFFF5F0E8);
+const _kPurple = Color(0xFF9B7FDB);
+const _kDark = Color(0xFF1A1A2E);
+const _kBlue = Color(0xFF4A90D9);
+const _kGreen = Color(0xFF5DB87A);
+const _kTeal = Color(0xFF44BBCC);
+const _kYellow = Color(0xFFE8B84B);
+
+// ─── Screen ───────────────────────────────────────────────────────────────────
+class OnboardingScreen extends StatefulWidget {
+  const OnboardingScreen({super.key});
+
+  @override
+  State<OnboardingScreen> createState() => _OnboardingScreenState();
+}
+
+class _OnboardingScreenState extends State<OnboardingScreen> {
+  final _controller = PageController();
+  int _page = 0;
+
+  void _next() {
+    if (_page < 2) {
+      _controller.nextPage(
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeInOut,
+      );
+    } else {
+      Navigator.of(
+        context,
+      ).pushReplacement(MaterialPageRoute(builder: (_) => const LoginScreen()));
+    }
+  }
+
+  void _back() {
+    _controller.previousPage(
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: _kBg,
+      body: PageView(
+        controller: _controller,
+        physics: const NeverScrollableScrollPhysics(),
+        onPageChanged: (i) => setState(() => _page = i),
+        children: [
+          _Page1(
+            onNext: _next,
+            dots: _Dots(current: _page),
+          ),
+          _Page2(
+            onNext: _next,
+            onBack: _back,
+            dots: _Dots(current: _page),
+          ),
+          _Page3(
+            onNext: _next,
+            onBack: _back,
+            dots: _Dots(current: _page),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Page 1 ───────────────────────────────────────────────────────────────────
+class _Page1 extends StatelessWidget {
+  final VoidCallback onNext;
+  final Widget dots;
+  const _Page1({required this.onNext, required this.dots});
+
+  @override
+  Widget build(BuildContext context) {
+    final h = MediaQuery.of(context).size.height;
+    const sheetFraction = 0.38;
+
+    return Stack(
+      children: [
+        // Scattered mood emojis
+        Positioned(
+          top: h * 0.08,
+          left: 28,
+          child: _MoodImage('assets/mood_sad.png', size: 90),
+        ),
+        Positioned(
+          top: h * 0.05,
+          right: 28,
+          child: _MoodImage('assets/mood_anxious.png', size: 90),
+        ),
+        // Centre title
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: h * sheetFraction,
+          child: const Column(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Text(
+                'Welcome to',
+                style: TextStyle(
+                  fontSize: 15,
+                  color: Color(0xFF666666),
+                  letterSpacing: 0.5,
+                ),
+              ),
+              SizedBox(height: 6),
+              _MoodiaryLogo(),
+            ],
+          ),
+        ),
+        Positioned(
+          bottom: h * sheetFraction + 16,
+          left: 36,
+          child: _MoodImage('assets/mood_happy.png', size: 90),
+        ),
+        Positioned(
+          bottom: h * sheetFraction + 10,
+          right: 20,
+          child: _MoodImage('assets/mood_excited.png', size: 90),
+        ),
+        // Bottom sheet
+        Align(
+          alignment: Alignment.bottomCenter,
+          child: _Sheet(
+            height: h * sheetFraction,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text(
+                  "We're here to\ntrack your\nmood journey",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                    color: _kDark,
+                    height: 1.35,
+                  ),
+                ),
+                const SizedBox(height: 28),
+                _PurpleButton(label: 'Next', onPressed: onNext),
+                const SizedBox(height: 20),
+                dots,
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─── Page 2 ───────────────────────────────────────────────────────────────────
+class _Page2 extends StatelessWidget {
+  final VoidCallback onNext, onBack;
+  final Widget dots;
+  const _Page2({
+    required this.onNext,
+    required this.onBack,
+    required this.dots,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final h = MediaQuery.of(context).size.height;
+    const sheetFraction = 0.44;
+
+    return Stack(
+      children: [
+        // Back arrow
+        Positioned(
+          top: 44,
+          left: 12,
+          child: IconButton(
+            icon: const Icon(
+              Icons.arrow_back_ios,
+              color: Color(0xFF888888),
+              size: 20,
+            ),
+            onPressed: onBack,
+          ),
+        ),
+        // Subtitle
+        Positioned(
+          top: 90,
+          left: 28,
+          right: 28,
+          child: Text(
+            'Start your journey towards self-awareness\nby tracking your mood effortlessly',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 14,
+              color: Color(0xFF444444),
+              fontStyle: FontStyle.italic,
+              height: 1.5,
+            ),
+          ),
+        ),
+        // 3×2 emoji grid
+        Positioned(
+          top: 150,
+          left: 0,
+          right: 0,
+          bottom: h * sheetFraction,
+          child: const _EmojiGrid(
+            images: [
+              'assets/mood_excited.png',
+              'assets/mood_neutral.png',
+              'assets/mood_calm.png',
+              'assets/mood_sad.png',
+              'assets/mood_anxious.png',
+              'assets/mood_happy.png',
+            ],
+          ),
+        ),
+        // Bottom sheet
+        Align(
+          alignment: Alignment.bottomCenter,
+          child: _Sheet(
+            height: h * sheetFraction,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                RichText(
+                  text: const TextSpan(
+                    style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold),
+                    children: [
+                      TextSpan(
+                        text: 'T',
+                        style: TextStyle(color: _kDark),
+                      ),
+                      TextSpan(
+                        text: 'r',
+                        style: TextStyle(color: _kPurple),
+                      ),
+                      TextSpan(
+                        text: 'a',
+                        style: TextStyle(color: _kGreen),
+                      ),
+                      TextSpan(
+                        text: 'c',
+                        style: TextStyle(color: _kTeal),
+                      ),
+                      TextSpan(
+                        text: 'k',
+                        style: TextStyle(color: _kDark),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'how you feel, every day',
+                  style: TextStyle(fontSize: 16, color: _kDark),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Tap on doodle moods, write your thoughts, and understand your emotional patterns.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF666666),
+                    fontStyle: FontStyle.italic,
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                _PurpleButton(label: 'Next', onPressed: onNext),
+                const SizedBox(height: 16),
+                Center(child: dots),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─── Page 3 ───────────────────────────────────────────────────────────────────
+class _Page3 extends StatelessWidget {
+  final VoidCallback onNext, onBack;
+  final Widget dots;
+  const _Page3({
+    required this.onNext,
+    required this.onBack,
+    required this.dots,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final h = MediaQuery.of(context).size.height;
+    const sheetFraction = 0.47;
+
+    return Stack(
+      children: [
+        // Back arrow
+        Positioned(
+          top: 44,
+          left: 12,
+          child: IconButton(
+            icon: const Icon(
+              Icons.arrow_back_ios,
+              color: Color(0xFF888888),
+              size: 20,
+            ),
+            onPressed: onBack,
+          ),
+        ),
+        // 3×2 character grid
+        Positioned(
+          top: 76,
+          left: 0,
+          right: 0,
+          bottom: h * sheetFraction,
+          child: const _EmojiGrid(
+            images: [
+              'assets/char_1.png',
+              'assets/char_2.png',
+              'assets/char_3.png',
+              'assets/char_4.png',
+              'assets/char_5.png',
+              'assets/char_6.png',
+            ],
+          ),
+        ),
+        // Bottom sheet
+        Align(
+          alignment: Alignment.bottomCenter,
+          child: _Sheet(
+            height: h * sheetFraction,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                RichText(
+                  text: const TextSpan(
+                    style: TextStyle(fontSize: 38, fontWeight: FontWeight.bold),
+                    children: [
+                      TextSpan(
+                        text: 'G',
+                        style: TextStyle(color: _kPurple),
+                      ),
+                      TextSpan(
+                        text: 'a',
+                        style: TextStyle(color: _kGreen),
+                      ),
+                      TextSpan(
+                        text: 'i',
+                        style: TextStyle(color: _kTeal),
+                      ),
+                      TextSpan(
+                        text: 'n',
+                        style: TextStyle(color: _kYellow),
+                      ),
+                    ],
+                  ),
+                ),
+                RichText(
+                  text: const TextSpan(
+                    style: TextStyle(fontSize: 38, fontWeight: FontWeight.bold),
+                    children: [
+                      TextSpan(
+                        text: 'M',
+                        style: TextStyle(color: _kDark),
+                      ),
+                      TextSpan(
+                        text: 'e',
+                        style: TextStyle(color: _kPurple),
+                      ),
+                      TextSpan(
+                        text: 'n',
+                        style: TextStyle(color: _kTeal),
+                      ),
+                      TextSpan(
+                        text: 't',
+                        style: TextStyle(color: _kGreen),
+                      ),
+                      TextSpan(
+                        text: 'al ',
+                        style: TextStyle(color: _kDark),
+                      ),
+                      TextSpan(
+                        text: 'C',
+                        style: TextStyle(color: _kPurple),
+                      ),
+                      TextSpan(
+                        text: 'l',
+                        style: TextStyle(color: _kGreen),
+                      ),
+                      TextSpan(
+                        text: 'a',
+                        style: TextStyle(color: _kTeal),
+                      ),
+                      TextSpan(
+                        text: 'r',
+                        style: TextStyle(color: _kDark),
+                      ),
+                      TextSpan(
+                        text: 'i',
+                        style: TextStyle(color: _kPurple),
+                      ),
+                      TextSpan(
+                        text: 't',
+                        style: TextStyle(color: _kYellow),
+                      ),
+                      TextSpan(
+                        text: 'y',
+                        style: TextStyle(color: _kGreen),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Visual insights and mood graphs help you see what affects your well-being. We also have companions to help you on your journey! Moodiary nudges you lovingly — like a note from your past self.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF666666),
+                    fontStyle: FontStyle.italic,
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                _PurpleButton(label: 'Get Started', onPressed: onNext),
+                const SizedBox(height: 16),
+                Center(child: dots),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─── Shared Widgets ───────────────────────────────────────────────────────────
+
+class _MoodiaryLogo extends StatelessWidget {
+  const _MoodiaryLogo();
+
+  @override
+  Widget build(BuildContext context) {
+    return RichText(
+      text: const TextSpan(
+        style: TextStyle(
+          fontSize: 38,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 1.2,
+        ),
+        children: [
+          TextSpan(
+            text: 'm',
+            style: TextStyle(color: _kDark),
+          ),
+          TextSpan(
+            text: 'oo',
+            style: TextStyle(color: _kPurple),
+          ),
+          TextSpan(
+            text: 'd',
+            style: TextStyle(color: _kDark),
+          ),
+          TextSpan(
+            text: 'i',
+            style: TextStyle(color: _kBlue),
+          ),
+          TextSpan(
+            text: 'a',
+            style: TextStyle(color: _kGreen),
+          ),
+          TextSpan(
+            text: 'r',
+            style: TextStyle(color: _kPurple),
+          ),
+          TextSpan(
+            text: 'y',
+            style: TextStyle(color: _kYellow),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Sheet extends StatelessWidget {
+  final double height;
+  final Widget child;
+  const _Sheet({required this.height, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: height,
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+      ),
+      child: Column(
+        children: [
+          const SizedBox(height: 12),
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: const Color(0xFFDDDDDD),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 28),
+              child: child,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PurpleButton extends StatelessWidget {
+  final String label;
+  final VoidCallback onPressed;
+  const _PurpleButton({required this.label, required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 52,
+      child: ElevatedButton(
+        onPressed: onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: _kPurple,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(50),
+          ),
+          elevation: 0,
+        ),
+        child: Text(
+          label,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        ),
+      ),
+    );
+  }
+}
+
+class _Dots extends StatelessWidget {
+  final int current;
+  const _Dots({required this.current});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(
+        3,
+        (i) => AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          width: i == current ? 20 : 8,
+          height: 8,
+          decoration: BoxDecoration(
+            color: i == current ? _kPurple : const Color(0xFFCCCCCC),
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EmojiGrid extends StatelessWidget {
+  final List<String> images;
+  const _EmojiGrid({required this.images});
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.count(
+      crossAxisCount: 3,
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      children: images
+          .map(
+            (path) => Padding(
+              padding: const EdgeInsets.all(8),
+              child: _MoodImage(path),
+            ),
+          )
+          .toList(),
+    );
+  }
+}
+
+class _MoodImage extends StatelessWidget {
+  final String path;
+  final double? size;
+  const _MoodImage(this.path, {this.size});
+
+  @override
+  Widget build(BuildContext context) {
+    return Image.asset(
+      path,
+      width: size,
+      height: size,
+      errorBuilder: (_, __, ___) => Icon(
+        Icons.sentiment_satisfied_alt_rounded,
+        size: size ?? 48,
+        color: const Color(0xFFCCCCCC),
+      ),
+    );
+  }
+}
