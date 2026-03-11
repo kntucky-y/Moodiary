@@ -226,6 +226,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     await prefs.setInt('mood_score_$today', newScore);
   }
 
+  Future<void> _undoTask(int index) async {
+    if (!_completedStates[index]) return;
+    final prefs = await SharedPreferences.getInstance();
+    final today = _dateKey();
+    final newScore = (_moodScore - _todayTasks[index].points).clamp(0, 9999);
+    setState(() {
+      _completedStates[index] = false;
+      _moodScore = newScore;
+    });
+    await prefs.setString(
+      'tasks_completed',
+      _completedStates.map((b) => '$b').join(','),
+    );
+    await prefs.setInt('mood_score_$today', newScore);
+  }
+
   int get _maxScore => _todayTasks.fold(0, (sum, t) => sum + t.points);
 
   int get _pendingCount => _completedStates.where((c) => !c).length;
@@ -323,16 +339,43 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               SizedBox(
                 width: double.infinity,
                 child: isCompleted
-                    ? OutlinedButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: _kPurple,
-                          side: const BorderSide(color: _kPurple),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(50),
+                    ? Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () {
+                                Navigator.of(context).pop();
+                                _undoTask(index);
+                              },
+                              icon: const Icon(Icons.undo_rounded, size: 16),
+                              label: const Text('Undo'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: const Color(0xFF888888),
+                                side: const BorderSide(
+                                  color: Color(0xFFDDDDDD),
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(50),
+                                ),
+                              ),
+                            ),
                           ),
-                        ),
-                        child: const Text('Already done ✓'),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: () => Navigator.of(context).pop(),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF4ADE80),
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(50),
+                                ),
+                              ),
+                              child: const Text('Done ✓'),
+                            ),
+                          ),
+                        ],
                       )
                     : ElevatedButton(
                         onPressed: () {
