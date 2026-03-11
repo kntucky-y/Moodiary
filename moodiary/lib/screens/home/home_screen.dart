@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../onboarding/onboarding_screen.dart';
 import '../companion/companion_screen.dart';
+import '../../utils/transitions.dart';
 
 const _kPurple = Color(0xFFA076F9);
 const _kLightPurple = Color(0xFFD8B4F8);
@@ -10,24 +11,91 @@ const _kBg = Color(0xFFF7F5F2);
 const _kCardBg = Colors.white;
 const _kSubtle = Color(0xFF8A8A8D);
 
-const _tasks = [
-  _Task(
+// ─── Task pool — 3 are picked randomly every day ─────────────────────────────
+const _taskPool = [
+  _MoodTask(
+    'water',
     'Drink Enough Water',
-    'Most experts suggest that you drink five to eight glasses of water.',
+    'Staying hydrated is crucial for brain function. Dehydration impairs concentration, memory, and mood. Drink at least 8 glasses today.',
     'assets/water.png',
-    false,
+    10,
   ),
-  _Task(
+  _MoodTask(
+    'reading',
     'Keep Reading',
-    'Reading helps a great deal in building confidence and reduces stress.',
+    'Reading for 20 minutes lowers your heart rate and reduces cortisol. It builds vocabulary, empathy, and a steady sense of calm.',
     'assets/reading.png',
-    true,
+    15,
   ),
-  _Task(
+  _MoodTask(
+    'meditate',
     'Try Meditation',
-    'According to Harvard Health, daily meditations can help with your mental and emotional health.',
+    'Just 5 minutes of focused breathing activates your parasympathetic nervous system, reducing anxiety and improving emotional regulation.',
     'assets/meditation.png',
-    true,
+    15,
+  ),
+  _MoodTask(
+    'walk',
+    'Take a 10-Minute Walk',
+    'A brisk walk boosts serotonin and endorphins. Even a short stroll outside can lift your mood for hours afterwards.',
+    'assets/water.png',
+    10,
+  ),
+  _MoodTask(
+    'gratitude',
+    'Write 3 Gratitudes',
+    'Journaling what you\'re grateful for rewires your brain toward positivity. Try to be specific — small moments count the most.',
+    'assets/reading.png',
+    15,
+  ),
+  _MoodTask(
+    'breathe',
+    'Practice Deep Breathing',
+    'Try the 4-7-8 technique: inhale for 4 seconds, hold for 7, exhale for 8. Repeat 3 times to calm your nervous system almost instantly.',
+    'assets/meditation.png',
+    10,
+  ),
+  _MoodTask(
+    'stretch',
+    'Stretch for 5 Minutes',
+    'Gentle stretching relieves built-up muscle tension and improves blood flow to the brain, making it easier to focus and feel at ease.',
+    'assets/water.png',
+    5,
+  ),
+  _MoodTask(
+    'sleep',
+    'Protect Your Sleep',
+    'Even one extra hour of sleep dramatically improves emotion regulation, memory consolidation, and next-day energy. Guard your bedtime.',
+    'assets/reading.png',
+    20,
+  ),
+  _MoodTask(
+    'screen',
+    'Take a Screen Break',
+    'Step away from all screens for 15 minutes. Look at something at least 6 metres away to rest your eyes and quiet your mind.',
+    'assets/meditation.png',
+    10,
+  ),
+  _MoodTask(
+    'music',
+    'Listen to Calming Music',
+    'Music around 60 BPM can induce alpha brainwaves associated with relaxed alertness. Put on a gentle playlist and just breathe.',
+    'assets/water.png',
+    5,
+  ),
+  _MoodTask(
+    'connect',
+    'Reach Out to Someone',
+    'Send a kind message to a friend or family member. Social connection is one of the strongest predictors of long-term mental wellbeing.',
+    'assets/reading.png',
+    15,
+  ),
+  _MoodTask(
+    'meal',
+    'Prepare a Healthy Meal',
+    'What you eat directly shapes your mood via the gut-brain axis. Prepare something colourful and nutritious — even a simple salad counts.',
+    'assets/meditation.png',
+    20,
   ),
 ];
 
@@ -39,12 +107,19 @@ const _moods = [
   _Mood('Excellent', 'assets/excellent.png'),
 ];
 
-class _Task {
+class _MoodTask {
+  final String id;
   final String title;
   final String description;
   final String asset;
-  final bool completed;
-  const _Task(this.title, this.description, this.asset, this.completed);
+  final int points;
+  const _MoodTask(
+    this.id,
+    this.title,
+    this.description,
+    this.asset,
+    this.points,
+  );
 }
 
 class _Mood {
@@ -69,9 +144,91 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   int? _selectedMood;
   bool _sidebarOpen = false;
+
+  List<_MoodTask> _todayTasks = [];
+  List<bool> _completedStates = [false, false, false];
+  int _moodScore = 0;
+
+  late final AnimationController _entranceCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _entranceCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    _loadTodayTasks();
+  }
+
+  @override
+  void dispose() {
+    _entranceCtrl.dispose();
+    super.dispose();
+  }
+
+  String _dateKey() {
+    final now = DateTime.now();
+    return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _loadTodayTasks() async {
+    final prefs = await SharedPreferences.getInstance();
+    final today = _dateKey();
+    final savedDate = prefs.getString('tasks_date');
+
+    List<int> indices;
+    List<bool> completed;
+
+    if (savedDate != today) {
+      // New day — pick 3 fresh random tasks
+      final all = List.generate(_taskPool.length, (i) => i)..shuffle();
+      indices = all.take(3).toList();
+      completed = [false, false, false];
+      await prefs.setString('tasks_date', today);
+      await prefs.setString('tasks_indices', indices.join(','));
+      await prefs.setString('tasks_completed', 'false,false,false');
+      await prefs.setInt('mood_score_$today', 0);
+    } else {
+      final idxStr = prefs.getString('tasks_indices') ?? '0,1,2';
+      indices = idxStr.split(',').map(int.parse).toList();
+      final cStr = prefs.getString('tasks_completed') ?? 'false,false,false';
+      completed = cStr.split(',').map((s) => s == 'true').toList();
+    }
+
+    final score = prefs.getInt('mood_score_$today') ?? 0;
+    if (mounted) {
+      setState(() {
+        _todayTasks = indices.map((i) => _taskPool[i]).toList();
+        _completedStates = completed;
+        _moodScore = score;
+      });
+      _entranceCtrl.forward(from: 0);
+    }
+  }
+
+  Future<void> _completeTask(int index) async {
+    if (_completedStates[index]) return;
+    final prefs = await SharedPreferences.getInstance();
+    final today = _dateKey();
+    final newScore = _moodScore + _todayTasks[index].points;
+    setState(() {
+      _completedStates[index] = true;
+      _moodScore = newScore;
+    });
+    await prefs.setString(
+      'tasks_completed',
+      _completedStates.map((b) => '$b').join(','),
+    );
+    await prefs.setInt('mood_score_$today', newScore);
+  }
+
+  int get _maxScore => _todayTasks.fold(0, (sum, t) => sum + t.points);
+
+  int get _pendingCount => _completedStates.where((c) => !c).length;
 
   String get _companionAsset => 'assets/doodle${widget.companionId}.png';
 
@@ -95,13 +252,16 @@ class _HomeScreenState extends State<HomeScreen> {
     await prefs.remove('companion_name');
     if (mounted) {
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const OnboardingScreen()),
+        FadeSlideRoute(page: const OnboardingScreen()),
         (_) => false,
       );
     }
   }
 
-  void _showTaskDetail(_Task task) {
+  void _showTaskDetail(int index) {
+    if (_todayTasks.isEmpty) return;
+    final task = _todayTasks[index];
+    final isCompleted = _completedStates[index];
     showDialog(
       context: context,
       builder: (_) => Dialog(
@@ -121,13 +281,35 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 16),
               Text(
                 task.title,
+                textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                   color: _kDark,
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 5,
+                ),
+                decoration: BoxDecoration(
+                  color: isCompleted
+                      ? const Color(0xFFDCFCE7)
+                      : const Color(0xFFF3F0FB),
+                  borderRadius: BorderRadius.circular(50),
+                ),
+                child: Text(
+                  isCompleted ? '✓ Completed' : '+${task.points} pts',
+                  style: TextStyle(
+                    color: isCompleted ? const Color(0xFF16A34A) : _kPurple,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
               Text(
                 task.description,
                 textAlign: TextAlign.center,
@@ -140,18 +322,33 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _kPurple,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(50),
-                    ),
-                  ),
-                  child: const Text('Got it!'),
-                ),
+                child: isCompleted
+                    ? OutlinedButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: _kPurple,
+                          side: const BorderSide(color: _kPurple),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(50),
+                          ),
+                        ),
+                        child: const Text('Already done ✓'),
+                      )
+                    : ElevatedButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          _completeTask(index);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _kPurple,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(50),
+                          ),
+                        ),
+                        child: const Text('Complete Task! 🎉'),
+                      ),
               ),
             ],
           ),
@@ -205,26 +402,30 @@ class _HomeScreenState extends State<HomeScreen> {
                               color: _kDark,
                             ),
                           ),
-                          Container(
-                            width: 24,
-                            height: 24,
-                            decoration: const BoxDecoration(
-                              color: Colors.red,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Center(
-                              child: Text(
-                                '3',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
+                          if (_pendingCount > 0)
+                            Container(
+                              width: 24,
+                              height: 24,
+                              decoration: const BoxDecoration(
+                                color: Colors.red,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Center(
+                                child: Text(
+                                  '$_pendingCount',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
                         ],
                       ),
+                      const SizedBox(height: 12),
+                      // ── Mood Score Card ─────────────────────────────────
+                      _MoodScoreCard(score: _moodScore, maxScore: _maxScore),
                       const SizedBox(height: 12),
                       Container(
                         decoration: BoxDecoration(
@@ -297,12 +498,17 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      ..._tasks.map(
-                        (task) => _TaskCard(
-                          task: task,
-                          onTap: () => _showTaskDetail(task),
+                      if (_todayTasks.isEmpty)
+                        const Center(child: CircularProgressIndicator())
+                      else
+                        ...List.generate(
+                          _todayTasks.length,
+                          (i) => _TaskCard(
+                            task: _todayTasks[i],
+                            completed: _completedStates[i],
+                            onTap: () => _showTaskDetail(i),
+                          ),
                         ),
-                      ),
                       SizedBox(
                         height: MediaQuery.of(context).padding.bottom + 16,
                       ),
@@ -330,8 +536,8 @@ class _HomeScreenState extends State<HomeScreen> {
               onChangeCompanion: () {
                 setState(() => _sidebarOpen = false);
                 Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => CompanionScreen(userName: widget.userName),
+                  FadeSlideRoute(
+                    page: CompanionScreen(userName: widget.userName),
                   ),
                 );
               },
@@ -436,7 +642,7 @@ class _Header extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    GestureDetector(
+                    TapScale(
                       onTap: onCompanionTap,
                       child: Container(
                         width: 90,
@@ -500,84 +706,202 @@ class _WavyClipper extends CustomClipper<Path> {
 
 // ─── Task Card ────────────────────────────────────────────────────────────────
 class _TaskCard extends StatelessWidget {
-  final _Task task;
+  final _MoodTask task;
+  final bool completed;
   final VoidCallback onTap;
-  const _TaskCard({required this.task, required this.onTap});
+  const _TaskCard({
+    required this.task,
+    required this.completed,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return TapScale(
       onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: _kCardBg,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Image.asset(
-              task.asset,
-              width: 48,
-              height: 48,
-              errorBuilder: (_, __, ___) =>
-                  const Icon(Icons.task_alt, size: 48, color: _kSubtle),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    task.title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                      color: _kDark,
+      child: AnimatedOpacity(
+        opacity: completed ? 0.65 : 1.0,
+        duration: const Duration(milliseconds: 300),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: _kCardBg,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Image.asset(
+                task.asset,
+                width: 48,
+                height: 48,
+                errorBuilder: (_, __, ___) =>
+                    const Icon(Icons.task_alt, size: 48, color: _kSubtle),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      task.title,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        color: _kDark,
+                        decoration: completed
+                            ? TextDecoration.lineThrough
+                            : TextDecoration.none,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    task.description,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 12, color: _kSubtle),
-                  ),
-                ],
+                    const SizedBox(height: 2),
+                    Text(
+                      task.description,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 12, color: _kSubtle),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              if (completed)
+                const Icon(
+                  Icons.check_circle_rounded,
+                  color: Color(0xFF4ADE80),
+                  size: 28,
+                )
+              else
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF3F0FB),
+                        borderRadius: BorderRadius.circular(50),
+                      ),
+                      child: Text(
+                        '+${task.points} pts',
+                        style: const TextStyle(
+                          color: _kPurple,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    const Icon(
+                      Icons.arrow_forward_ios,
+                      color: _kPurple,
+                      size: 16,
+                    ),
+                  ],
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Mood Score Card ──────────────────────────────────────────────────────────
+class _MoodScoreCard extends StatelessWidget {
+  final int score;
+  final int maxScore;
+  const _MoodScoreCard({required this.score, required this.maxScore});
+
+  String get _label {
+    if (maxScore == 0) return 'Complete tasks to earn points!';
+    final pct = score / maxScore;
+    if (pct == 0) return 'Start your day strong 💪';
+    if (pct < 0.5) return 'Good start, keep going!';
+    if (pct < 1.0) return 'Almost there, you\'re doing great!';
+    return 'All tasks done! Amazing day 🎉';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = maxScore > 0 ? (score / maxScore).clamp(0.0, 1.0) : 0.0;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFF3F0FB), Color(0xFFEDE9FE)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: _kPurple.withOpacity(0.08),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                '🌟 Mood Score',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                  color: _kDark,
+                ),
+              ),
+              RichText(
+                text: TextSpan(
+                  children: [
+                    TextSpan(
+                      text: '$score',
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: _kPurple,
+                      ),
+                    ),
+                    TextSpan(
+                      text: ' / $maxScore pts',
+                      style: const TextStyle(fontSize: 13, color: _kSubtle),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          TweenAnimationBuilder<double>(
+            tween: Tween<double>(begin: 0, end: progress),
+            duration: const Duration(milliseconds: 600),
+            curve: Curves.easeOutCubic,
+            builder: (_, value, __) => ClipRRect(
+              borderRadius: BorderRadius.circular(50),
+              child: LinearProgressIndicator(
+                value: value,
+                minHeight: 8,
+                backgroundColor: const Color(0xFFDDD6FE),
+                valueColor: const AlwaysStoppedAnimation<Color>(_kPurple),
               ),
             ),
-            const SizedBox(width: 8),
-            if (task.completed)
-              const Icon(
-                Icons.check_circle_rounded,
-                color: Color(0xFF4ADE80),
-                size: 28,
-              )
-            else
-              const Row(
-                children: [
-                  Text(
-                    '❤️ +1',
-                    style: TextStyle(
-                      color: Colors.red,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                    ),
-                  ),
-                  SizedBox(width: 4),
-                  Icon(Icons.arrow_forward_ios, color: _kPurple, size: 16),
-                ],
-              ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 8),
+          Text(_label, style: const TextStyle(fontSize: 12, color: _kSubtle)),
+        ],
       ),
     );
   }
@@ -606,7 +930,7 @@ class _BottomNav extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: items
             .map(
-              (item) => GestureDetector(
+              (item) => TapScale(
                 onTap: () {},
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -707,7 +1031,7 @@ class _Sidebar extends StatelessWidget {
                 icon: Icons.folder_outlined,
                 label: 'Resources',
               ),
-              GestureDetector(
+              TapScale(
                 onTap: onChangeCompanion,
                 child: const _SidebarItem(
                   icon: Icons.swap_horiz_rounded,
@@ -715,7 +1039,7 @@ class _Sidebar extends StatelessWidget {
                 ),
               ),
               const Spacer(),
-              GestureDetector(
+              TapScale(
                 onTap: onLogout,
                 child: const Row(
                   children: [

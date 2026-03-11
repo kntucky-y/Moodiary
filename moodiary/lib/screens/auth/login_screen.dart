@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../home/home_screen.dart';
 import '../companion/companion_screen.dart';
+import '../../utils/transitions.dart';
 
 const _kPurple = Color(0xFF9B7FDB);
 const _kDark = Color(0xFF1A1A2E);
@@ -73,8 +74,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
         if (mounted) {
           Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(
-              builder: (_) => companionId != null && companionName != null
+            FadeSlideRoute(
+              page: companionId != null && companionName != null
                   ? HomeScreen(
                       userName: data['user']['name'],
                       companionId: companionId,
@@ -459,7 +460,7 @@ class _SocialButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return TapScale(
       onTap: onTap,
       child: Container(
         width: 52,
