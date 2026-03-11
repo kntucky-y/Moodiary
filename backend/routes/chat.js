@@ -53,7 +53,7 @@ router.post('/', async (req, res) => {
     res.json({ reply: text });
   } catch (err) {
     console.error('Gemini error:', err.message);
-    res.status(500).json({ error: 'AI response failed. Try again.' });
+    res.status(500).json({ error: err.message });
   }
 });
 
