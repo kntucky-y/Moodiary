@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../home/home_screen.dart';
+import '../../utils/transitions.dart';
 
 const _kPurple = Color(0xFFA076F9);
 const _kDark = Color(0xFF3D3B40);
@@ -142,7 +143,7 @@ class CompanionScreen extends StatelessWidget {
                   itemBuilder: (context, index) {
                     final companion = _companions[index];
                     final color = _cardColors[index % _cardColors.length];
-                    return GestureDetector(
+                    return TapScale(
                       onTap: () => _showDetail(context, companion, color),
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 150),
@@ -200,8 +201,8 @@ class _CompanionModal extends StatelessWidget {
     await prefs.setString('companion_name', companion.name);
     if (context.mounted) {
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(
-          builder: (_) => HomeScreen(
+        FadeSlideRoute(
+          page: HomeScreen(
             userName: userName,
             companionId: companion.id,
             companionName: companion.name,
