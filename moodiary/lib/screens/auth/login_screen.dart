@@ -1,7 +1,15 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+import '../home/home_screen.dart';
 
 const _kPurple = Color(0xFF9B7FDB);
 const _kDark = Color(0xFF1A1A2E);
+
+// Change this to your machine's local IP when testing on a real device/emulator
+// e.g. 'http://10.0.2.2:3000' for Android emulator, 'http://localhost:3000' for desktop
+const _kBaseUrl = 'http://10.0.2.2:3000';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -12,6 +20,76 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
+  bool _isLogin = true;
+  bool _obscurePasswordSignup = true;
+  bool _isLoading = false;
+
+  final _emailController = TextEditingController();
+  final _nameController = TextEditingController();
+  final _passwordController = TextEditingController();
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _nameController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+    final name = _nameController.text.trim();
+
+    if (email.isEmpty || password.isEmpty || (!_isLogin && name.isEmpty)) {
+      _showError('Please fill in all fields');
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final endpoint = _isLogin ? '/api/auth/login' : '/api/auth/register';
+      final body = _isLogin
+          ? {'email': email, 'password': password}
+          : {'email': email, 'password': password, 'name': name};
+
+      final response = await http.post(
+        Uri.parse('$_kBaseUrl$endpoint'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(body),
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('token', data['token']);
+        await prefs.setString('user_name', data['user']['name']);
+
+        if (mounted) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(
+              builder: (_) => HomeScreen(userName: data['user']['name']),
+            ),
+            (_) => false,
+          );
+        }
+      } else {
+        _showError(data['error'] ?? 'Something went wrong');
+      }
+    } catch (e) {
+      _showError('Cannot connect to server. Is the backend running?');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.redAccent),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,26 +116,49 @@ class _LoginScreenState extends State<LoginScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 72),
-                  // "Log In" title
-                  RichText(
-                    text: const TextSpan(
-                      style: TextStyle(
-                        fontSize: 34,
-                        fontWeight: FontWeight.bold,
-                        color: _kDark,
-                      ),
-                      children: [
-                        TextSpan(text: 'Log '),
-                        TextSpan(
-                          text: 'I',
-                          style: TextStyle(color: Color(0xFF4A90D9)),
-                        ),
-                        TextSpan(text: 'n'),
-                      ],
-                    ),
+                  // Title
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    child: _isLogin
+                        ? RichText(
+                            key: const ValueKey('login-title'),
+                            text: const TextSpan(
+                              style: TextStyle(
+                                fontSize: 34,
+                                fontWeight: FontWeight.bold,
+                                color: _kDark,
+                              ),
+                              children: [
+                                TextSpan(text: 'Log '),
+                                TextSpan(
+                                  text: 'I',
+                                  style: TextStyle(color: Color(0xFF4A90D9)),
+                                ),
+                                TextSpan(text: 'n'),
+                              ],
+                            ),
+                          )
+                        : RichText(
+                            key: const ValueKey('signup-title'),
+                            text: const TextSpan(
+                              style: TextStyle(
+                                fontSize: 34,
+                                fontWeight: FontWeight.bold,
+                                color: _kDark,
+                              ),
+                              children: [
+                                TextSpan(text: 'Sign '),
+                                TextSpan(
+                                  text: 'U',
+                                  style: TextStyle(color: Color(0xFF5DB87A)),
+                                ),
+                                TextSpan(text: 'p'),
+                              ],
+                            ),
+                          ),
                   ),
                   const SizedBox(height: 36),
-                  // Email field
+                  // Email field (shared)
                   const Text(
                     'Your Email',
                     style: TextStyle(
@@ -68,65 +169,107 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 8),
                   TextField(
+                    controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
                     decoration: _fieldDecoration('Enter your email'),
                   ),
                   const SizedBox(height: 24),
-                  // Password label + forgot
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Password',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: _kDark,
-                        ),
+                  // Name field (signup only)
+                  if (!_isLogin) ...[
+                    const Text(
+                      'Name',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: _kDark,
                       ),
-                      TextButton(
-                        onPressed: () {},
-                        style: TextButton.styleFrom(
-                          padding: EdgeInsets.zero,
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        child: const Text(
-                          'Forgot password?',
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      decoration: _fieldDecoration('Enter your name'),
+                      controller: _nameController,
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                  // Password label
+                  if (_isLogin)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Password',
                           style: TextStyle(
-                            fontSize: 13,
-                            color: Color(0xFF888888),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: _kDark,
                           ),
                         ),
+                        TextButton(
+                          onPressed: () {},
+                          style: TextButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          child: const Text(
+                            'Forgot password?',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Color(0xFF888888),
+                            ),
+                          ),
+                        ),
+                      ],
+                    )
+                  else
+                    const Text(
+                      'Password',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: _kDark,
                       ),
-                    ],
-                  ),
+                    ),
                   const SizedBox(height: 8),
                   TextField(
-                    obscureText: _obscurePassword,
-                    decoration: _fieldDecoration('Enter your password')
-                        .copyWith(
+                    controller: _passwordController,
+                    obscureText: _isLogin
+                        ? _obscurePassword
+                        : _obscurePasswordSignup,
+                    decoration:
+                        _fieldDecoration(
+                          _isLogin
+                              ? 'Enter your password'
+                              : 'Create a password',
+                        ).copyWith(
                           suffixIcon: IconButton(
                             icon: Icon(
-                              _obscurePassword
+                              (_isLogin
+                                      ? _obscurePassword
+                                      : _obscurePasswordSignup)
                                   ? Icons.visibility_off_outlined
                                   : Icons.visibility_outlined,
                               color: const Color(0xFFAAAAAA),
                               size: 20,
                             ),
-                            onPressed: () => setState(
-                              () => _obscurePassword = !_obscurePassword,
-                            ),
+                            onPressed: () => setState(() {
+                              if (_isLogin) {
+                                _obscurePassword = !_obscurePassword;
+                              } else {
+                                _obscurePasswordSignup =
+                                    !_obscurePasswordSignup;
+                              }
+                            }),
                           ),
                         ),
                   ),
                   const SizedBox(height: 36),
-                  // Login button
+                  // Submit button
                   SizedBox(
                     width: double.infinity,
                     height: 54,
                     child: ElevatedButton(
-                      onPressed: () {},
+                      onPressed: _isLoading ? null : _submit,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF2C2C2C),
                         foregroundColor: Colors.white,
@@ -135,13 +278,22 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         elevation: 0,
                       ),
-                      child: const Text(
-                        'Log in',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                      child: _isLoading
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2.5,
+                              ),
+                            )
+                          : Text(
+                              _isLogin ? 'Log in' : 'Sign up',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                     ),
                   ),
                   const SizedBox(height: 36),
@@ -169,6 +321,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     children: [
                       _SocialButton(
                         color: const Color(0xFF1877F2),
+                        onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Facebook sign-in coming soon'),
+                            duration: Duration(seconds: 2),
+                          ),
+                        ),
                         child: const Text(
                           'f',
                           style: TextStyle(
@@ -182,6 +340,12 @@ class _LoginScreenState extends State<LoginScreen> {
                       _SocialButton(
                         color: Colors.white,
                         border: true,
+                        onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Google sign-in coming soon'),
+                            duration: Duration(seconds: 2),
+                          ),
+                        ),
                         child: const Text(
                           'G',
                           style: TextStyle(
@@ -194,6 +358,12 @@ class _LoginScreenState extends State<LoginScreen> {
                       const SizedBox(width: 20),
                       _SocialButton(
                         color: Colors.black,
+                        onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('X sign-in coming soon'),
+                            duration: Duration(seconds: 2),
+                          ),
+                        ),
                         child: const Text(
                           '𝕏',
                           style: TextStyle(
@@ -210,15 +380,17 @@ class _LoginScreenState extends State<LoginScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text(
-                        "Don't have an account?  ",
-                        style: TextStyle(color: Color(0xFF888888)),
+                      Text(
+                        _isLogin
+                            ? "Don't have an account?  "
+                            : 'Already have an account?  ',
+                        style: const TextStyle(color: Color(0xFF888888)),
                       ),
                       GestureDetector(
-                        onTap: () {},
-                        child: const Text(
-                          'Sign up',
-                          style: TextStyle(
+                        onTap: () => setState(() => _isLogin = !_isLogin),
+                        child: Text(
+                          _isLogin ? 'Sign up' : 'Log in',
+                          style: const TextStyle(
                             color: _kPurple,
                             fontWeight: FontWeight.w600,
                           ),
@@ -229,6 +401,19 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 32),
                 ],
               ),
+            ),
+          ),
+          // Back button — must be last in Stack to receive touches
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 8,
+            left: 8,
+            child: IconButton(
+              icon: const Icon(
+                Icons.arrow_back_ios,
+                color: Color(0xFF888888),
+                size: 20,
+              ),
+              onPressed: () => Navigator.of(context).pop(),
             ),
           ),
         ],
@@ -254,30 +439,35 @@ class _SocialButton extends StatelessWidget {
   final Color color;
   final Widget child;
   final bool border;
+  final VoidCallback? onTap;
   const _SocialButton({
     required this.color,
     required this.child,
     this.border = false,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 52,
-      height: 52,
-      decoration: BoxDecoration(
-        color: color,
-        shape: BoxShape.circle,
-        border: border ? Border.all(color: const Color(0xFFDDDDDD)) : null,
-        boxShadow: [
-          BoxShadow(
-            color: const Color.fromRGBO(0, 0, 0, 0.08),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 52,
+        height: 52,
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
+          border: border ? Border.all(color: const Color(0xFFDDDDDD)) : null,
+          boxShadow: [
+            BoxShadow(
+              color: const Color.fromRGBO(0, 0, 0, 0.08),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Center(child: child),
       ),
-      child: Center(child: child),
     );
   }
 }
