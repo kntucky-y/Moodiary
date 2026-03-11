@@ -39,13 +39,18 @@ router.post('/', async (req, res) => {
     });
 
     // Build conversation history for context (last 10 messages)
-    const safeHistory =
-      Array.isArray(history) && history.length > 0
-        ? history.slice(-10).map((m) => ({
-            role: m.role === 'user' ? 'user' : 'model',
-            parts: [{ text: m.text }],
-          }))
-        : [];
+    // Gemini requires history to start with a 'user' role, so drop any
+    // leading 'model' messages (e.g. the companion's opening greeting).
+    let safeHistory = [];
+    if (Array.isArray(history) && history.length > 0) {
+      const mapped = history.slice(-10).map((m) => ({
+        role: m.role === 'user' ? 'user' : 'model',
+        parts: [{ text: m.text }],
+      }));
+      // Drop leading model turns
+      const firstUser = mapped.findIndex((m) => m.role === 'user');
+      safeHistory = firstUser >= 0 ? mapped.slice(firstUser) : [];
+    }
 
     const chat = model.startChat({ history: safeHistory });
     const result = await chat.sendMessage(message);
