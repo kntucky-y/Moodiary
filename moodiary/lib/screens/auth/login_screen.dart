@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../home/home_screen.dart';
+import '../companion/companion_screen.dart';
 
 const _kPurple = Color(0xFF9B7FDB);
 const _kDark = Color(0xFF1A1A2E);
@@ -67,10 +68,19 @@ class _LoginScreenState extends State<LoginScreen> {
         await prefs.setString('token', data['token']);
         await prefs.setString('user_name', data['user']['name']);
 
+        final companionId = prefs.getInt('companion_id');
+        final companionName = prefs.getString('companion_name');
+
         if (mounted) {
           Navigator.of(context).pushAndRemoveUntil(
             MaterialPageRoute(
-              builder: (_) => HomeScreen(userName: data['user']['name']),
+              builder: (_) => companionId != null && companionName != null
+                  ? HomeScreen(
+                      userName: data['user']['name'],
+                      companionId: companionId,
+                      companionName: companionName,
+                    )
+                  : CompanionScreen(userName: data['user']['name']),
             ),
             (_) => false,
           );
