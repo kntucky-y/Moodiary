@@ -1,4 +1,6 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../auth/login_screen.dart';
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
@@ -31,7 +33,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     } else {
       Navigator.of(
         context,
-      ).pushReplacement(MaterialPageRoute(builder: (_) => const LoginScreen()));
+      ).push(MaterialPageRoute(builder: (_) => const LoginScreen()));
     }
   }
 
@@ -90,48 +92,68 @@ class _Page1 extends StatelessWidget {
 
     return Stack(
       children: [
-        // Scattered mood emojis
-        Positioned(
-          top: h * 0.08,
-          left: 28,
-          child: _MoodImage('assets/mood_sad.png', size: 90),
-        ),
-        Positioned(
-          top: h * 0.05,
-          right: 28,
-          child: _MoodImage('assets/mood_anxious.png', size: 90),
-        ),
-        // Centre title
+        // Upper content — 2×2 emoji grid with centred title
         Positioned(
           top: 0,
           left: 0,
           right: 0,
           bottom: h * sheetFraction,
-          child: const Column(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              Text(
-                'Welcome to',
-                style: TextStyle(
-                  fontSize: 15,
-                  color: Color(0xFF666666),
-                  letterSpacing: 0.5,
+          child: Padding(
+            padding: EdgeInsets.only(top: h * 0.06),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 28),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _FloatingImage(
+                        'assets/sad.png',
+                        size: 90,
+                        delayFraction: 0,
+                      ),
+                      _FloatingImage(
+                        'assets/confused.png',
+                        size: 90,
+                        delayFraction: 0.25,
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              SizedBox(height: 6),
-              _MoodiaryLogo(),
-            ],
+                const SizedBox(height: 24),
+                const Text(
+                  'Welcome to',
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: Color(0xFF666666),
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const _MoodiaryLogo(),
+                const SizedBox(height: 24),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 28),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _FloatingImage(
+                        'assets/love.png',
+                        size: 90,
+                        delayFraction: 0.5,
+                      ),
+                      _FloatingImage(
+                        'assets/angry.png',
+                        size: 90,
+                        delayFraction: 0.75,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-        Positioned(
-          bottom: h * sheetFraction + 16,
-          left: 36,
-          child: _MoodImage('assets/mood_happy.png', size: 90),
-        ),
-        Positioned(
-          bottom: h * sheetFraction + 10,
-          right: 20,
-          child: _MoodImage('assets/mood_excited.png', size: 90),
         ),
         // Bottom sheet
         Align(
@@ -139,8 +161,9 @@ class _Page1 extends StatelessWidget {
           child: _Sheet(
             height: h * sheetFraction,
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
+                const Spacer(),
                 const Text(
                   "We're here to\ntrack your\nmood journey",
                   textAlign: TextAlign.center,
@@ -151,10 +174,11 @@ class _Page1 extends StatelessWidget {
                     height: 1.35,
                   ),
                 ),
-                const SizedBox(height: 28),
+                const Spacer(),
                 _PurpleButton(label: 'Next', onPressed: onNext),
                 const SizedBox(height: 20),
                 dots,
+                SizedBox(height: MediaQuery.of(context).padding.bottom + 16),
               ],
             ),
           ),
@@ -181,19 +205,6 @@ class _Page2 extends StatelessWidget {
 
     return Stack(
       children: [
-        // Back arrow
-        Positioned(
-          top: 44,
-          left: 12,
-          child: IconButton(
-            icon: const Icon(
-              Icons.arrow_back_ios,
-              color: Color(0xFF888888),
-              size: 20,
-            ),
-            onPressed: onBack,
-          ),
-        ),
         // Subtitle
         Positioned(
           top: 90,
@@ -218,12 +229,12 @@ class _Page2 extends StatelessWidget {
           bottom: h * sheetFraction,
           child: const _EmojiGrid(
             images: [
-              'assets/mood_excited.png',
-              'assets/mood_neutral.png',
-              'assets/mood_calm.png',
-              'assets/mood_sad.png',
-              'assets/mood_anxious.png',
-              'assets/mood_happy.png',
+              'assets/star.png',
+              'assets/neutral.png',
+              'assets/bliss.png',
+              'assets/cry.png',
+              'assets/angry.png',
+              'assets/kiss.png',
             ],
           ),
         ),
@@ -233,7 +244,6 @@ class _Page2 extends StatelessWidget {
           child: _Sheet(
             height: h * sheetFraction,
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 RichText(
@@ -278,12 +288,26 @@ class _Page2 extends StatelessWidget {
                     height: 1.5,
                   ),
                 ),
-                const SizedBox(height: 20),
+                const Spacer(),
                 _PurpleButton(label: 'Next', onPressed: onNext),
                 const SizedBox(height: 16),
                 Center(child: dots),
+                SizedBox(height: MediaQuery.of(context).padding.bottom + 16),
               ],
             ),
+          ),
+        ),
+        // Back arrow (on top)
+        Positioned(
+          top: MediaQuery.of(context).padding.top + 8,
+          left: 8,
+          child: IconButton(
+            icon: const Icon(
+              Icons.arrow_back_ios,
+              color: Color(0xFF888888),
+              size: 20,
+            ),
+            onPressed: onBack,
           ),
         ),
       ],
@@ -308,19 +332,6 @@ class _Page3 extends StatelessWidget {
 
     return Stack(
       children: [
-        // Back arrow
-        Positioned(
-          top: 44,
-          left: 12,
-          child: IconButton(
-            icon: const Icon(
-              Icons.arrow_back_ios,
-              color: Color(0xFF888888),
-              size: 20,
-            ),
-            onPressed: onBack,
-          ),
-        ),
         // 3×2 character grid
         Positioned(
           top: 76,
@@ -329,12 +340,12 @@ class _Page3 extends StatelessWidget {
           bottom: h * sheetFraction,
           child: const _EmojiGrid(
             images: [
-              'assets/char_1.png',
-              'assets/char_2.png',
-              'assets/char_3.png',
-              'assets/char_4.png',
-              'assets/char_5.png',
-              'assets/char_6.png',
+              'assets/doodle1.png',
+              'assets/doodle2.png',
+              'assets/doodle3.png',
+              'assets/doodle4.png',
+              'assets/doodle5.png',
+              'assets/doodle6.png',
             ],
           ),
         ),
@@ -344,7 +355,6 @@ class _Page3 extends StatelessWidget {
           child: _Sheet(
             height: h * sheetFraction,
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 RichText(
@@ -435,12 +445,26 @@ class _Page3 extends StatelessWidget {
                     height: 1.5,
                   ),
                 ),
-                const SizedBox(height: 20),
+                const Spacer(),
                 _PurpleButton(label: 'Get Started', onPressed: onNext),
                 const SizedBox(height: 16),
                 Center(child: dots),
+                SizedBox(height: MediaQuery.of(context).padding.bottom + 16),
               ],
             ),
+          ),
+        ),
+        // Back arrow (on top)
+        Positioned(
+          top: MediaQuery.of(context).padding.top + 8,
+          left: 8,
+          child: IconButton(
+            icon: const Icon(
+              Icons.arrow_back_ios,
+              color: Color(0xFF888888),
+              size: 20,
+            ),
+            onPressed: onBack,
           ),
         ),
       ],
@@ -456,40 +480,63 @@ class _MoodiaryLogo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return RichText(
-      text: const TextSpan(
-        style: TextStyle(
-          fontSize: 38,
-          fontWeight: FontWeight.w900,
-          letterSpacing: 1.2,
-        ),
+      text: TextSpan(
         children: [
           TextSpan(
-            text: 'm',
-            style: TextStyle(color: _kDark),
+            text: 'mo',
+            style: GoogleFonts.lexend(
+              fontSize: 44,
+              fontWeight: FontWeight.w900,
+              color: const Color(0xFF374151),
+            ),
           ),
           TextSpan(
-            text: 'oo',
-            style: TextStyle(color: _kPurple),
+            text: 'o',
+            style: GoogleFonts.lexend(
+              fontSize: 44,
+              fontWeight: FontWeight.w900,
+              color: const Color(0xFF60A5FA),
+            ),
           ),
           TextSpan(
             text: 'd',
-            style: TextStyle(color: _kDark),
+            style: GoogleFonts.playfairDisplay(
+              fontSize: 44,
+              fontWeight: FontWeight.w900,
+              color: const Color(0xFF374151),
+            ),
           ),
           TextSpan(
             text: 'i',
-            style: TextStyle(color: _kBlue),
+            style: GoogleFonts.caveat(
+              fontSize: 58,
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFF4ADE80),
+            ),
           ),
           TextSpan(
             text: 'a',
-            style: TextStyle(color: _kGreen),
+            style: GoogleFonts.playfairDisplay(
+              fontSize: 44,
+              fontWeight: FontWeight.w900,
+              color: const Color(0xFF374151),
+            ),
           ),
           TextSpan(
             text: 'r',
-            style: TextStyle(color: _kPurple),
+            style: GoogleFonts.lexend(
+              fontSize: 44,
+              fontWeight: FontWeight.w900,
+              color: const Color(0xFFA076F9),
+            ),
           ),
           TextSpan(
             text: 'y',
-            style: TextStyle(color: _kYellow),
+            style: GoogleFonts.caveat(
+              fontSize: 58,
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFF374151),
+            ),
           ),
         ],
       ),
@@ -611,6 +658,57 @@ class _EmojiGrid extends StatelessWidget {
   }
 }
 
+class _FloatingImage extends StatefulWidget {
+  final String path;
+  final double size;
+  final double delayFraction;
+  const _FloatingImage(this.path, {this.size = 80, this.delayFraction = 0});
+
+  @override
+  State<_FloatingImage> createState() => _FloatingImageState();
+}
+
+class _FloatingImageState extends State<_FloatingImage>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 4),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (_, child) {
+        final dy = -10 * sin((_ctrl.value + widget.delayFraction) * 2 * pi);
+        return Transform.translate(offset: Offset(0, dy), child: child);
+      },
+      child: Image.asset(
+        widget.path,
+        width: widget.size,
+        height: widget.size,
+        errorBuilder: (_, _, _) => Icon(
+          Icons.sentiment_satisfied_alt_rounded,
+          size: widget.size,
+          color: const Color(0xFFCCCCCC),
+        ),
+      ),
+    );
+  }
+}
+
 class _MoodImage extends StatelessWidget {
   final String path;
   final double? size;
@@ -622,7 +720,7 @@ class _MoodImage extends StatelessWidget {
       path,
       width: size,
       height: size,
-      errorBuilder: (_, __, ___) => Icon(
+      errorBuilder: (_, _, _) => Icon(
         Icons.sentiment_satisfied_alt_rounded,
         size: size ?? 48,
         color: const Color(0xFFCCCCCC),
