@@ -9,7 +9,7 @@ const _kDark = Color(0xFF1A1A2E);
 
 // Change this to your machine's local IP when testing on a real device/emulator
 // e.g. 'http://10.0.2.2:3000' for Android emulator, 'http://localhost:3000' for desktop
-const _kBaseUrl = 'http://10.0.2.2:3000';
+const _kBaseUrl = 'https://moodiary-production.up.railway.app';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
