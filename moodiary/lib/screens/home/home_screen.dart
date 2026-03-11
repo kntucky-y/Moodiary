@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../onboarding/onboarding_screen.dart';
 import '../companion/companion_screen.dart';
@@ -342,13 +344,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     ? Row(
                         children: [
                           Expanded(
-                            child: OutlinedButton.icon(
+                            child: OutlinedButton(
                               onPressed: () {
                                 Navigator.of(context).pop();
                                 _undoTask(index);
                               },
-                              icon: const Icon(Icons.undo_rounded, size: 16),
-                              label: const Text('Undo'),
                               style: OutlinedButton.styleFrom(
                                 foregroundColor: const Color(0xFF888888),
                                 side: const BorderSide(
@@ -358,6 +358,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   borderRadius: BorderRadius.circular(50),
                                 ),
                               ),
+                              child: const Icon(Icons.undo_rounded, size: 20),
                             ),
                           ),
                           const SizedBox(width: 10),
@@ -372,7 +373,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   borderRadius: BorderRadius.circular(50),
                                 ),
                               ),
-                              child: const Text('Done ✓'),
+                              child: const Icon(Icons.check_rounded, size: 22),
                             ),
                           ),
                         ],
@@ -1140,7 +1141,13 @@ class _SidebarItem extends StatelessWidget {
 }
 
 // ─── Companion Chat ──────────────────────────────────────────────────────────
-class _CompanionChat extends StatelessWidget {
+class _ChatMessage {
+  final String text;
+  final bool isUser;
+  _ChatMessage({required this.text, required this.isUser});
+}
+
+class _CompanionChat extends StatefulWidget {
   final String companionName;
   final String companionAsset;
   const _CompanionChat({
@@ -1149,21 +1156,103 @@ class _CompanionChat extends StatelessWidget {
   });
 
   @override
+  State<_CompanionChat> createState() => _CompanionChatState();
+}
+
+class _CompanionChatState extends State<_CompanionChat> {
+  final List<_ChatMessage> _messages = [];
+  final List<Map<String, String>> _history = [];
+  final TextEditingController _input = TextEditingController();
+  final ScrollController _scroll = ScrollController();
+  bool _loading = false;
+
+  static const _kBaseUrl = 'https://moodiary-production.up.railway.app';
+
+  static const _prompts = [
+    'Tell me a motivational quote.',
+    'What should I do today?',
+    'I am feeling anxious.',
+    'Help me calm down.',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _addCompanion(
+      'Hi! I\'m ${widget.companionName}. How are you feeling today?',
+    );
+  }
+
+  @override
+  void dispose() {
+    _input.dispose();
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  void _addCompanion(String text) {
+    setState(() => _messages.add(_ChatMessage(text: text, isUser: false)));
+    _history.add({'role': 'model', 'text': text});
+    _scrollDown();
+  }
+
+  void _scrollDown() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scroll.hasClients) {
+        _scroll.animateTo(
+          _scroll.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  Future<void> _send(String text) async {
+    final msg = text.trim();
+    if (msg.isEmpty || _loading) return;
+    _input.clear();
+    setState(() {
+      _messages.add(_ChatMessage(text: msg, isUser: true));
+      _history.add({'role': 'user', 'text': msg});
+      _loading = true;
+    });
+    _scrollDown();
+
+    try {
+      final response = await http.post(
+        Uri.parse('$_kBaseUrl/api/chat'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'companionName': widget.companionName,
+          'message': msg,
+          'history': _history.length > 1
+              ? _history.sublist(0, _history.length - 1)
+              : [],
+        }),
+      );
+      final data = jsonDecode(response.body);
+      final reply = data['reply'] ?? data['error'] ?? 'Something went wrong.';
+      _addCompanion(reply);
+    } catch (_) {
+      _addCompanion('Oops, I lost connection. Try again?');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final prompts = [
-      'Tell me a motivational quote.',
-      'What should I do today?',
-      'I am feeling anxious.',
-      'Help me calm down.',
-    ];
+    final bool showPrompts = _messages.length <= 1;
     return Container(
-      height: MediaQuery.of(context).size.height * 0.55,
+      height: MediaQuery.of(context).size.height * 0.72,
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: Column(
         children: [
+          // ── Handle bar
           const SizedBox(height: 8),
           Container(
             width: 40,
@@ -1173,6 +1262,7 @@ class _CompanionChat extends StatelessWidget {
               borderRadius: BorderRadius.circular(2),
             ),
           ),
+          // ── Header
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             child: Row(
@@ -1186,7 +1276,7 @@ class _CompanionChat extends StatelessWidget {
                   ),
                   child: Center(
                     child: Image.asset(
-                      companionAsset,
+                      widget.companionAsset,
                       width: 32,
                       height: 32,
                       fit: BoxFit.contain,
@@ -1199,7 +1289,7 @@ class _CompanionChat extends StatelessWidget {
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  companionName,
+                  widget.companionName,
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -1215,46 +1305,216 @@ class _CompanionChat extends StatelessWidget {
             ),
           ),
           const Divider(height: 1),
+
+          // ── Messages
           Expanded(
-            child: Center(
-              child: Text(
-                'Hi! I\'m $companionName. How can I help you today?',
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: _kSubtle, fontSize: 14),
+            child: ListView.builder(
+              controller: _scroll,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              itemCount: _messages.length + (_loading ? 1 : 0),
+              itemBuilder: (_, i) {
+                if (i == _messages.length) {
+                  return _TypingBubble(companionAsset: widget.companionAsset);
+                }
+                final m = _messages[i];
+                return _ChatBubble(message: m);
+              },
+            ),
+          ),
+
+          // ── Quick prompts (only before first user message)
+          if (showPrompts)
+            Container(
+              height: 36,
+              margin: const EdgeInsets.only(bottom: 8),
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: _prompts.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (_, i) => TapScale(
+                  onTap: () => _send(_prompts[i]),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF3F0FB),
+                      borderRadius: BorderRadius.circular(50),
+                    ),
+                    child: Text(
+                      _prompts[i],
+                      style: const TextStyle(color: _kPurple, fontSize: 12),
+                    ),
+                  ),
+                ),
               ),
             ),
-          ),
+
+          // ── Input row
           const Divider(height: 1),
           Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              children: prompts
-                  .map(
-                    (p) => GestureDetector(
-                      onTap: () {},
-                      child: Container(
-                        width: double.infinity,
-                        margin: const EdgeInsets.only(bottom: 8),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 10,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF5F5F5),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          p,
-                          style: const TextStyle(color: _kDark, fontSize: 13),
-                        ),
+            padding: EdgeInsets.fromLTRB(
+              16,
+              8,
+              16,
+              MediaQuery.of(context).padding.bottom + 8,
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _input,
+                    textCapitalization: TextCapitalization.sentences,
+                    onSubmitted: _send,
+                    decoration: InputDecoration(
+                      hintText: 'Say something…',
+                      hintStyle: const TextStyle(color: Color(0xFFBBBBBB)),
+                      filled: true,
+                      fillColor: const Color(0xFFF5F5F5),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(50),
+                        borderSide: BorderSide.none,
                       ),
                     ),
-                  )
-                  .toList(),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                TapScale(
+                  onTap: () => _send(_input.text),
+                  child: Container(
+                    width: 44,
+                    height: 44,
+                    decoration: const BoxDecoration(
+                      color: _kPurple,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.send_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-          SizedBox(height: MediaQuery.of(context).padding.bottom),
         ],
+      ),
+    );
+  }
+}
+
+class _ChatBubble extends StatelessWidget {
+  final _ChatMessage message;
+  const _ChatBubble({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    final isUser = message.isUser;
+    return Align(
+      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width * 0.72,
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: isUser ? _kPurple : const Color(0xFFF3F0FB),
+          borderRadius: BorderRadius.only(
+            topLeft: const Radius.circular(18),
+            topRight: const Radius.circular(18),
+            bottomLeft: Radius.circular(isUser ? 18 : 4),
+            bottomRight: Radius.circular(isUser ? 4 : 18),
+          ),
+        ),
+        child: Text(
+          message.text,
+          style: TextStyle(
+            color: isUser ? Colors.white : _kDark,
+            fontSize: 14,
+            height: 1.4,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TypingBubble extends StatefulWidget {
+  final String companionAsset;
+  const _TypingBubble({required this.companionAsset});
+  @override
+  State<_TypingBubble> createState() => _TypingBubbleState();
+}
+
+class _TypingBubbleState extends State<_TypingBubble>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF3F0FB),
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(18),
+            topRight: Radius.circular(18),
+            bottomRight: Radius.circular(18),
+            bottomLeft: Radius.circular(4),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: List.generate(3, (i) {
+            return AnimatedBuilder(
+              animation: _ctrl,
+              builder: (_, __) {
+                final offset = ((_ctrl.value - i * 0.2) % 1.0);
+                final dy = offset < 0.5
+                    ? -4.0 * (offset / 0.5)
+                    : -4.0 * (1 - (offset - 0.5) / 0.5);
+                return Transform.translate(
+                  offset: Offset(0, dy),
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 2),
+                    width: 7,
+                    height: 7,
+                    decoration: const BoxDecoration(
+                      color: _kSubtle,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                );
+              },
+            );
+          }),
+        ),
       ),
     );
   }

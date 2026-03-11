@@ -5,6 +5,7 @@ require('dotenv').config({ path: '.env' });
 
 const moodRoutes = require('./routes/moods');
 const authRoutes = require('./routes/auth');
+const chatRoutes = require('./routes/chat');
 
 const app = express();
 
@@ -13,6 +14,7 @@ app.use(express.json());
 
 app.use('/api/moods', moodRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/chat', chatRoutes);
 
 mongoose
   .connect(process.env.MONGO_URI)
