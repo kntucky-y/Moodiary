@@ -185,7 +185,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   ) async {
     final score =
         moodLevel +
-        activities.fold(0, (sum, a) => sum + (_activityScoreMap[a] ?? 0));
+        activities.fold<int>(0, (sum, a) => sum + (_activityScoreMap[a] ?? 0));
     setState(() {
       _logs[dateKey] = _MoodLog(
         dateKey: dateKey,
@@ -769,7 +769,7 @@ class _LogModalState extends State<_LogModal> {
 
   int get _score =>
       _moodLevel +
-      _selectedActivities.fold(
+      _selectedActivities.fold<int>(
         0,
         (sum, a) => sum + (_activityScoreMap[a] ?? 0),
       );
