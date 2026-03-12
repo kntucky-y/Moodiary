@@ -21,10 +21,19 @@ const journalEntrySchema = new mongoose.Schema(
       type: String,
       default: 'okay',
     },
+    isArchived: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    archivedAt: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true }
 );
 
-journalEntrySchema.index({ userId: 1, createdAt: -1 });
+journalEntrySchema.index({ userId: 1, isArchived: 1, createdAt: -1 });
 
 module.exports = mongoose.model('JournalEntry', journalEntrySchema);

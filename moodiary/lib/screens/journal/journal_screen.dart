@@ -4,7 +4,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../utils/transitions.dart';
-import '../home/home_screen.dart';
 
 const _kPurple = Color(0xFFA076F9);
 const _kDark = Color(0xFF3D3B40);
@@ -29,6 +28,7 @@ class _JournalEntry {
   final String content;
   final String tag;
   final DateTime createdAt;
+  final bool isArchived;
 
   const _JournalEntry({
     required this.id,
@@ -36,6 +36,7 @@ class _JournalEntry {
     required this.content,
     required this.tag,
     required this.createdAt,
+    required this.isArchived,
   });
 
   factory _JournalEntry.fromJson(Map<String, dynamic> j) => _JournalEntry(
@@ -44,6 +45,7 @@ class _JournalEntry {
     content: j['content'] as String,
     tag: (j['tag'] as String?) ?? 'okay',
     createdAt: DateTime.parse(j['createdAt'] as String).toLocal(),
+    isArchived: (j['isArchived'] as bool?) ?? false,
   );
 }
 
@@ -69,6 +71,8 @@ class _JournalScreenState extends State<JournalScreen> {
   bool _loading = true;
   String? _token;
   bool _fabExpanded = false;
+  bool _showArchived = false;
+  final Set<String> _workingIds = <String>{};
 
   @override
   void initState() {
@@ -88,8 +92,9 @@ class _JournalScreenState extends State<JournalScreen> {
       return;
     }
     try {
+      if (mounted) setState(() => _loading = true);
       final resp = await http.get(
-        Uri.parse('$_kBaseUrl/api/journal'),
+        Uri.parse('$_kBaseUrl/api/journal?archived=$_showArchived'),
         headers: {'Authorization': 'Bearer $_token'},
       );
       if (resp.statusCode == 200) {
@@ -107,6 +112,146 @@ class _JournalScreenState extends State<JournalScreen> {
       }
     } catch (_) {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _toggleArchived() async {
+    setState(() {
+      _showArchived = !_showArchived;
+      _fabExpanded = false;
+    });
+    await _fetchEntries();
+  }
+
+  Future<bool> _confirmAction({
+    required String title,
+    required String message,
+    required String confirmText,
+    Color confirmColor = _kPurple,
+  }) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(confirmText, style: TextStyle(color: confirmColor)),
+          ),
+        ],
+      ),
+    );
+    return result == true;
+  }
+
+  Future<void> _archiveEntry(_JournalEntry entry) async {
+    if (_token == null) return;
+    final shouldArchive = await _confirmAction(
+      title: 'Archive journal?',
+      message: 'This will move it to Archive and you can recover it later.',
+      confirmText: 'Archive',
+    );
+    if (!shouldArchive) return;
+
+    setState(() => _workingIds.add(entry.id));
+    try {
+      final resp = await http.delete(
+        Uri.parse('$_kBaseUrl/api/journal/${entry.id}'),
+        headers: {'Authorization': 'Bearer $_token'},
+      );
+      if (!mounted) return;
+      if (resp.statusCode == 200) {
+        await _fetchEntries();
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Journal archived.')));
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to archive: ${resp.body}')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Archive failed: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _workingIds.remove(entry.id));
+    }
+  }
+
+  Future<void> _recoverEntry(_JournalEntry entry) async {
+    if (_token == null) return;
+    setState(() => _workingIds.add(entry.id));
+    try {
+      final resp = await http.post(
+        Uri.parse('$_kBaseUrl/api/journal/${entry.id}/recover'),
+        headers: {'Authorization': 'Bearer $_token'},
+      );
+      if (!mounted) return;
+      if (resp.statusCode == 200) {
+        await _fetchEntries();
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Journal recovered.')));
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to recover: ${resp.body}')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Recover failed: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _workingIds.remove(entry.id));
+    }
+  }
+
+  Future<void> _hardDeleteEntry(_JournalEntry entry) async {
+    if (_token == null) return;
+    final shouldDelete = await _confirmAction(
+      title: 'Delete permanently?',
+      message:
+          'This will permanently delete this archived journal and cannot be undone.',
+      confirmText: 'Delete',
+      confirmColor: Colors.red,
+    );
+    if (!shouldDelete) return;
+
+    setState(() => _workingIds.add(entry.id));
+    try {
+      final resp = await http.delete(
+        Uri.parse('$_kBaseUrl/api/journal/${entry.id}/permanent'),
+        headers: {'Authorization': 'Bearer $_token'},
+      );
+      if (!mounted) return;
+      if (resp.statusCode == 200) {
+        await _fetchEntries();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Journal permanently deleted.')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to delete permanently: ${resp.body}')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Delete failed: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _workingIds.remove(entry.id));
     }
   }
 
@@ -203,7 +348,19 @@ class _JournalScreenState extends State<JournalScreen> {
                             ),
                           ),
                           const Spacer(),
-                          const SizedBox(width: 22),
+                          IconButton(
+                            tooltip: _showArchived
+                                ? 'Show active journals'
+                                : 'Show archived journals',
+                            onPressed: _toggleArchived,
+                            icon: Icon(
+                              _showArchived
+                                  ? Icons.unarchive_outlined
+                                  : Icons.archive_outlined,
+                              size: 22,
+                              color: _showArchived ? _kPurple : _kDark,
+                            ),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 10),
@@ -239,9 +396,9 @@ class _JournalScreenState extends State<JournalScreen> {
                         ),
                       ),
                       const SizedBox(height: 2),
-                      const Text(
-                        'Write anything!',
-                        style: TextStyle(color: _kSubtle, fontSize: 13),
+                      Text(
+                        _showArchived ? 'Archived journals' : 'Write anything!',
+                        style: const TextStyle(color: _kSubtle, fontSize: 13),
                       ),
                       const SizedBox(height: 16),
                     ],
@@ -271,14 +428,24 @@ class _JournalScreenState extends State<JournalScreen> {
                                     const Icon(Icons.book_outlined, size: 80),
                               ),
                               const SizedBox(height: 12),
-                              const Text(
-                                'No entries yet.',
-                                style: TextStyle(color: _kSubtle, fontSize: 15),
+                              Text(
+                                _showArchived
+                                    ? 'Archive is empty.'
+                                    : 'No entries yet.',
+                                style: const TextStyle(
+                                  color: _kSubtle,
+                                  fontSize: 15,
+                                ),
                               ),
                               const SizedBox(height: 4),
-                              const Text(
-                                'Tap + to write your first one!',
-                                style: TextStyle(color: _kSubtle, fontSize: 12),
+                              Text(
+                                _showArchived
+                                    ? 'Soft-deleted journals appear here.'
+                                    : 'Tap + to write your first one!',
+                                style: const TextStyle(
+                                  color: _kSubtle,
+                                  fontSize: 12,
+                                ),
                               ),
                             ],
                           ),
@@ -288,11 +455,13 @@ class _JournalScreenState extends State<JournalScreen> {
                           itemCount: _entries.length + 1,
                           itemBuilder: (ctx, i) {
                             if (i == 0) {
-                              return const Padding(
+                              return Padding(
                                 padding: EdgeInsets.only(bottom: 12),
                                 child: Text(
-                                  'All Entries',
-                                  style: TextStyle(
+                                  _showArchived
+                                      ? 'Archived Entries'
+                                      : 'All Entries',
+                                  style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 18,
                                     color: _kDark,
@@ -306,7 +475,16 @@ class _JournalScreenState extends State<JournalScreen> {
                               formatDate: _formatDate,
                               formatWeekday: _formatWeekday,
                               formatTime: _formatTime,
-                              onTap: () => _openEditor(existing: entry),
+                              onTap: _showArchived
+                                  ? null
+                                  : () => _openEditor(existing: entry),
+                              onLongPress: _showArchived
+                                  ? null
+                                  : () => _archiveEntry(entry),
+                              showArchivedActions: _showArchived,
+                              actionBusy: _workingIds.contains(entry.id),
+                              onRecover: () => _recoverEntry(entry),
+                              onPermanentDelete: () => _hardDeleteEntry(entry),
                             );
                           },
                         ),
@@ -315,125 +493,126 @@ class _JournalScreenState extends State<JournalScreen> {
             ],
           ),
           // ── FAB / companion bubble ───────────────────────────────────────────
-          if (_fabExpanded)
+          if (!_showArchived && _fabExpanded)
             GestureDetector(
               onTap: () => setState(() => _fabExpanded = false),
               child: Container(color: Colors.transparent),
             ),
-          AnimatedPositioned(
-            duration: const Duration(milliseconds: 250),
-            curve: Curves.easeOutCubic,
-            bottom: 24,
-            right: 20,
-            child: _fabExpanded
-                ? Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Image.asset(
-                        'assets/doodle${widget.companionId}.png',
-                        width: 72,
-                        errorBuilder: (_, __, ___) => const SizedBox(),
-                      ),
-                      const SizedBox(width: 8),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // Speech bubble
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF3D3B40),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Text(
-                              "What's on your mind today?",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
+          if (!_showArchived)
+            AnimatedPositioned(
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeOutCubic,
+              bottom: 24,
+              right: 20,
+              child: _fabExpanded
+                  ? Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Image.asset(
+                          'assets/doodle${widget.companionId}.png',
+                          width: 72,
+                          errorBuilder: (_, __, ___) => const SizedBox(),
+                        ),
+                        const SizedBox(width: 8),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Speech bubble
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
                               ),
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          Row(
-                            children: [
-                              // Dismiss
-                              GestureDetector(
-                                onTap: () =>
-                                    setState(() => _fabExpanded = false),
-                                child: Container(
-                                  width: 32,
-                                  height: 32,
-                                  decoration: const BoxDecoration(
-                                    color: Color(0xFFEF4444),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(
-                                    Icons.close,
-                                    color: Colors.white,
-                                    size: 18,
-                                  ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF3D3B40),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Text(
+                                "What's on your mind today?",
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
-                              const SizedBox(width: 10),
-                              // Add
-                              GestureDetector(
-                                onTap: () => _openEditor(),
-                                child: Container(
-                                  width: 52,
-                                  height: 52,
-                                  decoration: const BoxDecoration(
-                                    color: Colors.white,
-                                    shape: BoxShape.circle,
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Color(0x22000000),
-                                        blurRadius: 8,
-                                        offset: Offset(0, 2),
-                                      ),
-                                    ],
-                                  ),
-                                  child: const Icon(
-                                    Icons.add,
-                                    color: _kDark,
-                                    size: 28,
+                            ),
+                            const SizedBox(height: 10),
+                            Row(
+                              children: [
+                                // Dismiss
+                                GestureDetector(
+                                  onTap: () =>
+                                      setState(() => _fabExpanded = false),
+                                  child: Container(
+                                    width: 32,
+                                    height: 32,
+                                    decoration: const BoxDecoration(
+                                      color: Color(0xFFEF4444),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.close,
+                                      color: Colors.white,
+                                      size: 18,
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ],
-                  )
-                : GestureDetector(
-                    onTap: () => setState(() => _fabExpanded = true),
-                    child: Container(
-                      width: 60,
-                      height: 60,
-                      decoration: const BoxDecoration(
-                        color: _kPurple,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Color(0x44A076F9),
-                            blurRadius: 12,
-                            offset: Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.add,
-                        color: Colors.white,
-                        size: 32,
+                                const SizedBox(width: 10),
+                                // Add
+                                GestureDetector(
+                                  onTap: () => _openEditor(),
+                                  child: Container(
+                                    width: 52,
+                                    height: 52,
+                                    decoration: const BoxDecoration(
+                                      color: Colors.white,
+                                      shape: BoxShape.circle,
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Color(0x22000000),
+                                          blurRadius: 8,
+                                          offset: Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: const Icon(
+                                      Icons.add,
+                                      color: _kDark,
+                                      size: 28,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ],
+                    )
+                  : GestureDetector(
+                      onTap: () => setState(() => _fabExpanded = true),
+                      child: Container(
+                        width: 60,
+                        height: 60,
+                        decoration: const BoxDecoration(
+                          color: _kPurple,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Color(0x44A076F9),
+                              blurRadius: 12,
+                              offset: Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.add,
+                          color: Colors.white,
+                          size: 32,
+                        ),
                       ),
                     ),
-                  ),
-          ),
+            ),
         ],
       ),
     );
@@ -446,7 +625,12 @@ class _EntryCard extends StatelessWidget {
   final String Function(DateTime) formatDate;
   final String Function(DateTime) formatWeekday;
   final String Function(DateTime) formatTime;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
+  final bool showArchivedActions;
+  final bool actionBusy;
+  final VoidCallback? onRecover;
+  final VoidCallback? onPermanentDelete;
 
   const _EntryCard({
     required this.entry,
@@ -454,6 +638,11 @@ class _EntryCard extends StatelessWidget {
     required this.formatWeekday,
     required this.formatTime,
     required this.onTap,
+    this.onLongPress,
+    this.showArchivedActions = false,
+    this.actionBusy = false,
+    this.onRecover,
+    this.onPermanentDelete,
   });
 
   @override
@@ -463,91 +652,134 @@ class _EntryCard extends StatelessWidget {
         ? '${entry.content.substring(0, 120)}...'
         : entry.content;
 
-    return TapScale(
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF9F9F9),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Date column
-            Container(
-              width: 78,
-              padding: const EdgeInsets.only(right: 12),
-              decoration: const BoxDecoration(
-                border: Border(
-                  right: BorderSide(color: Color(0xFFE5E5E5), width: 1.5),
+    return GestureDetector(
+      onLongPress: onLongPress,
+      child: TapScale(
+        onTap: onTap,
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF9F9F9),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Date column
+              Container(
+                width: 78,
+                padding: const EdgeInsets.only(right: 12),
+                decoration: const BoxDecoration(
+                  border: Border(
+                    right: BorderSide(color: Color(0xFFE5E5E5), width: 1.5),
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    Text(
+                      formatDate(entry.createdAt),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: _kDark,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      formatWeekday(entry.createdAt),
+                      style: const TextStyle(fontSize: 10, color: _kSubtle),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      formatTime(entry.createdAt),
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: Color(0xFFAAAAAA),
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 6),
+                    Image.asset(
+                      asset,
+                      width: 36,
+                      height: 36,
+                      errorBuilder: (_, __, ___) =>
+                          const Icon(Icons.sentiment_neutral, size: 36),
+                    ),
+                  ],
                 ),
               ),
-              child: Column(
-                children: [
-                  Text(
-                    formatDate(entry.createdAt),
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: _kDark,
+              const SizedBox(width: 12),
+              // Content column
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      entry.title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        color: _kDark,
+                      ),
                     ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    formatWeekday(entry.createdAt),
-                    style: const TextStyle(fontSize: 10, color: _kSubtle),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    formatTime(entry.createdAt),
-                    style: const TextStyle(
-                      fontSize: 10,
-                      color: Color(0xFFAAAAAA),
+                    const SizedBox(height: 4),
+                    Text(
+                      preview,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF666666),
+                        height: 1.5,
+                      ),
                     ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 6),
-                  Image.asset(
-                    asset,
-                    width: 36,
-                    height: 36,
-                    errorBuilder: (_, __, ___) =>
-                        const Icon(Icons.sentiment_neutral, size: 36),
-                  ),
-                ],
+                    if (showArchivedActions) ...[
+                      const SizedBox(height: 10),
+                      actionBusy
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : Row(
+                              children: [
+                                OutlinedButton.icon(
+                                  onPressed: onRecover,
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: _kPurple,
+                                    side: const BorderSide(color: _kPurple),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 6,
+                                    ),
+                                  ),
+                                  icon: const Icon(Icons.restore, size: 16),
+                                  label: const Text('Recover'),
+                                ),
+                                const SizedBox(width: 8),
+                                OutlinedButton.icon(
+                                  onPressed: onPermanentDelete,
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: Colors.red,
+                                    side: const BorderSide(color: Colors.red),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 6,
+                                    ),
+                                  ),
+                                  icon: const Icon(Icons.delete, size: 16),
+                                  label: const Text('Delete'),
+                                ),
+                              ],
+                            ),
+                    ],
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            // Content column
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    entry.title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                      color: _kDark,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    preview,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF666666),
-                      height: 1.5,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
