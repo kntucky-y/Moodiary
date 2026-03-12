@@ -13,7 +13,7 @@ const moodLogSchema = new mongoose.Schema(
     },
     moodLevel: { // 1=Terrible, 2=Bad, 3=Okay, 4=Good, 5=Excellent
       type: Number,
-      required: true,
+      default: 3,
       min: 1,
       max: 5,
     },
@@ -21,6 +21,17 @@ const moodLogSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
+    // moodScore  = moodLevel + sum of activity scores (set by calendar)
+    moodScore: {
+      type: Number,
+      default: 0,
+    },
+    // taskScore  = points earned from daily task completions (set by home)
+    taskScore: {
+      type: Number,
+      default: 0,
+    },
+    // score = moodScore + taskScore (combined total, computed by server)
     score: {
       type: Number,
       default: 0,
