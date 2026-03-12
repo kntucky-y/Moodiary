@@ -1,22 +1,35 @@
 const mongoose = require('mongoose');
 
-const moodSchema = new mongoose.Schema(
+const moodLogSchema = new mongoose.Schema(
   {
-    mood: {
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
+    dateKey: { // YYYY-MM-DD
       type: String,
       required: true,
-      enum: ['happy', 'sad', 'angry', 'anxious', 'calm', 'excited', 'neutral'],
     },
-    note: {
-      type: String,
-      default: '',
+    moodLevel: { // 1=Terrible, 2=Bad, 3=Okay, 4=Good, 5=Excellent
+      type: Number,
+      required: true,
+      min: 1,
+      max: 5,
     },
-    date: {
-      type: Date,
-      default: Date.now,
+    activities: {
+      type: [String],
+      default: [],
+    },
+    score: {
+      type: Number,
+      default: 0,
     },
   },
   { timestamps: true }
 );
 
-module.exports = mongoose.model('Mood', moodSchema);
+// One log per user per day
+moodLogSchema.index({ userId: 1, dateKey: 1 }, { unique: true });
+
+module.exports = mongoose.model('MoodLog', moodLogSchema);

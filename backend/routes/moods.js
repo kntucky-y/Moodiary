@@ -1,52 +1,39 @@
 const express = require('express');
 const router = express.Router();
-const Mood = require('../models/Mood');
+const auth = require('../middleware/auth');
+const MoodLog = require('../models/Mood');
 
-// GET all moods
-router.get('/', async (req, res) => {
+// GET /api/moods — all logs for the authenticated user
+router.get('/', auth, async (req, res) => {
   try {
-    const moods = await Mood.find().sort({ date: -1 });
-    res.json(moods);
+    const logs = await MoodLog.find({ userId: req.userId }).sort({ dateKey: 1 });
+    res.json(logs);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// GET a single mood by ID
-router.get('/:id', async (req, res) => {
+// POST /api/moods — upsert a mood log for a specific date
+router.post('/', auth, async (req, res) => {
+  const { dateKey, moodLevel, activities, score } = req.body;
+
+  if (!dateKey || !moodLevel) {
+    return res.status(400).json({ error: 'dateKey and moodLevel are required' });
+  }
+
   try {
-    const mood = await Mood.findById(req.params.id);
-    if (!mood) return res.status(404).json({ error: 'Mood not found' });
-    res.json(mood);
+    const log = await MoodLog.findOneAndUpdate(
+      { userId: req.userId, dateKey },
+      { moodLevel, activities: activities || [], score: score || 0 },
+      { upsert: true, new: true }
+    );
+    res.json(log);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// POST a new mood entry
-router.post('/', async (req, res) => {
-  try {
-    const mood = new Mood({
-      mood: req.body.mood,
-      note: req.body.note,
-      date: req.body.date,
-    });
-    const saved = await mood.save();
-    res.status(201).json(saved);
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
-});
+module.exports = router;
 
-// DELETE a mood entry
-router.delete('/:id', async (req, res) => {
-  try {
-    const deleted = await Mood.findByIdAndDelete(req.params.id);
-    if (!deleted) return res.status(404).json({ error: 'Mood not found' });
-    res.json({ message: 'Mood deleted' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
 
 module.exports = router;

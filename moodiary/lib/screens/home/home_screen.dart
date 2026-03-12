@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../onboarding/onboarding_screen.dart';
 import '../companion/companion_screen.dart';
+import '../calendar/calendar_screen.dart';
 import '../../utils/transitions.dart';
 
 const _kPurple = Color(0xFFA076F9);
@@ -590,7 +591,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
         ],
       ),
-      bottomNavigationBar: const _BottomNav(),
+      bottomNavigationBar: _BottomNav(
+        userName: widget.userName,
+        companionId: widget.companionId,
+        companionName: widget.companionName,
+      ),
     );
   }
 }
@@ -953,16 +958,37 @@ class _MoodScoreCard extends StatelessWidget {
 
 // ─── Bottom Nav ───────────────────────────────────────────────────────────────
 class _BottomNav extends StatelessWidget {
-  const _BottomNav();
+  final String userName;
+  final int companionId;
+  final String companionName;
+  const _BottomNav({
+    required this.userName,
+    required this.companionId,
+    required this.companionName,
+  });
 
   @override
   Widget build(BuildContext context) {
-    const items = [
-      _NavItem(Icons.calendar_month_outlined, 'Calendar'),
-      _NavItem(Icons.book_outlined, 'Journal'),
-      _NavItem(Icons.home_rounded, 'Home', active: true),
-      _NavItem(Icons.chat_bubble_outline, 'Forums'),
-      _NavItem(Icons.folder_outlined, 'Resources'),
+    final items = [
+      _NavItem(
+        Icons.calendar_month_outlined,
+        'Calendar',
+        onTap: () {
+          Navigator.of(context).push(
+            FadeSlideRoute(
+              page: CalendarScreen(
+                userName: userName,
+                companionId: companionId,
+                companionName: companionName,
+              ),
+            ),
+          );
+        },
+      ),
+      _NavItem(Icons.book_outlined, 'Journal', onTap: () {}),
+      _NavItem(Icons.home_rounded, 'Home', active: true, onTap: () {}),
+      _NavItem(Icons.chat_bubble_outline, 'Forums', onTap: () {}),
+      _NavItem(Icons.folder_outlined, 'Resources', onTap: () {}),
     ];
     return Container(
       decoration: const BoxDecoration(
@@ -975,7 +1001,7 @@ class _BottomNav extends StatelessWidget {
         children: items
             .map(
               (item) => TapScale(
-                onTap: () {},
+                onTap: item.onTap,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -1009,7 +1035,13 @@ class _NavItem {
   final IconData icon;
   final String label;
   final bool active;
-  const _NavItem(this.icon, this.label, {this.active = false});
+  final VoidCallback onTap;
+  const _NavItem(
+    this.icon,
+    this.label, {
+    this.active = false,
+    required this.onTap,
+  });
 }
 
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
