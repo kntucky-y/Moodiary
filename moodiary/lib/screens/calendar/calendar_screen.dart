@@ -72,6 +72,10 @@ final _activityScoreMap = Map.fromEntries(
   _allActivities.map((a) => MapEntry(a.name, a.score)),
 );
 
+// Points earned per mood level selection (index = moodLevel - 1)
+// Terrible=5, Bad=10, Okay=20, Good=35, Excellent=50
+const _moodLevelPoints = [5, 10, 20, 35, 50];
+
 // ─── MoodLog model ────────────────────────────────────────────────────────────
 class _MoodLog {
   final String dateKey;
@@ -98,9 +102,9 @@ class _MoodLog {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 Color _dotColor(int score) {
-  if (score >= 9) return const Color(0xFF10B981);
-  if (score >= 6) return const Color(0xFF84CC16);
-  if (score >= 3) return const Color(0xFFFACC15);
+  if (score >= 70) return const Color(0xFF10B981);
+  if (score >= 40) return const Color(0xFF84CC16);
+  if (score >= 20) return const Color(0xFFFACC15);
   if (score >= 0) return const Color(0xFFF97316);
   return const Color(0xFFEF4444);
 }
@@ -209,7 +213,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     List<String> activities,
   ) async {
     final moodScore =
-        moodLevel +
+        _moodLevelPoints[moodLevel - 1] +
         activities.fold<int>(0, (sum, a) => sum + (_activityScoreMap[a] ?? 0));
     // Optimistic update: show moodScore immediately (will update with combined
     // total once the DB responds with the home-screen task score included)
@@ -833,17 +837,16 @@ class _LogModalState extends State<_LogModal> {
   }
 
   int get _score =>
-      _moodLevel +
+      (_moodLevel > 0 ? _moodLevelPoints[_moodLevel - 1] : 0) +
       _selectedActivities.fold<int>(
         0,
         (sum, a) => sum + (_activityScoreMap[a] ?? 0),
       );
 
   Color get _scoreBarColor {
-    final pct = (_score / 12).clamp(0.0, 1.0);
-    if (pct > 0.75) return const Color(0xFF4ADE80);
-    if (pct > 0.5) return const Color(0xFFA3E635);
-    if (pct > 0.25) return const Color(0xFFFBBF24);
+    if (_score >= 50) return const Color(0xFF4ADE80);
+    if (_score >= 30) return const Color(0xFFA3E635);
+    if (_score >= 15) return const Color(0xFFFBBF24);
     return const Color(0xFFF87171);
   }
 
@@ -1013,7 +1016,7 @@ class _LogModalState extends State<_LogModal> {
           ClipRRect(
             borderRadius: BorderRadius.circular(10),
             child: LinearProgressIndicator(
-              value: (_score / 12).clamp(0.0, 1.0),
+              value: (_score / 60).clamp(0.0, 1.0),
               minHeight: 12,
               backgroundColor: const Color(0xFFE5E7EB),
               valueColor: AlwaysStoppedAnimation<Color>(_scoreBarColor),

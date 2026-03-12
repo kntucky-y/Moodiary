@@ -285,8 +285,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     } catch (_) {}
   }
 
-  int get _maxScore => _todayTasks.fold(0, (sum, t) => sum + t.points);
-
   int get _pendingCount => _completedStates.where((c) => !c).length;
 
   String get _companionAsset => 'assets/doodle${widget.companionId}.png';
@@ -510,7 +508,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       ),
                       const SizedBox(height: 12),
                       // ── Mood Score Card ─────────────────────────────────
-                      _MoodScoreCard(score: _moodScore, maxScore: _maxScore),
+                      _MoodScoreCard(score: _moodScore),
                       const SizedBox(height: 12),
                       Container(
                         decoration: BoxDecoration(
@@ -907,21 +905,40 @@ class _TaskCard extends StatelessWidget {
 // ─── Mood Score Card ──────────────────────────────────────────────────────────
 class _MoodScoreCard extends StatelessWidget {
   final int score;
-  final int maxScore;
-  const _MoodScoreCard({required this.score, required this.maxScore});
+  const _MoodScoreCard({required this.score});
 
-  String get _label {
-    if (maxScore == 0) return 'Complete tasks to earn points!';
-    final pct = score / maxScore;
-    if (pct == 0) return 'Start your day strong 💪';
-    if (pct < 0.5) return 'Good start, keep going!';
-    if (pct < 1.0) return 'Almost there, you\'re doing great!';
-    return 'All tasks done! Amazing day 🎉';
+  String get _statusLabel {
+    if (score >= 100) return 'Thriving 🌟';
+    if (score >= 70) return 'Great 😊';
+    if (score >= 40) return 'Good 🙂';
+    if (score >= 20) return 'Moderate 😐';
+    if (score > 0) return 'Low 😔';
+    if (score < 0) return 'Struggling 💙';
+    return 'No score yet 💤';
+  }
+
+  String get _message {
+    if (score >= 100) return 'You\'re having an amazing day!';
+    if (score >= 70) return 'Keep up the great energy!';
+    if (score >= 40) return 'Solid day, well done!';
+    if (score >= 20) return 'You\'re making progress!';
+    if (score > 0) return 'Small steps still count!';
+    if (score < 0) return 'Take it easy — it\'s okay.';
+    return 'Log a mood or complete a task!';
+  }
+
+  Color get _statusColor {
+    if (score >= 100) return const Color(0xFF10B981);
+    if (score >= 70) return const Color(0xFF84CC16);
+    if (score >= 40) return const Color(0xFF60A5FA);
+    if (score >= 20) return const Color(0xFFFBBF24);
+    if (score > 0) return const Color(0xFFF97316);
+    if (score < 0) return const Color(0xFFEF4444);
+    return const Color(0xFF94A3B8);
   }
 
   @override
   Widget build(BuildContext context) {
-    final progress = maxScore > 0 ? (score / maxScore).clamp(0.0, 1.0) : 0.0;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -953,43 +970,42 @@ class _MoodScoreCard extends StatelessWidget {
                   color: _kDark,
                 ),
               ),
-              RichText(
-                text: TextSpan(
-                  children: [
-                    TextSpan(
-                      text: '$score',
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: _kPurple,
+              Row(
+                children: [
+                  Text(
+                    '$score pts',
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: _kPurple,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _statusColor.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: _statusColor.withOpacity(0.5)),
+                    ),
+                    child: Text(
+                      _statusLabel,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: _statusColor,
                       ),
                     ),
-                    TextSpan(
-                      text: ' / $maxScore pts',
-                      style: const TextStyle(fontSize: 13, color: _kSubtle),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          TweenAnimationBuilder<double>(
-            tween: Tween<double>(begin: 0, end: progress),
-            duration: const Duration(milliseconds: 600),
-            curve: Curves.easeOutCubic,
-            builder: (_, value, __) => ClipRRect(
-              borderRadius: BorderRadius.circular(50),
-              child: LinearProgressIndicator(
-                value: value,
-                minHeight: 8,
-                backgroundColor: const Color(0xFFDDD6FE),
-                valueColor: const AlwaysStoppedAnimation<Color>(_kPurple),
-              ),
-            ),
-          ),
           const SizedBox(height: 8),
-          Text(_label, style: const TextStyle(fontSize: 12, color: _kSubtle)),
+          Text(_message, style: const TextStyle(fontSize: 12, color: _kSubtle)),
         ],
       ),
     );
