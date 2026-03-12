@@ -6,6 +6,7 @@ require('dotenv').config({ path: '.env' });
 const moodRoutes = require('./routes/moods');
 const authRoutes = require('./routes/auth');
 const chatRoutes = require('./routes/chat');
+const journalRoutes = require('./routes/journal');
 
 const app = express();
 
@@ -15,6 +16,7 @@ app.use(express.json());
 app.use('/api/moods', moodRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/journal', journalRoutes);
 
 // Health-check — visit /api/health to confirm env vars are loaded on Railway
 app.get('/api/health', (req, res) => {

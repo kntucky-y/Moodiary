@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../onboarding/onboarding_screen.dart';
 import '../companion/companion_screen.dart';
 import '../calendar/calendar_screen.dart';
+import '../journal/journal_screen.dart';
 import '../../utils/transitions.dart';
 
 const _kPurple = Color(0xFFA076F9);
@@ -704,6 +705,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ),
                 );
               },
+              onNavigateJournal: () {
+                setState(() => _sidebarOpen = false);
+                Navigator.of(context).push(
+                  FadeSlideRoute(
+                    page: JournalScreen(
+                      userName: widget.userName,
+                      companionId: widget.companionId,
+                      companionName: widget.companionName,
+                    ),
+                  ),
+                );
+              },
               onChangeCompanion: () {
                 setState(() => _sidebarOpen = false);
                 Navigator.of(context).push(
@@ -1129,7 +1142,21 @@ class _BottomNav extends StatelessWidget {
           );
         },
       ),
-      _NavItem(Icons.book_outlined, 'Journal', onTap: () {}),
+      _NavItem(
+        Icons.book_outlined,
+        'Journal',
+        onTap: () {
+          Navigator.of(context).push(
+            FadeSlideRoute(
+              page: JournalScreen(
+                userName: userName,
+                companionId: companionId,
+                companionName: companionName,
+              ),
+            ),
+          );
+        },
+      ),
       _NavItem(Icons.home_rounded, 'Home', active: true, onTap: () {}),
       _NavItem(Icons.chat_bubble_outline, 'Forums', onTap: () {}),
       _NavItem(Icons.folder_outlined, 'Resources', onTap: () {}),
@@ -1193,6 +1220,7 @@ class _Sidebar extends StatelessWidget {
   final String userName;
   final VoidCallback onClose;
   final VoidCallback onNavigateCalendar;
+  final VoidCallback onNavigateJournal;
   final VoidCallback onChangeCompanion;
   final VoidCallback onLogout;
 
@@ -1200,6 +1228,7 @@ class _Sidebar extends StatelessWidget {
     required this.userName,
     required this.onClose,
     required this.onNavigateCalendar,
+    required this.onNavigateJournal,
     required this.onChangeCompanion,
     required this.onLogout,
   });
@@ -1247,7 +1276,13 @@ class _Sidebar extends StatelessWidget {
                   label: 'Calendar',
                 ),
               ),
-              const _SidebarItem(icon: Icons.book_outlined, label: 'Journal'),
+              TapScale(
+                onTap: onNavigateJournal,
+                child: const _SidebarItem(
+                  icon: Icons.book_outlined,
+                  label: 'Journal',
+                ),
+              ),
               const _SidebarItem(
                 icon: Icons.chat_bubble_outline,
                 label: 'Forums',
