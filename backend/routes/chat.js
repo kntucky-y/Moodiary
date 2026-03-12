@@ -1,13 +1,13 @@
 const express = require('express');
 const router = express.Router();
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const Groq = require('groq-sdk');
 
-if (!process.env.GEMINI_API_KEY) {
-  console.error('FATAL: GEMINI_API_KEY environment variable is not set.');
+if (!process.env.GROQ_API_KEY) {
+  console.error('FATAL: GROQ_API_KEY environment variable is not set.');
   process.exit(1);
 }
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 const personalities = {
   Sparky: `You are Sparky, an energetic and cheerful mental wellness companion in the Moodiary app. You find joy in the smallest things and help users celebrate their happy moments. Your tone is upbeat, enthusiastic, and warm. Keep responses short (2-3 sentences). Never give medical advice.`,
@@ -34,35 +34,30 @@ router.post('/', async (req, res) => {
     return res.status(400).json({ error: 'Message is required' });
   }
 
-  const systemPrompt =
-    personalities[companionName] || defaultPersonality;
+  const systemPrompt = personalities[companionName] || defaultPersonality;
+
+  // Build conversation history (last 10 messages)
+  const messages = [{ role: 'system', content: systemPrompt }];
+  if (Array.isArray(history) && history.length > 0) {
+    history.slice(-10).forEach((m) => {
+      messages.push({
+        role: m.role === 'user' ? 'user' : 'assistant',
+        content: m.text,
+      });
+    });
+  }
+  messages.push({ role: 'user', content: message });
 
   try {
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash',
-      systemInstruction: systemPrompt,
+    const completion = await groq.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      messages,
+      max_tokens: 200,
     });
-
-    // Build conversation history for context (last 10 messages)
-    // Gemini requires history to start with a 'user' role, so drop any
-    // leading 'model' messages (e.g. the companion's opening greeting).
-    let safeHistory = [];
-    if (Array.isArray(history) && history.length > 0) {
-      const mapped = history.slice(-10).map((m) => ({
-        role: m.role === 'user' ? 'user' : 'model',
-        parts: [{ text: m.text }],
-      }));
-      // Drop leading model turns
-      const firstUser = mapped.findIndex((m) => m.role === 'user');
-      safeHistory = firstUser >= 0 ? mapped.slice(firstUser) : [];
-    }
-
-    const chat = model.startChat({ history: safeHistory });
-    const result = await chat.sendMessage(message);
-    const text = result.response.text();
+    const text = completion.choices[0].message.content;
     res.json({ reply: text });
   } catch (err) {
-    console.error('Gemini error:', err.message);
+    console.error('Groq error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
