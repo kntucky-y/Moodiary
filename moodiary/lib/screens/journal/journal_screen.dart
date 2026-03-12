@@ -89,7 +89,10 @@ class _JournalScreenState extends State<JournalScreen> {
     await _fetchEntries(archived: false, force: true);
   }
 
-  Future<void> _fetchEntries({required bool archived, bool force = false}) async {
+  Future<void> _fetchEntries({
+    required bool archived,
+    bool force = false,
+  }) async {
     if (_token == null) {
       setState(() => _loading = false);
       return;
@@ -463,8 +466,8 @@ class _JournalScreenState extends State<JournalScreen> {
                   ),
                   child: _loading
                       ? shownEntries.isEmpty
-                        ? const Center(child: CircularProgressIndicator())
-                        : _buildEntriesList(shownEntries)
+                            ? const Center(child: CircularProgressIndicator())
+                            : _buildEntriesList(shownEntries)
                       : shownEntries.isEmpty
                       ? Center(
                           child: Column(
@@ -702,146 +705,145 @@ class _EntryCard extends StatelessWidget {
     return TapScale(
       onTap: onTap,
       child: Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF9F9F9),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Date column
-              Container(
-                width: 78,
-                padding: const EdgeInsets.only(right: 12),
-                decoration: const BoxDecoration(
-                  border: Border(
-                    right: BorderSide(color: Color(0xFFE5E5E5), width: 1.5),
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    Text(
-                      formatDate(entry.createdAt),
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: _kDark,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      formatWeekday(entry.createdAt),
-                      style: const TextStyle(fontSize: 10, color: _kSubtle),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      formatTime(entry.createdAt),
-                      style: const TextStyle(
-                        fontSize: 10,
-                        color: Color(0xFFAAAAAA),
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 6),
-                    Image.asset(
-                      asset,
-                      width: 36,
-                      height: 36,
-                      errorBuilder: (_, __, ___) =>
-                          const Icon(Icons.sentiment_neutral, size: 36),
-                    ),
-                  ],
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF9F9F9),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Date column
+            Container(
+              width: 78,
+              padding: const EdgeInsets.only(right: 12),
+              decoration: const BoxDecoration(
+                border: Border(
+                  right: BorderSide(color: Color(0xFFE5E5E5), width: 1.5),
                 ),
               ),
-              const SizedBox(width: 12),
-              // Content column
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            entry.title,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                              color: _kDark,
-                            ),
+              child: Column(
+                children: [
+                  Text(
+                    formatDate(entry.createdAt),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: _kDark,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    formatWeekday(entry.createdAt),
+                    style: const TextStyle(fontSize: 10, color: _kSubtle),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    formatTime(entry.createdAt),
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: Color(0xFFAAAAAA),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 6),
+                  Image.asset(
+                    asset,
+                    width: 36,
+                    height: 36,
+                    errorBuilder: (_, __, ___) =>
+                        const Icon(Icons.sentiment_neutral, size: 36),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            // Content column
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          entry.title,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            color: _kDark,
                           ),
                         ),
-                        if (!showArchivedActions && onArchive != null)
-                          IconButton(
-                            onPressed: onArchive,
-                            splashRadius: 18,
-                            icon: const Icon(
-                              Icons.delete_outline_rounded,
-                              color: Colors.red,
-                              size: 20,
-                            ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      preview,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF666666),
-                        height: 1.5,
                       ),
-                    ),
-                    if (showArchivedActions) ...[
-                      const SizedBox(height: 10),
-                      actionBusy
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : Row(
-                              children: [
-                                OutlinedButton.icon(
-                                  onPressed: onRecover,
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: _kPurple,
-                                    side: const BorderSide(color: _kPurple),
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 6,
-                                    ),
-                                  ),
-                                  icon: const Icon(Icons.restore, size: 16),
-                                  label: const Text('Recover'),
-                                ),
-                                const SizedBox(width: 8),
-                                OutlinedButton.icon(
-                                  onPressed: onPermanentDelete,
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: Colors.red,
-                                    side: const BorderSide(color: Colors.red),
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 6,
-                                    ),
-                                  ),
-                                  icon: const Icon(Icons.delete, size: 16),
-                                  label: const Text('Delete'),
-                                ),
-                              ],
-                            ),
+                      if (!showArchivedActions && onArchive != null)
+                        IconButton(
+                          onPressed: onArchive,
+                          splashRadius: 18,
+                          icon: const Icon(
+                            Icons.delete_outline_rounded,
+                            color: Colors.red,
+                            size: 20,
+                          ),
+                        ),
                     ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    preview,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF666666),
+                      height: 1.5,
+                    ),
+                  ),
+                  if (showArchivedActions) ...[
+                    const SizedBox(height: 10),
+                    actionBusy
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Row(
+                            children: [
+                              OutlinedButton.icon(
+                                onPressed: onRecover,
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: _kPurple,
+                                  side: const BorderSide(color: _kPurple),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 6,
+                                  ),
+                                ),
+                                icon: const Icon(Icons.restore, size: 16),
+                                label: const Text('Recover'),
+                              ),
+                              const SizedBox(width: 8),
+                              OutlinedButton.icon(
+                                onPressed: onPermanentDelete,
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.red,
+                                  side: const BorderSide(color: Colors.red),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 6,
+                                  ),
+                                ),
+                                icon: const Icon(Icons.delete, size: 16),
+                                label: const Text('Delete'),
+                              ),
+                            ],
+                          ),
                   ],
-                ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
