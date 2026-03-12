@@ -18,11 +18,11 @@ app.use('/api/chat', chatRoutes);
 
 // Health-check — visit /api/health to confirm env vars are loaded on Railway
 app.get('/api/health', (req, res) => {
-  const key = process.env.GEMINI_API_KEY;
+  const key = process.env.GROQ_API_KEY;
   res.json({
     status: 'ok',
-    geminiKeyLoaded: !!key,
-    geminiKeyPrefix: key ? key.slice(0, 8) + '...' : null,
+    groqKeyLoaded: !!key,
+    groqKeyPrefix: key ? key.slice(0, 8) + '...' : null,
   });
 });
 
