@@ -227,13 +227,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       _completedStates.map((b) => '$b').join(','),
     );
     await prefs.setInt('mood_score_$today', newScore);
+    _syncScoreToDb(today, newScore);
   }
 
   Future<void> _undoTask(int index) async {
     if (!_completedStates[index]) return;
     final prefs = await SharedPreferences.getInstance();
     final today = _dateKey();
-    final newScore = (_moodScore - _todayTasks[index].points).clamp(0, 9999);
+    final newScore =
+        (_moodScore - _todayTasks[index].points).clamp(0, 9999) as int;
     setState(() {
       _completedStates[index] = false;
       _moodScore = newScore;
@@ -243,6 +245,28 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       _completedStates.map((b) => '$b').join(','),
     );
     await prefs.setInt('mood_score_$today', newScore);
+    _syncScoreToDb(today, newScore);
+  }
+
+  void _syncScoreToDb(String dateKey, int score) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+    if (token == null) return;
+    try {
+      await http.post(
+        Uri.parse('https://moodiary-production.up.railway.app/api/moods'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'dateKey': dateKey,
+          'moodLevel': 3, // neutral default if no explicit mood picked
+          'activities': <String>[],
+          'score': score,
+        }),
+      );
+    } catch (_) {}
   }
 
   int get _maxScore => _todayTasks.fold(0, (sum, t) => sum + t.points);

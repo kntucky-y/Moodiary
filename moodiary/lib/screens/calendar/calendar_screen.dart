@@ -151,10 +151,28 @@ class _CalendarScreenState extends State<CalendarScreen> {
   Future<void> _init() async {
     final prefs = await SharedPreferences.getInstance();
     _token = prefs.getString('token');
-    await _fetchLogs();
+    // Load from local cache instantly, then refresh from DB in background
+    _loadFromCache(prefs);
+    _fetchLogs(prefs);
   }
 
-  Future<void> _fetchLogs() async {
+  void _loadFromCache(SharedPreferences prefs) {
+    final cached = prefs.getString('mood_logs_cache');
+    if (cached == null) return;
+    try {
+      final List<dynamic> data = jsonDecode(cached);
+      setState(() {
+        _logs.clear();
+        for (final d in data) {
+          final log = _MoodLog.fromJson(d as Map<String, dynamic>);
+          _logs[log.dateKey] = log;
+        }
+        _loading = false;
+      });
+    } catch (_) {}
+  }
+
+  Future<void> _fetchLogs(SharedPreferences prefs) async {
     if (_token == null) {
       setState(() => _loading = false);
       return;
@@ -165,16 +183,20 @@ class _CalendarScreenState extends State<CalendarScreen> {
         headers: {'Authorization': 'Bearer $_token'},
       );
       final List<dynamic> data = jsonDecode(resp.body);
-      setState(() {
-        _logs.clear();
-        for (final d in data) {
-          final log = _MoodLog.fromJson(d as Map<String, dynamic>);
-          _logs[log.dateKey] = log;
-        }
-        _loading = false;
-      });
+      // Save to local cache
+      await prefs.setString('mood_logs_cache', resp.body);
+      if (mounted) {
+        setState(() {
+          _logs.clear();
+          for (final d in data) {
+            final log = _MoodLog.fromJson(d as Map<String, dynamic>);
+            _logs[log.dateKey] = log;
+          }
+          _loading = false;
+        });
+      }
     } catch (_) {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -194,6 +216,23 @@ class _CalendarScreenState extends State<CalendarScreen> {
         score: score,
       );
     });
+    // Update local cache immediately
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      'mood_logs_cache',
+      jsonEncode(
+        _logs.values
+            .map(
+              (l) => {
+                'dateKey': l.dateKey,
+                'moodLevel': l.moodLevel,
+                'activities': l.activities,
+                'score': l.score,
+              },
+            )
+            .toList(),
+      ),
+    );
     if (_token == null) return;
     try {
       await http.post(
