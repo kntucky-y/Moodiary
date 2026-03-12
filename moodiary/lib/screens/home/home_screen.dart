@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' show Random;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -192,8 +193,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     List<bool> completed;
 
     if (savedDate != today) {
-      // New day — pick 3 fresh random tasks
-      final all = List.generate(_taskPool.length, (i) => i)..shuffle();
+      // Pick 3 tasks using a deterministic seed from the date so every user
+      // gets a different-but-consistent set each day, with variety across days.
+      final parts = today.split('-');
+      final seed =
+          int.parse(parts[0]) * 10000 +
+          int.parse(parts[1]) * 100 +
+          int.parse(parts[2]);
+      final rng = Random(seed);
+      final all = List.generate(_taskPool.length, (i) => i);
+      // Fisher-Yates with seeded rng
+      for (int i = all.length - 1; i > 0; i--) {
+        final j = rng.nextInt(i + 1);
+        final tmp = all[i];
+        all[i] = all[j];
+        all[j] = tmp;
+      }
       indices = all.take(3).toList();
       completed = [false, false, false];
       await prefs.setString('tasks_date', today);
@@ -677,6 +692,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             child: _Sidebar(
               userName: widget.userName,
               onClose: () => setState(() => _sidebarOpen = false),
+              onNavigateCalendar: () {
+                setState(() => _sidebarOpen = false);
+                Navigator.of(context).push(
+                  FadeSlideRoute(
+                    page: CalendarScreen(
+                      userName: widget.userName,
+                      companionId: widget.companionId,
+                      companionName: widget.companionName,
+                    ),
+                  ),
+                );
+              },
               onChangeCompanion: () {
                 setState(() => _sidebarOpen = false);
                 Navigator.of(context).push(
@@ -1165,12 +1192,14 @@ class _NavItem {
 class _Sidebar extends StatelessWidget {
   final String userName;
   final VoidCallback onClose;
+  final VoidCallback onNavigateCalendar;
   final VoidCallback onChangeCompanion;
   final VoidCallback onLogout;
 
   const _Sidebar({
     required this.userName,
     required this.onClose,
+    required this.onNavigateCalendar,
     required this.onChangeCompanion,
     required this.onLogout,
   });
@@ -1211,9 +1240,12 @@ class _Sidebar extends StatelessWidget {
                 label: 'Home',
                 active: true,
               ),
-              const _SidebarItem(
-                icon: Icons.calendar_month_outlined,
-                label: 'Calendar',
+              TapScale(
+                onTap: onNavigateCalendar,
+                child: const _SidebarItem(
+                  icon: Icons.calendar_month_outlined,
+                  label: 'Calendar',
+                ),
               ),
               const _SidebarItem(icon: Icons.book_outlined, label: 'Journal'),
               const _SidebarItem(
