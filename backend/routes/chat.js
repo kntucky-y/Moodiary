@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const Groq = require('groq-sdk');
+const auth = require('../middleware/auth');
+const ChatHistory = require('../models/ChatHistory');
 
 if (!process.env.GROQ_API_KEY) {
   console.error('FATAL: GROQ_API_KEY environment variable is not set.');
@@ -26,9 +28,22 @@ const personalities = {
 
 const defaultPersonality = `You are a kind and supportive mental wellness companion in the Moodiary app. Keep responses short and helpful (2-3 sentences). Never give medical advice.`;
 
-// POST /api/chat
-router.post('/', async (req, res) => {
-  const { companionName, message, history } = req.body;
+// GET /api/chat/:companionName — load saved history for this user + companion
+router.get('/:companionName', auth, async (req, res) => {
+  try {
+    const record = await ChatHistory.findOne({
+      userId: req.userId,
+      companionName: req.params.companionName,
+    });
+    res.json({ messages: record ? record.messages : [] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/chat — send a message, get a reply, save both to DB
+router.post('/', auth, async (req, res) => {
+  const { companionName, message } = req.body;
 
   if (!message) {
     return res.status(400).json({ error: 'Message is required' });
@@ -36,26 +51,45 @@ router.post('/', async (req, res) => {
 
   const systemPrompt = personalities[companionName] || defaultPersonality;
 
-  // Build conversation history (last 10 messages)
-  const messages = [{ role: 'system', content: systemPrompt }];
-  if (Array.isArray(history) && history.length > 0) {
-    history.slice(-10).forEach((m) => {
-      messages.push({
-        role: m.role === 'user' ? 'user' : 'assistant',
-        content: m.text,
-      });
+  // Load full history from DB for context
+  let record = await ChatHistory.findOne({ userId: req.userId, companionName });
+  const dbMessages = record ? record.messages : [];
+
+  // Build Groq messages array (last 20 for context)
+  const groqMessages = [{ role: 'system', content: systemPrompt }];
+  dbMessages.slice(-20).forEach((m) => {
+    groqMessages.push({
+      role: m.role === 'user' ? 'user' : 'assistant',
+      content: m.text,
     });
-  }
-  messages.push({ role: 'user', content: message });
+  });
+  groqMessages.push({ role: 'user', content: message });
 
   try {
     const completion = await groq.chat.completions.create({
       model: 'llama-3.3-70b-versatile',
-      messages,
+      messages: groqMessages,
       max_tokens: 200,
     });
-    const text = completion.choices[0].message.content;
-    res.json({ reply: text });
+    const reply = completion.choices[0].message.content;
+
+    // Persist both the user message and companion reply
+    await ChatHistory.findOneAndUpdate(
+      { userId: req.userId, companionName },
+      {
+        $push: {
+          messages: {
+            $each: [
+              { role: 'user', text: message },
+              { role: 'model', text: reply },
+            ],
+          },
+        },
+      },
+      { upsert: true, new: true }
+    );
+
+    res.json({ reply });
   } catch (err) {
     console.error('Groq error:', err.message);
     res.status(500).json({ error: err.message });
