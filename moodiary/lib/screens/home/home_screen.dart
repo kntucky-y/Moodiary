@@ -153,7 +153,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   List<_MoodTask> _todayTasks = [];
   List<bool> _completedStates = [false, false, false];
-  int _moodScore = 0;
+  int _taskPoints = 0; // points from task completions only
+  int _moodScore = 0; // combined: _taskPoints + calendar mood/activity score
 
   late final AnimationController _entranceCtrl;
 
@@ -202,12 +203,28 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       completed = cStr.split(',').map((s) => s == 'true').toList();
     }
 
-    final score = prefs.getInt('mood_score_$today') ?? 0;
+    final taskPoints = prefs.getInt('mood_score_$today') ?? 0;
+    // Read today's mood/activity score from the shared calendar cache
+    int moodActivityScore = 0;
+    final cached = prefs.getString('mood_logs_cache');
+    if (cached != null) {
+      try {
+        final List<dynamic> data = jsonDecode(cached);
+        final entry = data.firstWhere(
+          (d) => d['dateKey'] == today,
+          orElse: () => null,
+        );
+        if (entry != null) {
+          moodActivityScore = (entry['moodScore'] ?? 0) as int;
+        }
+      } catch (_) {}
+    }
     if (mounted) {
       setState(() {
         _todayTasks = indices.map((i) => _taskPool[i]).toList();
         _completedStates = completed;
-        _moodScore = score;
+        _taskPoints = taskPoints;
+        _moodScore = taskPoints + moodActivityScore;
       });
       _entranceCtrl.forward(from: 0);
     }
@@ -217,38 +234,42 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     if (_completedStates[index]) return;
     final prefs = await SharedPreferences.getInstance();
     final today = _dateKey();
-    final newScore = _moodScore + _todayTasks[index].points;
+    final newTaskPoints = _taskPoints + _todayTasks[index].points;
     setState(() {
       _completedStates[index] = true;
-      _moodScore = newScore;
+      _taskPoints = newTaskPoints;
+      _moodScore = _moodScore + _todayTasks[index].points;
     });
     await prefs.setString(
       'tasks_completed',
       _completedStates.map((b) => '$b').join(','),
     );
-    await prefs.setInt('mood_score_$today', newScore);
-    _syncScoreToDb(today, newScore);
+    await prefs.setInt('mood_score_$today', newTaskPoints);
+    _syncScoreToDb(today, newTaskPoints);
   }
 
   Future<void> _undoTask(int index) async {
     if (!_completedStates[index]) return;
     final prefs = await SharedPreferences.getInstance();
     final today = _dateKey();
-    final newScore =
+    final newTaskPoints =
+        (_taskPoints - _todayTasks[index].points).clamp(0, 9999) as int;
+    final newMoodScore =
         (_moodScore - _todayTasks[index].points).clamp(0, 9999) as int;
     setState(() {
       _completedStates[index] = false;
-      _moodScore = newScore;
+      _taskPoints = newTaskPoints;
+      _moodScore = newMoodScore;
     });
     await prefs.setString(
       'tasks_completed',
       _completedStates.map((b) => '$b').join(','),
     );
-    await prefs.setInt('mood_score_$today', newScore);
-    _syncScoreToDb(today, newScore);
+    await prefs.setInt('mood_score_$today', newTaskPoints);
+    _syncScoreToDb(today, newTaskPoints);
   }
 
-  void _syncScoreToDb(String dateKey, int score) async {
+  void _syncScoreToDb(String dateKey, int taskScore) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token');
     if (token == null) return;
@@ -259,12 +280,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
         },
-        body: jsonEncode({
-          'dateKey': dateKey,
-          'moodLevel': 3, // neutral default if no explicit mood picked
-          'activities': <String>[],
-          'score': score,
-        }),
+        body: jsonEncode({'dateKey': dateKey, 'taskScore': taskScore}),
       );
     } catch (_) {}
   }

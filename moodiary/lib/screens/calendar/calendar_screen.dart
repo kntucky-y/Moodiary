@@ -77,18 +77,21 @@ class _MoodLog {
   final String dateKey;
   final int moodLevel;
   final List<String> activities;
-  final int score;
+  final int moodScore; // calendar portion: moodLevel + activity scores
+  final int score; // combined total: moodScore + taskScore (from home)
   _MoodLog({
     required this.dateKey,
     required this.moodLevel,
     required this.activities,
+    required this.moodScore,
     required this.score,
   });
 
   factory _MoodLog.fromJson(Map<String, dynamic> j) => _MoodLog(
     dateKey: j['dateKey'] as String,
-    moodLevel: j['moodLevel'] as int,
+    moodLevel: (j['moodLevel'] ?? 3) as int,
     activities: List<String>.from(j['activities'] ?? []),
+    moodScore: (j['moodScore'] ?? j['score'] ?? 0) as int,
     score: (j['score'] ?? 0) as int,
   );
 }
@@ -205,37 +208,25 @@ class _CalendarScreenState extends State<CalendarScreen> {
     int moodLevel,
     List<String> activities,
   ) async {
-    final score =
+    final moodScore =
         moodLevel +
         activities.fold<int>(0, (sum, a) => sum + (_activityScoreMap[a] ?? 0));
+    // Optimistic update: show moodScore immediately (will update with combined
+    // total once the DB responds with the home-screen task score included)
     setState(() {
       _logs[dateKey] = _MoodLog(
         dateKey: dateKey,
         moodLevel: moodLevel,
         activities: activities,
-        score: score,
+        moodScore: moodScore,
+        score: moodScore,
       );
     });
-    // Update local cache immediately
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
-      'mood_logs_cache',
-      jsonEncode(
-        _logs.values
-            .map(
-              (l) => {
-                'dateKey': l.dateKey,
-                'moodLevel': l.moodLevel,
-                'activities': l.activities,
-                'score': l.score,
-              },
-            )
-            .toList(),
-      ),
-    );
+    await _writeCache(prefs);
     if (_token == null) return;
     try {
-      await http.post(
+      final resp = await http.post(
         Uri.parse('$_kBaseUrl/api/moods'),
         headers: {
           'Content-Type': 'application/json',
@@ -245,10 +236,45 @@ class _CalendarScreenState extends State<CalendarScreen> {
           'dateKey': dateKey,
           'moodLevel': moodLevel,
           'activities': activities,
-          'score': score,
+          'moodScore': moodScore,
         }),
       );
+      // Update with true combined score (taskScore from home + moodScore)
+      if (mounted && resp.statusCode == 200) {
+        final data = jsonDecode(resp.body) as Map<String, dynamic>;
+        final actualScore = (data['score'] ?? moodScore) as int;
+        setState(() {
+          _logs[dateKey] = _MoodLog(
+            dateKey: dateKey,
+            moodLevel: moodLevel,
+            activities: activities,
+            moodScore: moodScore,
+            score: actualScore,
+          );
+        });
+        await _writeCache(prefs);
+      }
     } catch (_) {}
+  }
+
+  /// Persists the current _logs map to SharedPreferences.
+  Future<void> _writeCache(SharedPreferences prefs) async {
+    await prefs.setString(
+      'mood_logs_cache',
+      jsonEncode(
+        _logs.values
+            .map(
+              (l) => {
+                'dateKey': l.dateKey,
+                'moodLevel': l.moodLevel,
+                'activities': l.activities,
+                'moodScore': l.moodScore,
+                'score': l.score,
+              },
+            )
+            .toList(),
+      ),
+    );
   }
 
   void _openLogModal(DateTime day) {
