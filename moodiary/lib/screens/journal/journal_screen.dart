@@ -67,12 +67,15 @@ class JournalScreen extends StatefulWidget {
 }
 
 class _JournalScreenState extends State<JournalScreen> {
-  List<_JournalEntry> _entries = [];
+  List<_JournalEntry> _activeEntries = [];
+  List<_JournalEntry> _archivedEntries = [];
   bool _loading = true;
   String? _token;
   bool _fabExpanded = false;
   bool _showArchived = false;
   final Set<String> _workingIds = <String>{};
+  bool _activeLoaded = false;
+  bool _archivedLoaded = false;
 
   @override
   void initState() {
@@ -83,27 +86,42 @@ class _JournalScreenState extends State<JournalScreen> {
   Future<void> _init() async {
     final prefs = await SharedPreferences.getInstance();
     _token = prefs.getString('token');
-    await _fetchEntries();
+    await _fetchEntries(archived: false, force: true);
   }
 
-  Future<void> _fetchEntries() async {
+  Future<void> _fetchEntries({required bool archived, bool force = false}) async {
     if (_token == null) {
       setState(() => _loading = false);
       return;
     }
+    if (!force) {
+      final loaded = archived ? _archivedLoaded : _activeLoaded;
+      if (loaded) return;
+    }
+
     try {
-      if (mounted) setState(() => _loading = true);
+      if (mounted) {
+        final currentList = archived ? _archivedEntries : _activeEntries;
+        if (currentList.isEmpty) setState(() => _loading = true);
+      }
       final resp = await http.get(
-        Uri.parse('$_kBaseUrl/api/journal?archived=$_showArchived'),
+        Uri.parse('$_kBaseUrl/api/journal?archived=$archived'),
         headers: {'Authorization': 'Bearer $_token'},
       );
       if (resp.statusCode == 200) {
         final List<dynamic> data = jsonDecode(resp.body);
+        final parsed = data
+            .map((d) => _JournalEntry.fromJson(d as Map<String, dynamic>))
+            .toList();
         if (mounted) {
           setState(() {
-            _entries = data
-                .map((d) => _JournalEntry.fromJson(d as Map<String, dynamic>))
-                .toList();
+            if (archived) {
+              _archivedEntries = parsed;
+              _archivedLoaded = true;
+            } else {
+              _activeEntries = parsed;
+              _activeLoaded = true;
+            }
             _loading = false;
           });
         }
@@ -116,11 +134,12 @@ class _JournalScreenState extends State<JournalScreen> {
   }
 
   Future<void> _toggleArchived() async {
+    final nextShowArchived = !_showArchived;
     setState(() {
-      _showArchived = !_showArchived;
+      _showArchived = nextShowArchived;
       _fabExpanded = false;
     });
-    await _fetchEntries();
+    await _fetchEntries(archived: nextShowArchived);
   }
 
   Future<bool> _confirmAction({
@@ -166,7 +185,17 @@ class _JournalScreenState extends State<JournalScreen> {
       );
       if (!mounted) return;
       if (resp.statusCode == 200) {
-        await _fetchEntries();
+        final payload = jsonDecode(resp.body) as Map<String, dynamic>;
+        final archivedJson = payload['entry'];
+        setState(() {
+          _activeEntries.removeWhere((e) => e.id == entry.id);
+          if (archivedJson is Map<String, dynamic>) {
+            final archivedEntry = _JournalEntry.fromJson(archivedJson);
+            _archivedEntries.removeWhere((e) => e.id == archivedEntry.id);
+            _archivedEntries.insert(0, archivedEntry);
+            _archivedLoaded = true;
+          }
+        });
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('Journal archived.')));
@@ -196,7 +225,17 @@ class _JournalScreenState extends State<JournalScreen> {
       );
       if (!mounted) return;
       if (resp.statusCode == 200) {
-        await _fetchEntries();
+        final payload = jsonDecode(resp.body) as Map<String, dynamic>;
+        final recoveredJson = payload['entry'];
+        setState(() {
+          _archivedEntries.removeWhere((e) => e.id == entry.id);
+          if (recoveredJson is Map<String, dynamic>) {
+            final recoveredEntry = _JournalEntry.fromJson(recoveredJson);
+            _activeEntries.removeWhere((e) => e.id == recoveredEntry.id);
+            _activeEntries.insert(0, recoveredEntry);
+            _activeLoaded = true;
+          }
+        });
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('Journal recovered.')));
@@ -235,7 +274,9 @@ class _JournalScreenState extends State<JournalScreen> {
       );
       if (!mounted) return;
       if (resp.statusCode == 200) {
-        await _fetchEntries();
+        setState(() {
+          _archivedEntries.removeWhere((e) => e.id == entry.id);
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Journal permanently deleted.')),
         );
@@ -266,7 +307,12 @@ class _JournalScreenState extends State<JournalScreen> {
         ),
       ),
     );
-    if (result == true) _fetchEntries();
+    if (result == true) {
+      await _fetchEntries(archived: false, force: true);
+      if (_showArchived) {
+        await _fetchEntries(archived: true, force: true);
+      }
+    }
   }
 
   String _formatDate(DateTime dt) {
@@ -316,6 +362,7 @@ class _JournalScreenState extends State<JournalScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final shownEntries = _showArchived ? _archivedEntries : _activeEntries;
     return Scaffold(
       backgroundColor: _kHeaderBg,
       body: Stack(
@@ -415,8 +462,10 @@ class _JournalScreenState extends State<JournalScreen> {
                     ),
                   ),
                   child: _loading
-                      ? const Center(child: CircularProgressIndicator())
-                      : _entries.isEmpty
+                      ? shownEntries.isEmpty
+                        ? const Center(child: CircularProgressIndicator())
+                        : _buildEntriesList(shownEntries)
+                      : shownEntries.isEmpty
                       ? Center(
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
@@ -450,44 +499,7 @@ class _JournalScreenState extends State<JournalScreen> {
                             ],
                           ),
                         )
-                      : ListView.builder(
-                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-                          itemCount: _entries.length + 1,
-                          itemBuilder: (ctx, i) {
-                            if (i == 0) {
-                              return Padding(
-                                padding: EdgeInsets.only(bottom: 12),
-                                child: Text(
-                                  _showArchived
-                                      ? 'Archived Entries'
-                                      : 'All Entries',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 18,
-                                    color: _kDark,
-                                  ),
-                                ),
-                              );
-                            }
-                            final entry = _entries[i - 1];
-                            return _EntryCard(
-                              entry: entry,
-                              formatDate: _formatDate,
-                              formatWeekday: _formatWeekday,
-                              formatTime: _formatTime,
-                              onTap: _showArchived
-                                  ? null
-                                  : () => _openEditor(existing: entry),
-                              onLongPress: _showArchived
-                                  ? null
-                                  : () => _archiveEntry(entry),
-                              showArchivedActions: _showArchived,
-                              actionBusy: _workingIds.contains(entry.id),
-                              onRecover: () => _recoverEntry(entry),
-                              onPermanentDelete: () => _hardDeleteEntry(entry),
-                            );
-                          },
-                        ),
+                      : _buildEntriesList(shownEntries),
                 ),
               ),
             ],
@@ -617,6 +629,41 @@ class _JournalScreenState extends State<JournalScreen> {
       ),
     );
   }
+
+  Widget _buildEntriesList(List<_JournalEntry> entries) {
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+      itemCount: entries.length + 1,
+      itemBuilder: (ctx, i) {
+        if (i == 0) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Text(
+              _showArchived ? 'Archived Entries' : 'All Entries',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+                color: _kDark,
+              ),
+            ),
+          );
+        }
+        final entry = entries[i - 1];
+        return _EntryCard(
+          entry: entry,
+          formatDate: _formatDate,
+          formatWeekday: _formatWeekday,
+          formatTime: _formatTime,
+          onTap: _showArchived ? null : () => _openEditor(existing: entry),
+          onArchive: _showArchived ? null : () => _archiveEntry(entry),
+          showArchivedActions: _showArchived,
+          actionBusy: _workingIds.contains(entry.id),
+          onRecover: () => _recoverEntry(entry),
+          onPermanentDelete: () => _hardDeleteEntry(entry),
+        );
+      },
+    );
+  }
 }
 
 // ─── Entry card ───────────────────────────────────────────────────────────────
@@ -626,7 +673,7 @@ class _EntryCard extends StatelessWidget {
   final String Function(DateTime) formatWeekday;
   final String Function(DateTime) formatTime;
   final VoidCallback? onTap;
-  final VoidCallback? onLongPress;
+  final VoidCallback? onArchive;
   final bool showArchivedActions;
   final bool actionBusy;
   final VoidCallback? onRecover;
@@ -638,7 +685,7 @@ class _EntryCard extends StatelessWidget {
     required this.formatWeekday,
     required this.formatTime,
     required this.onTap,
-    this.onLongPress,
+    this.onArchive,
     this.showArchivedActions = false,
     this.actionBusy = false,
     this.onRecover,
@@ -652,11 +699,9 @@ class _EntryCard extends StatelessWidget {
         ? '${entry.content.substring(0, 120)}...'
         : entry.content;
 
-    return GestureDetector(
-      onLongPress: onLongPress,
-      child: TapScale(
-        onTap: onTap,
-        child: Container(
+    return TapScale(
+      onTap: onTap,
+      child: Container(
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
@@ -718,13 +763,30 @@ class _EntryCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      entry.title,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                        color: _kDark,
-                      ),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            entry.title,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              color: _kDark,
+                            ),
+                          ),
+                        ),
+                        if (!showArchivedActions && onArchive != null)
+                          IconButton(
+                            onPressed: onArchive,
+                            splashRadius: 18,
+                            icon: const Icon(
+                              Icons.delete_outline_rounded,
+                              color: Colors.red,
+                              size: 20,
+                            ),
+                          ),
+                      ],
                     ),
                     const SizedBox(height: 4),
                     Text(
