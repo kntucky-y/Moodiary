@@ -21,12 +21,22 @@ const moodLogSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
-    // moodScore  = moodLevel + sum of activity scores (set by calendar)
+    // moodLevelScore = points for the chosen mood level (auto-computed by server)
+    moodLevelScore: {
+      type: Number,
+      default: 0,
+    },
+    // activityScore = sum of activity scores (sent by calendar)
+    activityScore: {
+      type: Number,
+      default: 0,
+    },
+    // moodScore = moodLevelScore + activityScore
     moodScore: {
       type: Number,
       default: 0,
     },
-    // taskScore  = points earned from daily task completions (set by home)
+    // taskScore = points earned from daily task completions (sent by home)
     taskScore: {
       type: Number,
       default: 0,

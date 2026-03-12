@@ -110,6 +110,9 @@ const _moods = [
   _Mood('Excellent', 'assets/excellent.png'),
 ];
 
+// Must match calendar_screen.dart _moodLevelPoints
+const _homeMoodLevelPoints = [5, 10, 20, 35, 50];
+
 class _MoodTask {
   final String id;
   final String title;
@@ -154,7 +157,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   List<_MoodTask> _todayTasks = [];
   List<bool> _completedStates = [false, false, false];
   int _taskPoints = 0; // points from task completions only
-  int _moodScore = 0; // combined: _taskPoints + calendar mood/activity score
+  int _todayActivityScore = 0; // activity score from calendar log (today)
+  int _moodScore = 0; // combined: taskPoints + moodLevelScore + activityScore
 
   late final AnimationController _entranceCtrl;
 
@@ -206,6 +210,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final taskPoints = prefs.getInt('mood_score_$today') ?? 0;
     // Read today's mood/activity score from the shared calendar cache
     int moodActivityScore = 0;
+    int activityScore = 0;
+    int? cachedMoodLevel;
     final cached = prefs.getString('mood_logs_cache');
     if (cached != null) {
       try {
@@ -216,6 +222,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         );
         if (entry != null) {
           moodActivityScore = (entry['moodScore'] ?? 0) as int;
+          activityScore = (entry['activityScore'] ?? 0) as int;
+          final ml = entry['moodLevel'];
+          if (ml != null && (ml as int) >= 1 && ml <= 5) cachedMoodLevel = ml;
         }
       } catch (_) {}
     }
@@ -224,10 +233,63 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         _todayTasks = indices.map((i) => _taskPool[i]).toList();
         _completedStates = completed;
         _taskPoints = taskPoints;
+        _todayActivityScore = activityScore;
         _moodScore = taskPoints + moodActivityScore;
+        // Pre-select mood icon if today's log already has one
+        if (cachedMoodLevel != null) _selectedMood = cachedMoodLevel! - 1;
       });
       _entranceCtrl.forward(from: 0);
     }
+  }
+
+  /// Called when user taps a mood icon on the home screen.
+  /// Saves moodLevel to DB (backend computes moodLevelScore) and updates cache
+  /// so the calendar pre-selects the same mood for today.
+  Future<void> _selectMood(int index) async {
+    final moodLevelScore = _homeMoodLevelPoints[index];
+    final newMoodScore = moodLevelScore + _todayActivityScore;
+    setState(() {
+      _selectedMood = index;
+      _moodScore = _taskPoints + newMoodScore;
+    });
+    final today = _dateKey();
+    final prefs = await SharedPreferences.getInstance();
+    // Update (or create) today's entry in the shared cache
+    final rawCache = prefs.getString('mood_logs_cache');
+    List<dynamic> cacheData = [];
+    if (rawCache != null) {
+      try {
+        cacheData = jsonDecode(rawCache);
+      } catch (_) {}
+    }
+    final idx = cacheData.indexWhere((d) => d['dateKey'] == today);
+    if (idx >= 0) {
+      cacheData[idx]['moodLevel'] = index + 1;
+      cacheData[idx]['moodScore'] = newMoodScore;
+    } else {
+      cacheData.add({
+        'dateKey': today,
+        'moodLevel': index + 1,
+        'activities': <String>[],
+        'activityScore': 0,
+        'moodScore': moodLevelScore,
+        'score': _taskPoints + moodLevelScore,
+      });
+    }
+    await prefs.setString('mood_logs_cache', jsonEncode(cacheData));
+    // Sync to DB — server auto-computes moodLevelScore and merges with existing data
+    final token = prefs.getString('token');
+    if (token == null) return;
+    try {
+      await http.post(
+        Uri.parse('https://moodiary-production.up.railway.app/api/moods'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'dateKey': today, 'moodLevel': index + 1}),
+      );
+    } catch (_) {}
   }
 
   Future<void> _completeTask(int index) async {
@@ -540,8 +602,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                 final mood = _moods[i];
                                 final selected = _selectedMood == i;
                                 return GestureDetector(
-                                  onTap: () =>
-                                      setState(() => _selectedMood = i),
+                                  onTap: () => _selectMood(i),
                                   child: AnimatedScale(
                                     scale: selected ? 1.2 : 1.0,
                                     duration: const Duration(milliseconds: 200),

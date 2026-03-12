@@ -13,28 +13,34 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-// POST /api/moods — partial upsert: calendar sends moodLevel/activities/moodScore,
-//                   home sends taskScore; server merges and computes combined score.
+// Points per mood level: index 0 = Terrible … index 4 = Excellent
+const MOOD_LEVEL_POINTS = [5, 10, 20, 35, 50];
+
+// POST /api/moods — partial upsert.
+//   Home  sends: { dateKey, moodLevel }  or  { dateKey, taskScore }
+//   Calendar sends: { dateKey, moodLevel, activities, activityScore }
+//   Server always auto-computes moodLevelScore, moodScore, score.
 router.post('/', auth, async (req, res) => {
-  const { dateKey, moodLevel, activities, moodScore, taskScore } = req.body;
+  const { dateKey, moodLevel, activities, activityScore, taskScore } = req.body;
 
   if (!dateKey) {
     return res.status(400).json({ error: 'dateKey is required' });
   }
 
   try {
-    // Read existing record so we can merge without overwriting the other side
     const existing = await MoodLog.findOne({ userId: req.userId, dateKey });
 
-    const newMoodLevel   = moodLevel   !== undefined ? moodLevel   : (existing?.moodLevel   ?? 3);
-    const newActivities  = activities  !== undefined ? activities  : (existing?.activities  ?? []);
-    const newMoodScore   = moodScore   !== undefined ? moodScore   : (existing?.moodScore   ?? 0);
-    const newTaskScore   = taskScore   !== undefined ? taskScore   : (existing?.taskScore   ?? 0);
-    const newScore       = newTaskScore + newMoodScore;
+    const newMoodLevel      = moodLevel      !== undefined ? moodLevel      : (existing?.moodLevel      ?? 3);
+    const newActivities     = activities     !== undefined ? activities     : (existing?.activities     ?? []);
+    const newActivityScore  = activityScore  !== undefined ? activityScore  : (existing?.activityScore  ?? 0);
+    const newTaskScore      = taskScore      !== undefined ? taskScore      : (existing?.taskScore      ?? 0);
+    const newMoodLevelScore = MOOD_LEVEL_POINTS[(newMoodLevel - 1)] ?? 0;
+    const newMoodScore      = newMoodLevelScore + newActivityScore;
+    const newScore          = newMoodScore + newTaskScore;
 
     const log = await MoodLog.findOneAndUpdate(
       { userId: req.userId, dateKey },
-      { moodLevel: newMoodLevel, activities: newActivities, moodScore: newMoodScore, taskScore: newTaskScore, score: newScore },
+      { moodLevel: newMoodLevel, activities: newActivities, moodLevelScore: newMoodLevelScore, activityScore: newActivityScore, moodScore: newMoodScore, taskScore: newTaskScore, score: newScore },
       { upsert: true, new: true }
     );
     res.json(log);

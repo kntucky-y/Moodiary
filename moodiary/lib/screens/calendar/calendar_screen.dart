@@ -81,12 +81,14 @@ class _MoodLog {
   final String dateKey;
   final int moodLevel;
   final List<String> activities;
-  final int moodScore; // calendar portion: moodLevel + activity scores
-  final int score; // combined total: moodScore + taskScore (from home)
+  final int activityScore; // points from activities only
+  final int moodScore; // moodLevelScore + activityScore
+  final int score; // moodScore + taskScore
   _MoodLog({
     required this.dateKey,
     required this.moodLevel,
     required this.activities,
+    required this.activityScore,
     required this.moodScore,
     required this.score,
   });
@@ -95,6 +97,7 @@ class _MoodLog {
     dateKey: j['dateKey'] as String,
     moodLevel: (j['moodLevel'] ?? 3) as int,
     activities: List<String>.from(j['activities'] ?? []),
+    activityScore: (j['activityScore'] ?? 0) as int,
     moodScore: (j['moodScore'] ?? j['score'] ?? 0) as int,
     score: (j['score'] ?? 0) as int,
   );
@@ -212,16 +215,18 @@ class _CalendarScreenState extends State<CalendarScreen> {
     int moodLevel,
     List<String> activities,
   ) async {
-    final moodScore =
-        _moodLevelPoints[moodLevel - 1] +
-        activities.fold<int>(0, (sum, a) => sum + (_activityScoreMap[a] ?? 0));
-    // Optimistic update: show moodScore immediately (will update with combined
-    // total once the DB responds with the home-screen task score included)
+    final activityScore = activities.fold<int>(
+      0,
+      (sum, a) => sum + (_activityScoreMap[a] ?? 0),
+    );
+    final moodScore = _moodLevelPoints[moodLevel - 1] + activityScore;
+    // Optimistic update
     setState(() {
       _logs[dateKey] = _MoodLog(
         dateKey: dateKey,
         moodLevel: moodLevel,
         activities: activities,
+        activityScore: activityScore,
         moodScore: moodScore,
         score: moodScore,
       );
@@ -240,20 +245,20 @@ class _CalendarScreenState extends State<CalendarScreen> {
           'dateKey': dateKey,
           'moodLevel': moodLevel,
           'activities': activities,
-          'moodScore': moodScore,
+          'activityScore': activityScore,
         }),
       );
-      // Update with true combined score (taskScore from home + moodScore)
+      // Update with true combined score (includes taskScore from home)
       if (mounted && resp.statusCode == 200) {
         final data = jsonDecode(resp.body) as Map<String, dynamic>;
-        final actualScore = (data['score'] ?? moodScore) as int;
         setState(() {
           _logs[dateKey] = _MoodLog(
             dateKey: dateKey,
             moodLevel: moodLevel,
             activities: activities,
-            moodScore: moodScore,
-            score: actualScore,
+            activityScore: activityScore,
+            moodScore: (data['moodScore'] ?? moodScore) as int,
+            score: (data['score'] ?? moodScore) as int,
           );
         });
         await _writeCache(prefs);
@@ -272,6 +277,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 'dateKey': l.dateKey,
                 'moodLevel': l.moodLevel,
                 'activities': l.activities,
+                'activityScore': l.activityScore,
                 'moodScore': l.moodScore,
                 'score': l.score,
               },
