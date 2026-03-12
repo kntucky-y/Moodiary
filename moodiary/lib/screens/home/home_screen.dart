@@ -1161,10 +1161,10 @@ class _CompanionChat extends StatefulWidget {
 
 class _CompanionChatState extends State<_CompanionChat> {
   final List<_ChatMessage> _messages = [];
-  final List<Map<String, String>> _history = [];
   final TextEditingController _input = TextEditingController();
   final ScrollController _scroll = ScrollController();
   bool _loading = false;
+  String? _token;
 
   static const _kBaseUrl = 'https://moodiary-production.up.railway.app';
 
@@ -1178,9 +1178,7 @@ class _CompanionChatState extends State<_CompanionChat> {
   @override
   void initState() {
     super.initState();
-    _addCompanion(
-      'Hi! I\'m ${widget.companionName}. How are you feeling today?',
-    );
+    _init();
   }
 
   @override
@@ -1190,9 +1188,54 @@ class _CompanionChatState extends State<_CompanionChat> {
     super.dispose();
   }
 
+  Future<void> _init() async {
+    final prefs = await SharedPreferences.getInstance();
+    _token = prefs.getString('token');
+    await _loadHistory();
+  }
+
+  Future<void> _loadHistory() async {
+    if (_token == null) {
+      _addCompanion(
+        'Hi! I\'m ${widget.companionName}. How are you feeling today?',
+      );
+      return;
+    }
+    try {
+      final response = await http.get(
+        Uri.parse(
+          '$_kBaseUrl/api/chat/${Uri.encodeComponent(widget.companionName)}',
+        ),
+        headers: {'Authorization': 'Bearer $_token'},
+      );
+      final data = jsonDecode(response.body);
+      final List<dynamic> msgs = data['messages'] ?? [];
+      if (msgs.isEmpty) {
+        _addCompanion(
+          'Hi! I\'m ${widget.companionName}. How are you feeling today?',
+        );
+      } else {
+        setState(() {
+          for (final m in msgs) {
+            _messages.add(
+              _ChatMessage(
+                text: m['text'] as String,
+                isUser: m['role'] == 'user',
+              ),
+            );
+          }
+        });
+        _scrollDown();
+      }
+    } catch (_) {
+      _addCompanion(
+        'Hi! I\'m ${widget.companionName}. How are you feeling today?',
+      );
+    }
+  }
+
   void _addCompanion(String text) {
     setState(() => _messages.add(_ChatMessage(text: text, isUser: false)));
-    _history.add({'role': 'model', 'text': text});
     _scrollDown();
   }
 
@@ -1214,7 +1257,6 @@ class _CompanionChatState extends State<_CompanionChat> {
     _input.clear();
     setState(() {
       _messages.add(_ChatMessage(text: msg, isUser: true));
-      _history.add({'role': 'user', 'text': msg});
       _loading = true;
     });
     _scrollDown();
@@ -1222,13 +1264,13 @@ class _CompanionChatState extends State<_CompanionChat> {
     try {
       final response = await http.post(
         Uri.parse('$_kBaseUrl/api/chat'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $_token',
+        },
         body: jsonEncode({
           'companionName': widget.companionName,
           'message': msg,
-          'history': _history.length > 1
-              ? _history.sublist(0, _history.length - 1)
-              : [],
         }),
       );
       final data = jsonDecode(response.body);
