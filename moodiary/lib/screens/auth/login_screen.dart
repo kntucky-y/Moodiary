@@ -366,24 +366,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(width: 20),
-                      _SocialButton(
-                        color: Colors.black,
-                        onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('X sign-in coming soon'),
-                            duration: Duration(seconds: 2),
-                          ),
-                        ),
-                        child: const Text(
-                          '𝕏',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
                     ],
                   ),
                   const SizedBox(height: 36),
