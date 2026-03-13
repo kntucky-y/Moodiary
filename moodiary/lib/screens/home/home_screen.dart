@@ -7,6 +7,7 @@ import '../onboarding/onboarding_screen.dart';
 import '../companion/companion_screen.dart';
 import '../calendar/calendar_screen.dart';
 import '../journal/journal_screen.dart';
+import '../forums/forums_screen.dart';
 import '../../utils/transitions.dart';
 
 const _kPurple = Color(0xFFA076F9);
@@ -252,7 +253,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         _todayActivityScore = activityScore;
         _moodScore = taskPoints + moodActivityScore;
         // Pre-select mood icon if today's log already has one
-        if (cachedMoodLevel != null) _selectedMood = cachedMoodLevel! - 1;
+        if (cachedMoodLevel != null) _selectedMood = cachedMoodLevel - 1;
       });
       _entranceCtrl.forward(from: 0);
     }
@@ -330,10 +331,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     if (!_completedStates[index]) return;
     final prefs = await SharedPreferences.getInstance();
     final today = _dateKey();
-    final newTaskPoints =
-        (_taskPoints - _todayTasks[index].points).clamp(0, 9999) as int;
-    final newMoodScore =
-        (_moodScore - _todayTasks[index].points).clamp(0, 9999) as int;
+    final newTaskPoints = (_taskPoints - _todayTasks[index].points).clamp(
+      0,
+      9999,
+    );
+    final newMoodScore = (_moodScore - _todayTasks[index].points).clamp(
+      0,
+      9999,
+    );
     setState(() {
       _completedStates[index] = false;
       _taskPoints = newTaskPoints;
@@ -410,7 +415,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 task.asset,
                 width: 80,
                 height: 80,
-                errorBuilder: (_, __, ___) =>
+                errorBuilder: (_, _, _) =>
                     const Icon(Icons.task_alt, size: 60, color: _kPurple),
               ),
               const SizedBox(height: 16),
@@ -628,12 +633,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                           mood.asset,
                                           width: 44,
                                           height: 44,
-                                          errorBuilder: (_, __, ___) =>
-                                              const Icon(
-                                                Icons.sentiment_neutral,
-                                                size: 44,
-                                                color: _kSubtle,
-                                              ),
+                                          errorBuilder: (_, _, _) => const Icon(
+                                            Icons.sentiment_neutral,
+                                            size: 44,
+                                            color: _kSubtle,
+                                          ),
                                         ),
                                         const SizedBox(height: 4),
                                         Text(
@@ -710,6 +714,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 Navigator.of(context).push(
                   FadeSlideRoute(
                     page: JournalScreen(
+                      userName: widget.userName,
+                      companionId: widget.companionId,
+                      companionName: widget.companionName,
+                    ),
+                  ),
+                );
+              },
+              onNavigateForums: () {
+                setState(() => _sidebarOpen = false);
+                Navigator.of(context).push(
+                  FadeSlideRoute(
+                    page: ForumsScreen(
                       userName: widget.userName,
                       companionId: widget.companionId,
                       companionName: widget.companionName,
@@ -852,7 +868,7 @@ class _Header extends StatelessWidget {
                             width: 70,
                             height: 70,
                             fit: BoxFit.contain,
-                            errorBuilder: (_, __, ___) => const Icon(
+                            errorBuilder: (_, _, _) => const Icon(
                               Icons.sentiment_satisfied_alt,
                               size: 50,
                               color: Color(0xFFCCCCCC),
@@ -930,7 +946,7 @@ class _TaskCard extends StatelessWidget {
                 task.asset,
                 width: 48,
                 height: 48,
-                errorBuilder: (_, __, ___) =>
+                errorBuilder: (_, _, _) =>
                     const Icon(Icons.task_alt, size: 48, color: _kSubtle),
               ),
               const SizedBox(width: 12),
@@ -1158,7 +1174,21 @@ class _BottomNav extends StatelessWidget {
         },
       ),
       _NavItem(Icons.home_rounded, 'Home', active: true, onTap: () {}),
-      _NavItem(Icons.chat_bubble_outline, 'Forums', onTap: () {}),
+      _NavItem(
+        Icons.chat_bubble_outline,
+        'Forums',
+        onTap: () {
+          Navigator.of(context).push(
+            FadeSlideRoute(
+              page: ForumsScreen(
+                userName: userName,
+                companionId: companionId,
+                companionName: companionName,
+              ),
+            ),
+          );
+        },
+      ),
       _NavItem(Icons.folder_outlined, 'Resources', onTap: () {}),
     ];
     return Container(
@@ -1221,6 +1251,7 @@ class _Sidebar extends StatelessWidget {
   final VoidCallback onClose;
   final VoidCallback onNavigateCalendar;
   final VoidCallback onNavigateJournal;
+  final VoidCallback onNavigateForums;
   final VoidCallback onChangeCompanion;
   final VoidCallback onLogout;
 
@@ -1229,6 +1260,7 @@ class _Sidebar extends StatelessWidget {
     required this.onClose,
     required this.onNavigateCalendar,
     required this.onNavigateJournal,
+    required this.onNavigateForums,
     required this.onChangeCompanion,
     required this.onLogout,
   });
@@ -1283,9 +1315,12 @@ class _Sidebar extends StatelessWidget {
                   label: 'Journal',
                 ),
               ),
-              const _SidebarItem(
-                icon: Icons.chat_bubble_outline,
-                label: 'Forums',
+              TapScale(
+                onTap: onNavigateForums,
+                child: const _SidebarItem(
+                  icon: Icons.chat_bubble_outline,
+                  label: 'Forums',
+                ),
               ),
               const _SidebarItem(
                 icon: Icons.folder_outlined,
@@ -1538,7 +1573,7 @@ class _CompanionChatState extends State<_CompanionChat> {
                       width: 32,
                       height: 32,
                       fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) => const Icon(
+                      errorBuilder: (_, _, _) => const Icon(
                         Icons.sentiment_satisfied_alt,
                         color: _kSubtle,
                       ),
@@ -1589,7 +1624,7 @@ class _CompanionChatState extends State<_CompanionChat> {
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 itemCount: _prompts.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                separatorBuilder: (_, _) => const SizedBox(width: 8),
                 itemBuilder: (_, i) => TapScale(
                   onTap: () => _send(_prompts[i]),
                   child: Container(
@@ -1752,7 +1787,7 @@ class _TypingBubbleState extends State<_TypingBubble>
           children: List.generate(3, (i) {
             return AnimatedBuilder(
               animation: _ctrl,
-              builder: (_, __) {
+              builder: (_, _) {
                 final offset = ((_ctrl.value - i * 0.2) % 1.0);
                 final dy = offset < 0.5
                     ? -4.0 * (offset / 0.5)

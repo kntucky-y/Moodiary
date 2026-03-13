@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../home/home_screen.dart';
+import '../forums/forums_screen.dart';
 import '../../utils/transitions.dart';
 
 const _kPurple = Color(0xFFA076F9);
@@ -674,12 +675,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           color: _kPurple,
                           barWidth: 3,
                           dotData: FlDotData(
-                            getDotPainter: (_, __, ___, ____) =>
-                                FlDotCirclePainter(
-                                  radius: 4,
-                                  color: _kPurple,
-                                  strokeWidth: 0,
-                                ),
+                            getDotPainter: (_, _, _, _) => FlDotCirclePainter(
+                              radius: 4,
+                              color: _kPurple,
+                              strokeWidth: 0,
+                            ),
                           ),
                           belowBarData: BarAreaData(
                             show: true,
@@ -730,7 +730,16 @@ class _CalendarScreenState extends State<CalendarScreen> {
           _NavBtn(
             icon: Icons.chat_bubble_outline,
             label: 'Forums',
-            onTap: () {},
+            onTap: () => Navigator.of(context).pushAndRemoveUntil(
+              FadeSlideRoute(
+                page: ForumsScreen(
+                  userName: widget.userName,
+                  companionId: widget.companionId,
+                  companionName: widget.companionName,
+                ),
+              ),
+              (_) => false,
+            ),
           ),
           _NavBtn(
             icon: Icons.folder_outlined,
@@ -936,7 +945,7 @@ class _LogModalState extends State<_LogModal> {
                           _moodAssets[i],
                           width: 44,
                           height: 44,
-                          errorBuilder: (_, __, ___) => const Icon(
+                          errorBuilder: (_, _, _) => const Icon(
                             Icons.sentiment_neutral,
                             size: 44,
                             color: _kSubtle,
