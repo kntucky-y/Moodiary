@@ -1122,8 +1122,8 @@ class _PostCard extends StatelessWidget {
           children: [
             Image.asset(
               post.doodleAsset,
-              width: 74,
-              height: 74,
+              width: compactText ? 62 : 74,
+              height: compactText ? 62 : 74,
               errorBuilder: (_, _, _) =>
                   const Icon(Icons.face_outlined, size: 56, color: _kSubtle),
             ),
@@ -1138,12 +1138,12 @@ class _PostCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: _kDark,
-                      fontSize: compactText ? 17 : 20,
+                      fontSize: compactText ? 15.5 : 18,
                       height: compactText ? 1.15 : 1.2,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: 6),
+                  SizedBox(height: compactText ? 4 : 6),
                   Text(
                     compactText
                         ? post.content
@@ -1152,7 +1152,7 @@ class _PostCard extends StatelessWidget {
                     overflow: compactText ? TextOverflow.ellipsis : null,
                     style: TextStyle(
                       color: _kDark,
-                      fontSize: compactText ? 12.5 : 14,
+                      fontSize: compactText ? 11.5 : 13,
                       height: 1.35,
                     ),
                   ),
