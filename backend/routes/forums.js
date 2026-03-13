@@ -17,6 +17,7 @@ function sameObjectId(a, b) {
 
 function serializePost(post, currentUserId) {
   const likedByMe = post.likedBy.some((id) => sameObjectId(id, currentUserId));
+  const isMine = sameObjectId(post.userId, currentUserId);
   return {
     id: String(post._id),
     title: post.title,
@@ -25,6 +26,7 @@ function serializePost(post, currentUserId) {
     authorName: post.isAnonymous ? 'Anonymous' : post.authorName,
     companionId: post.companionId || 1,
     likes: post.likedBy.length,
+    isMine,
     likedByMe,
     createdAt: post.createdAt,
     comments: post.comments.map((comment) => ({

@@ -53,6 +53,7 @@ class _ForumPost {
   final String content;
   final bool anonymous;
   final String author;
+  final bool isMine;
   int likes;
   bool likedByMe;
   final List<_ForumComment> comments;
@@ -64,6 +65,7 @@ class _ForumPost {
     required this.content,
     required this.anonymous,
     required this.author,
+    required this.isMine,
     required this.likes,
     required this.likedByMe,
     required this.comments,
@@ -78,6 +80,7 @@ class _ForumPost {
       content: (j['content'] ?? '').toString(),
       anonymous: (j['isAnonymous'] as bool?) ?? true,
       author: (j['authorName'] ?? 'Anonymous').toString(),
+      isMine: (j['isMine'] as bool?) ?? false,
       likes: (j['likes'] as int?) ?? 0,
       likedByMe: (j['likedByMe'] as bool?) ?? false,
       comments: commentsJson
@@ -122,7 +125,8 @@ class _ForumsScreenState extends State<ForumsScreen> {
   List<_ForumPost> _posts = [];
   bool _loading = true;
   bool _fabExpanded = false;
-  int? _activePostIndex;
+  bool _showMineOnly = false;
+  String? _activePostId;
   String? _token;
   final Set<String> _likeBusyPostIds = <String>{};
 
@@ -149,6 +153,9 @@ class _ForumsScreenState extends State<ForumsScreen> {
     return '${now.year}/${now.month.toString().padLeft(2, '0')}/${now.day.toString().padLeft(2, '0')}';
   }
 
+  List<_ForumPost> get _visiblePosts =>
+      _showMineOnly ? _posts.where((p) => p.isMine).toList() : _posts;
+
   Future<void> _fetchPosts({bool silent = false}) async {
     if (_token == null) {
       if (mounted) setState(() => _loading = false);
@@ -171,8 +178,9 @@ class _ForumsScreenState extends State<ForumsScreen> {
 
         setState(() {
           _posts = parsed;
-          if (_activePostIndex != null && _activePostIndex! >= _posts.length) {
-            _activePostIndex = null;
+          if (_activePostId != null &&
+              !_posts.any((p) => p.id == _activePostId)) {
+            _activePostId = null;
           }
           _loading = false;
         });
@@ -234,9 +242,10 @@ class _ForumsScreenState extends State<ForumsScreen> {
     }
   }
 
-  Future<void> _toggleLike(int index) async {
-    if (index < 0 || index >= _posts.length) return;
-    final post = _posts[index];
+  Future<void> _toggleLike(String postId) async {
+    final idx = _posts.indexWhere((p) => p.id == postId);
+    if (idx < 0) return;
+    final post = _posts[idx];
     if (_likeBusyPostIds.contains(post.id)) return;
     if (_token == null) return;
 
@@ -272,15 +281,15 @@ class _ForumsScreenState extends State<ForumsScreen> {
     }
   }
 
-  void _openPostDetail(int index) {
+  void _openPostDetail(String postId) {
     setState(() {
-      _activePostIndex = index;
+      _activePostId = postId;
       _fabExpanded = false;
     });
   }
 
   void _closePostDetail() {
-    setState(() => _activePostIndex = null);
+    setState(() => _activePostId = null);
   }
 
   Future<void> _showComposerDialog() async {
@@ -418,8 +427,9 @@ class _ForumsScreenState extends State<ForumsScreen> {
     );
   }
 
-  Future<void> _showReportDialog(int index) async {
-    if (index < 0 || index >= _posts.length || _token == null) return;
+  Future<void> _showReportDialog(String postId) async {
+    final postIndex = _posts.indexWhere((p) => p.id == postId);
+    if (postIndex < 0 || _token == null) return;
     final reasonCtrl = TextEditingController();
     final detailsCtrl = TextEditingController();
 
@@ -499,7 +509,7 @@ class _ForumsScreenState extends State<ForumsScreen> {
     if (payload == null) return;
 
     try {
-      final post = _posts[index];
+      final post = _posts[postIndex];
       final resp = await http.post(
         Uri.parse('$_kBaseUrl/api/forums/${post.id}/report'),
         headers: {'Content-Type': 'application/json', ..._authHeaders},
@@ -527,11 +537,13 @@ class _ForumsScreenState extends State<ForumsScreen> {
   }
 
   Future<void> _addComment(String text) async {
-    final i = _activePostIndex;
-    if (i == null || i < 0 || i >= _posts.length || _token == null) return;
+    final activeId = _activePostId;
+    if (activeId == null || _token == null) return;
     final trimmed = text.trim();
     if (trimmed.isEmpty) return;
 
+    final i = _posts.indexWhere((p) => p.id == activeId);
+    if (i < 0) return;
     final post = _posts[i];
     final random = Random();
 
@@ -556,7 +568,7 @@ class _ForumsScreenState extends State<ForumsScreen> {
           final idx = _posts.indexWhere((p) => p.id == updated.id);
           if (idx >= 0) {
             _posts[idx] = updated;
-            _activePostIndex = idx;
+            _activePostId = updated.id;
           }
         });
       } else {
@@ -574,12 +586,11 @@ class _ForumsScreenState extends State<ForumsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final activePost =
-        (_activePostIndex != null &&
-            _activePostIndex! >= 0 &&
-            _activePostIndex! < _posts.length)
-        ? _posts[_activePostIndex!]
-        : null;
+    final activePostIdx = _activePostId == null
+        ? -1
+        : _posts.indexWhere((p) => p.id == _activePostId);
+    final activePost = activePostIdx >= 0 ? _posts[activePostIdx] : null;
+    final visiblePosts = _visiblePosts;
 
     return Scaffold(
       backgroundColor: _kHeaderBg,
@@ -668,6 +679,24 @@ class _ForumsScreenState extends State<ForumsScreen> {
                     'A safe space to share and connect',
                     style: TextStyle(color: _kSubtle, fontSize: 15),
                   ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      ChoiceChip(
+                        label: const Text('All posts'),
+                        selected: !_showMineOnly,
+                        onSelected: (_) =>
+                            setState(() => _showMineOnly = false),
+                      ),
+                      const SizedBox(width: 8),
+                      ChoiceChip(
+                        label: const Text('My posts'),
+                        selected: _showMineOnly,
+                        onSelected: (_) => setState(() => _showMineOnly = true),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -688,12 +717,14 @@ class _ForumsScreenState extends State<ForumsScreen> {
                     child: activePost == null
                         ? _ForumListView(
                             key: const ValueKey('forum-list'),
-                            posts: _posts,
+                            posts: visiblePosts,
                             companionId: widget.companionId,
                             fabExpanded: _fabExpanded,
-                            onPostTap: _openPostDetail,
-                            onLikeTap: _toggleLike,
-                            onReportTap: _showReportDialog,
+                            onPostTap: (i) =>
+                                _openPostDetail(visiblePosts[i].id),
+                            onLikeTap: (i) => _toggleLike(visiblePosts[i].id),
+                            onReportTap: (i) =>
+                                _showReportDialog(visiblePosts[i].id),
                             onExpandFab: () =>
                                 setState(() => _fabExpanded = true),
                             onCollapseFab: () =>
@@ -704,9 +735,8 @@ class _ForumsScreenState extends State<ForumsScreen> {
                             key: const ValueKey('forum-detail'),
                             post: activePost,
                             onClose: _closePostDetail,
-                            onLikeTap: () => _toggleLike(_activePostIndex!),
-                            onReportTap: () =>
-                                _showReportDialog(_activePostIndex!),
+                            onLikeTap: () => _toggleLike(activePost.id),
+                            onReportTap: () => _showReportDialog(activePost.id),
                             onAddComment: _addComment,
                           ),
                   ),
