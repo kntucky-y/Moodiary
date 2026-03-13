@@ -200,10 +200,7 @@ class _ForumsScreenState extends State<ForumsScreen> {
     try {
       final resp = await http.post(
         Uri.parse('$_kBaseUrl/api/forums'),
-        headers: {
-          'Content-Type': 'application/json',
-          ..._authHeaders,
-        },
+        headers: {'Content-Type': 'application/json', ..._authHeaders},
         body: jsonEncode({
           'title': title,
           'content': content,
@@ -365,7 +362,7 @@ class _ForumsScreenState extends State<ForumsScreen> {
                         const Spacer(),
                         Switch.adaptive(
                           value: anonymous,
-                          activeColor: _kPurple,
+                          activeTrackColor: _kPurple,
                           onChanged: (v) => setDialogState(() => anonymous = v),
                         ),
                       ],
@@ -505,10 +502,7 @@ class _ForumsScreenState extends State<ForumsScreen> {
       final post = _posts[index];
       final resp = await http.post(
         Uri.parse('$_kBaseUrl/api/forums/${post.id}/report'),
-        headers: {
-          'Content-Type': 'application/json',
-          ..._authHeaders,
-        },
+        headers: {'Content-Type': 'application/json', ..._authHeaders},
         body: jsonEncode(payload),
       );
 
@@ -544,10 +538,7 @@ class _ForumsScreenState extends State<ForumsScreen> {
     try {
       final resp = await http.post(
         Uri.parse('$_kBaseUrl/api/forums/${post.id}/comments'),
-        headers: {
-          'Content-Type': 'application/json',
-          ..._authHeaders,
-        },
+        headers: {'Content-Type': 'application/json', ..._authHeaders},
         body: jsonEncode({
           'text': trimmed,
           'moodAsset':
@@ -583,7 +574,8 @@ class _ForumsScreenState extends State<ForumsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final activePost = (_activePostIndex != null &&
+    final activePost =
+        (_activePostIndex != null &&
             _activePostIndex! >= 0 &&
             _activePostIndex! < _posts.length)
         ? _posts[_activePostIndex!]
@@ -601,7 +593,25 @@ class _ForumsScreenState extends State<ForumsScreen> {
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.menu_rounded, color: _kDark, size: 27),
+                      IconButton(
+                        onPressed: () =>
+                            Navigator.of(context).pushAndRemoveUntil(
+                              FadeSlideRoute(
+                                page: HomeScreen(
+                                  userName: widget.userName,
+                                  companionId: widget.companionId,
+                                  companionName: widget.companionName,
+                                ),
+                              ),
+                              (_) => false,
+                            ),
+                        icon: const Icon(
+                          Icons.arrow_back_ios_new_rounded,
+                          color: _kDark,
+                          size: 22,
+                        ),
+                        tooltip: 'Back to Home',
+                      ),
                       const Spacer(),
                       Text(
                         _todayStr(),
@@ -671,19 +681,13 @@ class _ForumsScreenState extends State<ForumsScreen> {
                     subtitle: 'Forums requires an authenticated account.',
                     icon: Icons.lock_outline_rounded,
                   )
-                : _posts.isEmpty && activePost == null
-                ? const _ForumEmptyState(
-                    title: 'No posts yet',
-                    subtitle: 'Be the first to share a supportive post.',
-                    icon: Icons.forum_outlined,
-                  )
                 : AnimatedSwitcher(
                     duration: const Duration(milliseconds: 260),
                     switchInCurve: Curves.easeOutCubic,
                     switchOutCurve: Curves.easeInCubic,
                     child: activePost == null
-                        ? _ForumListView
-                            key: const ValueKey('forum-list')(
+                        ? _ForumListView(
+                            key: const ValueKey('forum-list'),
                             posts: _posts,
                             companionId: widget.companionId,
                             fabExpanded: _fabExpanded,
@@ -751,18 +755,45 @@ class _ForumListView extends StatelessWidget {
             color: Colors.white,
             borderRadius: BorderRadius.vertical(top: Radius.circular(40)),
           ),
-          child: ListView.builder(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 114),
-            itemCount: posts.length,
-            itemBuilder: (ctx, i) {
-              return _PostCard(
-                post: posts[i],
-                onTap: () => onPostTap(i),
-                onLikeTap: () => onLikeTap(i),
-                onReportTap: () => onReportTap(i),
-              );
-            },
-          ),
+          child: posts.isEmpty
+              ? const Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.forum_outlined,
+                        size: 62,
+                        color: Color(0xFFAFAFB4),
+                      ),
+                      SizedBox(height: 12),
+                      Text(
+                        'No posts yet',
+                        style: TextStyle(
+                          color: _kDark,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Tap + to share the first supportive post.',
+                        style: TextStyle(color: _kSubtle, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 114),
+                  itemCount: posts.length,
+                  itemBuilder: (ctx, i) {
+                    return _PostCard(
+                      post: posts[i],
+                      onTap: () => onPostTap(i),
+                      onLikeTap: () => onLikeTap(i),
+                      onReportTap: () => onReportTap(i),
+                    );
+                  },
+                ),
         ),
         if (fabExpanded)
           Positioned.fill(
@@ -1037,7 +1068,9 @@ class _ForumDetailViewState extends State<_ForumDetailView> {
                               padding: EdgeInsets.all(12),
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation(Colors.white),
+                                valueColor: AlwaysStoppedAnimation(
+                                  Colors.white,
+                                ),
                               ),
                             )
                           : const Icon(
@@ -1103,10 +1136,10 @@ class _PostCard extends StatelessWidget {
                     post.title,
                     maxLines: compactText ? 2 : 3,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: _kDark,
-                      fontSize: 24,
-                      height: 1.2,
+                      fontSize: compactText ? 17 : 20,
+                      height: compactText ? 1.15 : 1.2,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -1117,9 +1150,9 @@ class _PostCard extends StatelessWidget {
                         : '${post.content}\nPosted by ${post.author}',
                     maxLines: compactText ? 3 : null,
                     overflow: compactText ? TextOverflow.ellipsis : null,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: _kDark,
-                      fontSize: 15,
+                      fontSize: compactText ? 12.5 : 14,
                       height: 1.35,
                     ),
                   ),
