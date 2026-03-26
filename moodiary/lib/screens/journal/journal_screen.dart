@@ -4,6 +4,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../utils/transitions.dart';
+import '../calendar/calendar_screen.dart';
+import '../home/home_screen.dart';
+import '../forums/forums_screen.dart';
+import '../friends/friends_screen.dart';
 
 const _kPurple = Color(0xFFA076F9);
 const _kDark = Color(0xFF3D3B40);
@@ -630,6 +634,7 @@ class _JournalScreenState extends State<JournalScreen> {
             ),
         ],
       ),
+      bottomNavigationBar: _buildBottomNav(context),
     );
   }
 
@@ -665,6 +670,88 @@ class _JournalScreenState extends State<JournalScreen> {
           onPermanentDelete: () => _hardDeleteEntry(entry),
         );
       },
+    );
+  }
+
+  Widget _buildBottomNav(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: Color(0xFFF0F0F0), width: 1.5)),
+      ),
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _NavBtn(
+            icon: Icons.calendar_month_outlined,
+            label: 'Calendar',
+            onTap: () => Navigator.of(context).pushAndRemoveUntil(
+              FadeSlideRoute(
+                page: CalendarScreen(
+                  userName: widget.userName,
+                  companionId: widget.companionId,
+                  companionName: widget.companionName,
+                ),
+              ),
+              (_) => false,
+            ),
+          ),
+          _NavBtn(
+            icon: Icons.book_outlined,
+            label: 'Journal',
+            active: true,
+            onTap: () {},
+          ),
+          _NavBtn(
+            icon: Icons.home_rounded,
+            label: 'Home',
+            onTap: () => Navigator.of(context).pushAndRemoveUntil(
+              FadeSlideRoute(
+                page: HomeScreen(
+                  userName: widget.userName,
+                  companionId: widget.companionId,
+                  companionName: widget.companionName,
+                ),
+              ),
+              (_) => false,
+            ),
+          ),
+          _NavBtn(
+            icon: Icons.people_alt_outlined,
+            label: 'Friends',
+            onTap: () => Navigator.of(context).pushAndRemoveUntil(
+              FadeSlideRoute(
+                page: FriendsScreen(
+                  userName: widget.userName,
+                  companionId: widget.companionId,
+                  companionName: widget.companionName,
+                ),
+              ),
+              (_) => false,
+            ),
+          ),
+          _NavBtn(
+            icon: Icons.chat_bubble_outline,
+            label: 'Forums',
+            onTap: () => Navigator.of(context).pushAndRemoveUntil(
+              FadeSlideRoute(
+                page: ForumsScreen(
+                  userName: widget.userName,
+                  companionId: widget.companionId,
+                  companionName: widget.companionName,
+                ),
+              ),
+              (_) => false,
+            ),
+          ),
+          const _NavBtn(
+            icon: Icons.folder_outlined,
+            label: 'Resources',
+            onTap: null,
+          ),
+        ],
+      ),
     );
   }
 }
@@ -845,6 +932,41 @@ class _EntryCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _NavBtn extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool active;
+  final VoidCallback? onTap;
+  const _NavBtn({
+    required this.icon,
+    required this.label,
+    this.active = false,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: active ? _kPurple : _kSubtle, size: 26),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              color: active ? _kPurple : _kSubtle,
+              fontWeight: active ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+        ],
       ),
     );
   }

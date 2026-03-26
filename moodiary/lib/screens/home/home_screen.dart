@@ -8,6 +8,7 @@ import '../companion/companion_screen.dart';
 import '../calendar/calendar_screen.dart';
 import '../journal/journal_screen.dart';
 import '../forums/forums_screen.dart';
+import '../friends/friends_screen.dart';
 import '../../utils/transitions.dart';
 
 const _kPurple = Color(0xFFA076F9);
@@ -388,6 +389,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('token');
     await prefs.remove('user_name');
+    await prefs.remove('user_id');
     await prefs.remove('companion_id');
     await prefs.remove('companion_name');
     if (mounted) {
@@ -726,6 +728,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 Navigator.of(context).push(
                   FadeSlideRoute(
                     page: ForumsScreen(
+                      userName: widget.userName,
+                      companionId: widget.companionId,
+                      companionName: widget.companionName,
+                    ),
+                  ),
+                );
+              },
+              onNavigateFriends: () {
+                setState(() => _sidebarOpen = false);
+                Navigator.of(context).push(
+                  FadeSlideRoute(
+                    page: FriendsScreen(
                       userName: widget.userName,
                       companionId: widget.companionId,
                       companionName: widget.companionName,
@@ -1175,6 +1189,21 @@ class _BottomNav extends StatelessWidget {
       ),
       _NavItem(Icons.home_rounded, 'Home', active: true, onTap: () {}),
       _NavItem(
+        Icons.people_alt_outlined,
+        'Friends',
+        onTap: () {
+          Navigator.of(context).push(
+            FadeSlideRoute(
+              page: FriendsScreen(
+                userName: userName,
+                companionId: companionId,
+                companionName: companionName,
+              ),
+            ),
+          );
+        },
+      ),
+      _NavItem(
         Icons.chat_bubble_outline,
         'Forums',
         onTap: () {
@@ -1252,6 +1281,7 @@ class _Sidebar extends StatelessWidget {
   final VoidCallback onNavigateCalendar;
   final VoidCallback onNavigateJournal;
   final VoidCallback onNavigateForums;
+  final VoidCallback onNavigateFriends;
   final VoidCallback onChangeCompanion;
   final VoidCallback onLogout;
 
@@ -1261,6 +1291,7 @@ class _Sidebar extends StatelessWidget {
     required this.onNavigateCalendar,
     required this.onNavigateJournal,
     required this.onNavigateForums,
+    required this.onNavigateFriends,
     required this.onChangeCompanion,
     required this.onLogout,
   });
@@ -1313,6 +1344,13 @@ class _Sidebar extends StatelessWidget {
                 child: const _SidebarItem(
                   icon: Icons.book_outlined,
                   label: 'Journal',
+                ),
+              ),
+              TapScale(
+                onTap: onNavigateFriends,
+                child: const _SidebarItem(
+                  icon: Icons.people_alt_outlined,
+                  label: 'Friends',
                 ),
               ),
               TapScale(

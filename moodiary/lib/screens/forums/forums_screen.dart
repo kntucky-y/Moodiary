@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../calendar/calendar_screen.dart';
 import '../home/home_screen.dart';
 import '../journal/journal_screen.dart';
+import '../friends/friends_screen.dart';
 import '../../utils/transitions.dart';
 
 const _kPurple = Color(0xFFA076F9);
@@ -133,24 +134,34 @@ class _ForumsScreenState extends State<ForumsScreen> {
   @override
   void initState() {
     super.initState();
-    _init();
-  }
-
-  Future<void> _init() async {
-    final prefs = await SharedPreferences.getInstance();
-    _token = prefs.getString('token');
-    await _fetchPosts();
-  }
-
-  Map<String, String> get _authHeaders {
-    final t = _token;
-    if (t == null || t.isEmpty) return {};
-    return {'Authorization': 'Bearer $t'};
-  }
-
-  String _todayStr() {
-    final now = DateTime.now();
-    return '${now.year}/${now.month.toString().padLeft(2, '0')}/${now.day.toString().padLeft(2, '0')}';
+      _NavItem(
+        icon: Icons.home_rounded,
+        label: 'Home',
+        onTap: () => Navigator.of(context).pushAndRemoveUntil(
+          FadeSlideRoute(
+            page: HomeScreen(
+              userName: userName,
+              companionId: companionId,
+              companionName: companionName,
+            ),
+          ),
+          (_) => false,
+        ),
+      ),
+      _NavItem(
+        icon: Icons.people_alt_outlined,
+        label: 'Friends',
+        onTap: () => Navigator.of(context).pushAndRemoveUntil(
+          FadeSlideRoute(
+            page: FriendsScreen(
+              userName: userName,
+              companionId: companionId,
+              companionName: companionName,
+            ),
+          ),
+          (_) => false,
+        ),
+      ),
   }
 
   List<_ForumPost> get _visiblePosts =>
@@ -1306,6 +1317,7 @@ class _ForumBottomNav extends StatelessWidget {
           (_) => false,
         ),
       ),
+      const _NavItem(icon: Icons.people_alt_rounded, label: 'Friends'),
       const _NavItem(
         icon: Icons.chat_bubble_rounded,
         label: 'Forums',

@@ -5,6 +5,8 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../home/home_screen.dart';
 import '../forums/forums_screen.dart';
+import '../friends/friends_screen.dart';
+import '../journal/journal_screen.dart';
 import '../../utils/transitions.dart';
 
 const _kPurple = Color(0xFFA076F9);
@@ -571,6 +573,36 @@ class _CalendarScreenState extends State<CalendarScreen> {
   // ── Trend Chart ───────────────────────────────────────────────────────────────
   Widget _buildTrendChart() {
     final trendLogs = _trendLogs;
+    final scores = trendLogs.map((l) => l.score.toDouble()).toList();
+    final double? minScore = scores.isEmpty
+        ? null
+        : scores.reduce((a, b) => a < b ? a : b);
+    final double? maxScore = scores.isEmpty
+        ? null
+        : scores.reduce((a, b) => a > b ? a : b);
+
+    double _paddedMinY() {
+      if (minScore == null || maxScore == null) return 0;
+      final range = maxScore - minScore;
+      final padding = range == 0 ? 10 : (range * 0.15).clamp(5, 25);
+      final value = (minScore - padding).floorToDouble();
+      return value < 0 ? 0 : value;
+    }
+
+    double _paddedMaxY() {
+      if (minScore == null || maxScore == null) return 60;
+      final range = maxScore - minScore;
+      final padding = range == 0 ? 10 : (range * 0.15).clamp(5, 25);
+      return (maxScore + padding).ceilToDouble();
+    }
+
+    double _bottomInterval() {
+      final total = trendLogs.length;
+      if (total <= 5) return 1;
+      if (total <= 15) return 2;
+      return (total / 6).ceilToDouble();
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -601,21 +633,43 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   ),
                 )
               : SizedBox(
-                  height: 160,
+                  height: 200,
                   child: LineChart(
                     LineChartData(
+                      lineTouchData: LineTouchData(enabled: false),
+                      clipData: FlClipData.all(),
+                      minX: 0,
+                      maxX: (trendLogs.length - 1).toDouble(),
+                      minY: _paddedMinY(),
+                      maxY: _paddedMaxY(),
                       gridData: FlGridData(
                         show: true,
-                        drawVerticalLine: false,
-                        horizontalInterval: 3,
+                        drawVerticalLine: true,
+                        verticalInterval: _bottomInterval(),
+                        horizontalInterval: 10,
                         getDrawingHorizontalLine: (_) => const FlLine(
                           color: Color(0xFFE5E7EB),
                           strokeWidth: 1,
                         ),
+                        getDrawingVerticalLine: (_) => const FlLine(
+                          color: Color(0xFFF1F5F9),
+                          strokeWidth: 1,
+                        ),
                       ),
                       titlesData: FlTitlesData(
-                        leftTitles: const AxisTitles(
-                          sideTitles: SideTitles(showTitles: false),
+                        leftTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: 34,
+                            interval: 20,
+                            getTitlesWidget: (value, _) => Text(
+                              value.toInt().toString(),
+                              style: const TextStyle(
+                                fontSize: 10,
+                                color: _kSubtle,
+                              ),
+                            ),
+                          ),
                         ),
                         rightTitles: const AxisTitles(
                           sideTitles: SideTitles(showTitles: false),
@@ -626,28 +680,20 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         bottomTitles: AxisTitles(
                           sideTitles: SideTitles(
                             showTitles: true,
-                            reservedSize: 28,
-                            interval: 1,
+                            reservedSize: 32,
+                            interval: _bottomInterval(),
                             getTitlesWidget: (value, _) {
-                              final i = value.toInt();
+                              final i = value.round();
                               if (i < 0 || i >= trendLogs.length) {
-                                return const SizedBox();
-                              }
-                              // Only label every few points to avoid crowding
-                              final total = trendLogs.length;
-                              if (total > 10 &&
-                                  i != 0 &&
-                                  i != total - 1 &&
-                                  i % ((total / 4).ceil()) != 0) {
                                 return const SizedBox();
                               }
                               final parts = trendLogs[i].dateKey.split('-');
                               return Padding(
-                                padding: const EdgeInsets.only(top: 4),
+                                padding: const EdgeInsets.only(top: 6),
                                 child: Text(
                                   '${parts[1]}/${parts[2]}',
                                   style: const TextStyle(
-                                    fontSize: 9,
+                                    fontSize: 10,
                                     color: _kSubtle,
                                   ),
                                 ),
@@ -657,29 +703,25 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         ),
                       ),
                       borderData: FlBorderData(show: false),
-                      minY: 0,
-                      maxY: 12,
                       lineBarsData: [
                         LineChartBarData(
-                          spots: trendLogs
-                              .asMap()
-                              .entries
-                              .map(
-                                (e) => FlSpot(
-                                  e.key.toDouble(),
-                                  e.value.score.toDouble(),
-                                ),
-                              )
-                              .toList(),
+                          spots: [
+                            for (int i = 0; i < trendLogs.length; i++)
+                              FlSpot(
+                                i.toDouble(),
+                                trendLogs[i].score.toDouble(),
+                              ),
+                          ],
                           isCurved: true,
                           color: _kPurple,
                           barWidth: 3,
                           dotData: FlDotData(
-                            getDotPainter: (_, _, _, _) => FlDotCirclePainter(
-                              radius: 4,
-                              color: _kPurple,
-                              strokeWidth: 0,
-                            ),
+                            getDotPainter: (_, __, ___, ____) =>
+                                FlDotCirclePainter(
+                                  radius: 4,
+                                  color: _kPurple,
+                                  strokeWidth: 0,
+                                ),
                           ),
                           belowBarData: BarAreaData(
                             show: true,
@@ -712,13 +754,40 @@ class _CalendarScreenState extends State<CalendarScreen> {
             active: true,
             onTap: () {},
           ),
-          _NavBtn(icon: Icons.book_outlined, label: 'Journal', onTap: () {}),
+          _NavBtn(
+            icon: Icons.book_outlined,
+            label: 'Journal',
+            onTap: () => Navigator.of(context).pushAndRemoveUntil(
+              FadeSlideRoute(
+                page: JournalScreen(
+                  userName: widget.userName,
+                  companionId: widget.companionId,
+                  companionName: widget.companionName,
+                ),
+              ),
+              (_) => false,
+            ),
+          ),
           _NavBtn(
             icon: Icons.home_rounded,
             label: 'Home',
             onTap: () => Navigator.of(context).pushAndRemoveUntil(
               FadeSlideRoute(
                 page: HomeScreen(
+                  userName: widget.userName,
+                  companionId: widget.companionId,
+                  companionName: widget.companionName,
+                ),
+              ),
+              (_) => false,
+            ),
+          ),
+          _NavBtn(
+            icon: Icons.people_alt_outlined,
+            label: 'Friends',
+            onTap: () => Navigator.of(context).pushAndRemoveUntil(
+              FadeSlideRoute(
+                page: FriendsScreen(
                   userName: widget.userName,
                   companionId: widget.companionId,
                   companionName: widget.companionName,
