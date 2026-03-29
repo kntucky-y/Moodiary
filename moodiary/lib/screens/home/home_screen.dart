@@ -8,6 +8,7 @@ import '../companion/companion_screen.dart';
 import '../calendar/calendar_screen.dart';
 import '../journal/journal_screen.dart';
 import '../forums/forums_screen.dart';
+import '../friends/friends_screen.dart';
 import '../../utils/transitions.dart';
 
 const _kPurple = Color(0xFFA076F9);
@@ -1174,6 +1175,21 @@ class _BottomNav extends StatelessWidget {
         },
       ),
       _NavItem(Icons.home_rounded, 'Home', active: true, onTap: () {}),
+      _NavItem(
+        Icons.people_alt_rounded,
+        'Friends',
+        onTap: () {
+          Navigator.of(context).push(
+            FadeSlideRoute(
+              page: FriendsScreen(
+                userName: userName,
+                companionId: companionId,
+                companionName: companionName,
+              ),
+            ),
+          );
+        },
+      ),
       _NavItem(
         Icons.chat_bubble_outline,
         'Forums',

@@ -1,10 +1,13 @@
 import 'dart:convert';
+import 'dart:math' as math;
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../home/home_screen.dart';
+import '../journal/journal_screen.dart';
 import '../forums/forums_screen.dart';
+import '../friends/friends_screen.dart';
 import '../../utils/transitions.dart';
 
 const _kPurple = Color(0xFFA076F9);
@@ -571,6 +574,20 @@ class _CalendarScreenState extends State<CalendarScreen> {
   // ── Trend Chart ───────────────────────────────────────────────────────────────
   Widget _buildTrendChart() {
     final trendLogs = _trendLogs;
+    final maxScore = trendLogs.isEmpty
+        ? 50
+        : trendLogs.fold<int>(
+            trendLogs.first.score,
+            (max, log) => math.max(max, log.score),
+          );
+    final minScore = trendLogs.isEmpty
+        ? 0
+        : trendLogs.fold<int>(
+            trendLogs.first.score,
+            (min, log) => math.min(min, log.score),
+          );
+    final chartMaxY = math.max(60, maxScore + 10).toDouble();
+    final chartMinY = math.min(0, minScore - 10).toDouble();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -657,8 +674,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         ),
                       ),
                       borderData: FlBorderData(show: false),
-                      minY: 0,
-                      maxY: 12,
+                      minY: chartMinY,
+                      maxY: chartMaxY,
                       lineBarsData: [
                         LineChartBarData(
                           spots: trendLogs
@@ -712,13 +729,40 @@ class _CalendarScreenState extends State<CalendarScreen> {
             active: true,
             onTap: () {},
           ),
-          _NavBtn(icon: Icons.book_outlined, label: 'Journal', onTap: () {}),
+          _NavBtn(
+            icon: Icons.book_outlined,
+            label: 'Journal',
+            onTap: () => Navigator.of(context).pushAndRemoveUntil(
+              FadeSlideRoute(
+                page: JournalScreen(
+                  userName: widget.userName,
+                  companionId: widget.companionId,
+                  companionName: widget.companionName,
+                ),
+              ),
+              (_) => false,
+            ),
+          ),
           _NavBtn(
             icon: Icons.home_rounded,
             label: 'Home',
             onTap: () => Navigator.of(context).pushAndRemoveUntil(
               FadeSlideRoute(
                 page: HomeScreen(
+                  userName: widget.userName,
+                  companionId: widget.companionId,
+                  companionName: widget.companionName,
+                ),
+              ),
+              (_) => false,
+            ),
+          ),
+          _NavBtn(
+            icon: Icons.people_alt_rounded,
+            label: 'Friends',
+            onTap: () => Navigator.of(context).pushAndRemoveUntil(
+              FadeSlideRoute(
+                page: FriendsScreen(
                   userName: widget.userName,
                   companionId: widget.companionId,
                   companionName: widget.companionName,
