@@ -712,7 +712,7 @@ class _FloatingImageState extends State<_FloatingImage>
 class _MoodImage extends StatelessWidget {
   final String path;
   final double? size;
-  const _MoodImage(this.path, {this.size});
+  const _MoodImage(this.path);
 
   @override
   Widget build(BuildContext context) {
