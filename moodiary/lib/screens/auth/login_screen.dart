@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../home/home_screen.dart';
 import '../companion/companion_screen.dart';
 import '../../utils/transitions.dart';
+import '../../services/realtime_notifications.dart';
 
 const _kPurple = Color(0xFF9B7FDB);
 const _kDark = Color(0xFF1A1A2E);
@@ -73,6 +74,10 @@ class _LoginScreenState extends State<LoginScreen> {
         if (userId != null && userId.isNotEmpty) {
           await prefs.setString('user_id', userId);
         }
+
+        await RealtimeNotifications.instance.ensureConnected(
+          token: data['token'] as String,
+        );
 
         final companionId = prefs.getInt('companion_id');
         final companionName = prefs.getString('companion_name');

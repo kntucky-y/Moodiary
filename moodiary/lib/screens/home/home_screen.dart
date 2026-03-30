@@ -11,6 +11,7 @@ import '../forums/forums_screen.dart';
 import '../friends/friends_screen.dart';
 import '../../utils/transitions.dart';
 import '../../widgets/app_sidebar.dart';
+import '../../services/realtime_notifications.dart';
 
 const _kPurple = Color(0xFFA076F9);
 const _kLightPurple = Color(0xFFD8B4F8);
@@ -393,6 +394,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     await prefs.remove('user_id');
     await prefs.remove('companion_id');
     await prefs.remove('companion_name');
+    RealtimeNotifications.instance.disconnect();
     if (mounted) {
       Navigator.of(context).pushAndRemoveUntil(
         FadeSlideRoute(page: const OnboardingScreen()),

@@ -10,7 +10,7 @@ const {
   ensureFriendshipAccess,
   isValidObjectId,
 } = require('../utils/friendships');
-const { getIO } = require('../socket');
+const { getIO, emitNotification } = require('../socket');
 
 const router = express.Router();
 
@@ -53,7 +53,10 @@ const formatMessage = (doc) => ({
   id: doc._id.toString(),
   text: doc.text,
   sender: doc.sender.toString(),
-  createdAt: doc.createdAt,
+  createdAt:
+    doc.createdAt && typeof doc.createdAt.toISOString === 'function'
+      ? doc.createdAt.toISOString()
+      : new Date().toISOString(),
 });
 
 const upsertFriendship = async (userA, userB) => {
@@ -61,6 +64,10 @@ const upsertFriendship = async (userA, userB) => {
   let friendship = await Friendship.findOne({ pairKey });
   if (!friendship) {
     friendship = await Friendship.create({ members: [userA, userB], pairKey });
+  } else if (friendship.status !== 'active') {
+    friendship.status = 'active';
+    friendship.endedAt = null;
+    await friendship.save();
   }
   return friendship;
 };
@@ -70,7 +77,7 @@ router.get('/', auth, async (req, res) => {
     const userId = req.userId;
 
     const [friendships, incoming, outgoing] = await Promise.all([
-      Friendship.find({ members: userId })
+      Friendship.find({ members: userId, status: 'active' })
         .populate('members', 'name email')
         .sort({ updatedAt: -1 })
         .lean(),
@@ -113,7 +120,7 @@ router.post('/request', auth, async (req, res) => {
 
     const pairKey = buildPairKey(requesterId, recipient._id);
     const existingFriendship = await Friendship.findOne({ pairKey });
-    if (existingFriendship) {
+    if (existingFriendship && existingFriendship.status === 'active') {
       return res.status(409).json({ error: 'You are already friends' });
     }
 
@@ -243,7 +250,10 @@ router.post('/:id/messages', auth, async (req, res) => {
   }
 
   try {
-    await ensureFriendshipAccess(req.params.id, req.userId);
+    const friendship = await ensureFriendshipAccess(
+      req.params.id,
+      req.userId,
+    );
 
     const message = await FriendMessage.create({
       friendship: new mongoose.Types.ObjectId(req.params.id),
@@ -272,6 +282,24 @@ router.post('/:id/messages', auth, async (req, res) => {
       // Socket layer not initialized; skip emit.
     }
 
+    const recipients = friendship.members
+      .map((member) => member.toString())
+      .filter((memberId) => memberId !== req.userId.toString());
+    if (recipients.length) {
+      const sender = await User.findById(req.userId, 'name').lean();
+      emitNotification(recipients, {
+        type: 'friend_message',
+        friendshipId: req.params.id,
+        messageId: payload.id,
+        text,
+        from: {
+          id: req.userId.toString(),
+          name: sender?.name ?? 'Friend',
+        },
+        createdAt: payload.createdAt,
+      });
+    }
+
     res.status(201).json(payload);
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });
@@ -285,8 +313,9 @@ router.delete('/:id', auth, async (req, res) => {
       req.userId,
     );
 
-    await FriendMessage.deleteMany({ friendship: friendship._id });
-    await friendship.deleteOne();
+    friendship.status = 'archived';
+    friendship.endedAt = new Date();
+    await friendship.save();
 
     try {
       getIO()
@@ -295,6 +324,16 @@ router.delete('/:id', auth, async (req, res) => {
     } catch (_) {
       // Socket layer not initialized; skip emit.
     }
+
+    emitNotification(
+      friendship.members,
+      {
+        type: 'friend_removed',
+        friendshipId: req.params.id,
+        message: 'Friendship ended',
+        at: new Date().toISOString(),
+      },
+    );
 
     res.json({ status: 'unfriended' });
   } catch (err) {

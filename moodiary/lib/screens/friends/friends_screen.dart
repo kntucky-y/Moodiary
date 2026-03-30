@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -12,6 +13,7 @@ import '../companion/companion_screen.dart';
 import '../onboarding/onboarding_screen.dart';
 import '../../utils/transitions.dart';
 import '../../widgets/app_sidebar.dart';
+import '../../services/realtime_notifications.dart';
 import 'friend_chat_screen.dart';
 
 const _kBaseUrl = 'https://moodiary-production.up.railway.app';
@@ -43,17 +45,64 @@ class _FriendsScreenState extends State<FriendsScreen> {
   List<_FriendSummary> _friends = [];
   List<_FriendRequest> _incoming = [];
   List<_FriendRequest> _outgoing = [];
+  StreamSubscription<Map<String, dynamic>>? _notificationSub;
 
   @override
   void initState() {
     super.initState();
+    _notificationSub = RealtimeNotifications.instance.stream.listen(
+      _handleNotification,
+    );
     _init();
+  }
+
+  @override
+  void dispose() {
+    _notificationSub?.cancel();
+    super.dispose();
   }
 
   Future<void> _init() async {
     final prefs = await SharedPreferences.getInstance();
     _token = prefs.getString('token');
+    await RealtimeNotifications.instance.ensureConnected(token: _token);
     await _loadFriends();
+  }
+
+  void _handleNotification(Map<String, dynamic> payload) {
+    if (!mounted) return;
+    final type = payload['type'];
+    if (type == 'friend_removed') {
+      final friendshipId = payload['friendshipId']?.toString();
+      if (friendshipId == null) return;
+      setState(() {
+        _friends.removeWhere((f) => f.id == friendshipId);
+      });
+      return;
+    }
+
+    if (type == 'friend_message') {
+      final friendshipId = payload['friendshipId']?.toString();
+      if (friendshipId == null) return;
+      final index = _friends.indexWhere((f) => f.id == friendshipId);
+      if (index == -1) return;
+      final text = payload['text'] as String?;
+      final createdRaw = payload['createdAt'];
+      DateTime? createdAt;
+      if (createdRaw is String) {
+        createdAt = DateTime.tryParse(createdRaw)?.toLocal();
+      } else if (createdRaw is int) {
+        createdAt = DateTime.fromMillisecondsSinceEpoch(createdRaw).toLocal();
+      }
+      if (text == null && createdAt == null) return;
+      setState(() {
+        final friend = _friends[index];
+        _friends[index] = friend.copyWith(
+          lastMessage: text ?? friend.lastMessage,
+          lastMessageAt: createdAt ?? friend.lastMessageAt,
+        );
+      });
+    }
   }
 
   Future<void> _loadFriends() async {
@@ -268,6 +317,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
     await prefs.remove('user_id');
     await prefs.remove('companion_id');
     await prefs.remove('companion_name');
+    RealtimeNotifications.instance.disconnect();
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
       FadeSlideRoute(page: const OnboardingScreen()),
@@ -454,6 +504,21 @@ class _FriendSummary {
       lastMessageAt: last != null && last['createdAt'] != null
           ? DateTime.parse(last['createdAt'] as String).toLocal()
           : null,
+    );
+  }
+
+  _FriendSummary copyWith({
+    String? name,
+    String? email,
+    String? lastMessage,
+    DateTime? lastMessageAt,
+  }) {
+    return _FriendSummary(
+      id: id,
+      name: name ?? this.name,
+      email: email ?? this.email,
+      lastMessage: lastMessage ?? this.lastMessage,
+      lastMessageAt: lastMessageAt ?? this.lastMessageAt,
     );
   }
 }

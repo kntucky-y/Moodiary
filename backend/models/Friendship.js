@@ -15,6 +15,13 @@ const friendshipSchema = new mongoose.Schema(
       unique: true,
       trim: true,
     },
+    status: {
+      type: String,
+      enum: ['active', 'archived'],
+      default: 'active',
+      index: true,
+    },
+    endedAt: Date,
     lastMessage: {
       text: String,
       sender: {

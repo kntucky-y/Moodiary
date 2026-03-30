@@ -12,6 +12,7 @@ import '../companion/companion_screen.dart';
 import '../onboarding/onboarding_screen.dart';
 import '../../utils/transitions.dart';
 import '../../widgets/app_sidebar.dart';
+import '../../services/realtime_notifications.dart';
 
 const _kPurple = Color(0xFFA076F9);
 const _kDark = Color(0xFF3D3B40);
@@ -169,6 +170,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   Future<void> _init() async {
     final prefs = await SharedPreferences.getInstance();
     _token = prefs.getString('token');
+    await RealtimeNotifications.instance.ensureConnected(token: _token);
     // Load from local cache instantly, then refresh from DB in background
     _loadFromCache(prefs);
     _fetchLogs(prefs);
@@ -237,6 +239,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     await prefs.remove('user_id');
     await prefs.remove('companion_id');
     await prefs.remove('companion_name');
+    RealtimeNotifications.instance.disconnect();
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
       FadeSlideRoute(page: const OnboardingScreen()),

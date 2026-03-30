@@ -5,7 +5,11 @@ const isValidObjectId = (value) => mongoose.Types.ObjectId.isValid(value);
 
 const buildPairKey = (a, b) => [a.toString(), b.toString()].sort().join(':');
 
-const ensureFriendshipAccess = async (friendshipId, userId) => {
+const ensureFriendshipAccess = async (
+  friendshipId,
+  userId,
+  { requireActive = true } = {},
+) => {
   if (!isValidObjectId(friendshipId)) {
     const err = new Error('Invalid friendship id');
     err.status = 400;
@@ -24,6 +28,12 @@ const ensureFriendshipAccess = async (friendshipId, userId) => {
   );
   if (!allowed) {
     const err = new Error('You are not part of this friendship');
+    err.status = 403;
+    throw err;
+  }
+
+  if (requireActive && friendship.status !== 'active') {
+    const err = new Error('This friendship is not active');
     err.status = 403;
     throw err;
   }
