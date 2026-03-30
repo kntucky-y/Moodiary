@@ -5,11 +5,14 @@ const User = require('../models/User');
 const FriendRequest = require('../models/FriendRequest');
 const Friendship = require('../models/Friendship');
 const FriendMessage = require('../models/FriendMessage');
+const {
+  buildPairKey,
+  ensureFriendshipAccess,
+  isValidObjectId,
+} = require('../utils/friendships');
+const { getIO } = require('../socket');
 
 const router = express.Router();
-
-const isValidObjectId = (value) => mongoose.Types.ObjectId.isValid(value);
-const buildPairKey = (a, b) => [a.toString(), b.toString()].sort().join(':');
 
 const formatFriendship = (doc, viewerId) => {
   const members = doc.members || [];
@@ -52,29 +55,6 @@ const formatMessage = (doc) => ({
   sender: doc.sender.toString(),
   createdAt: doc.createdAt,
 });
-
-const ensureFriendshipAccess = async (friendshipId, userId) => {
-  if (!isValidObjectId(friendshipId)) {
-    const err = new Error('Invalid friendship id');
-    err.status = 400;
-    throw err;
-  }
-  const friendship = await Friendship.findById(friendshipId);
-  if (!friendship) {
-    const err = new Error('Friendship not found');
-    err.status = 404;
-    throw err;
-  }
-  const allowed = friendship.members.some(
-    (member) => member.toString() === userId.toString(),
-  );
-  if (!allowed) {
-    const err = new Error('You are not part of this friendship');
-    err.status = 403;
-    throw err;
-  }
-  return friendship;
-};
 
 const upsertFriendship = async (userA, userB) => {
   const pairKey = buildPairKey(userA, userB);
@@ -279,7 +259,44 @@ router.post('/:id/messages', auth, async (req, res) => {
       },
     });
 
-    res.status(201).json(formatMessage(message));
+    const payload = {
+      ...formatMessage(message),
+      friendshipId: req.params.id,
+    };
+
+    try {
+      getIO()
+        .to(`friendship:${req.params.id}`)
+        .emit('friends:message', payload);
+    } catch (_) {
+      // Socket layer not initialized; skip emit.
+    }
+
+    res.status(201).json(payload);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+router.delete('/:id', auth, async (req, res) => {
+  try {
+    const friendship = await ensureFriendshipAccess(
+      req.params.id,
+      req.userId,
+    );
+
+    await FriendMessage.deleteMany({ friendship: friendship._id });
+    await friendship.deleteOne();
+
+    try {
+      getIO()
+        .to(`friendship:${req.params.id}`)
+        .emit('friends:removed', { friendshipId: req.params.id });
+    } catch (_) {
+      // Socket layer not initialized; skip emit.
+    }
+
+    res.json({ status: 'unfriended' });
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });
   }

@@ -176,6 +176,66 @@ class _FriendsScreenState extends State<FriendsScreen> {
     }
   }
 
+  Future<void> _unfriend(String friendshipId) async {
+    if (_token == null) return;
+    try {
+      final resp = await http.delete(
+        Uri.parse('$_kBaseUrl/api/friends/$friendshipId'),
+        headers: {'Authorization': 'Bearer $_token'},
+      );
+      if (resp.statusCode == 200) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Friend removed.')));
+        await _loadFriends();
+      } else {
+        final message = _responseErrorMessage(
+          resp,
+          fallback: 'Unable to remove friend',
+        );
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message)));
+      }
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not remove friend right now. Please try again.'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _confirmUnfriend(_FriendSummary friend) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Remove friend?'),
+        content: Text(
+          'Unfriending ${friend.name} will delete your chat history. You can always reconnect later.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await _unfriend(friend.id);
+    }
+  }
+
   String _responseErrorMessage(http.Response resp, {required String fallback}) {
     if (resp.body.isEmpty) {
       return '$fallback (${resp.statusCode})';
@@ -205,6 +265,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('token');
     await prefs.remove('user_name');
+    await prefs.remove('user_id');
     await prefs.remove('companion_id');
     await prefs.remove('companion_name');
     if (!mounted) return;
@@ -293,6 +354,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
                                   (friend) => _FriendCard(
                                     friend: friend,
                                     onTap: () => _openChat(friend),
+                                    onUnfriend: () => _confirmUnfriend(friend),
                                   ),
                                 ),
                             ],
@@ -510,8 +572,13 @@ class _FriendsHeader extends StatelessWidget {
 class _FriendCard extends StatelessWidget {
   final _FriendSummary friend;
   final VoidCallback onTap;
+  final VoidCallback? onUnfriend;
 
-  const _FriendCard({required this.friend, required this.onTap});
+  const _FriendCard({
+    required this.friend,
+    required this.onTap,
+    this.onUnfriend,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -525,6 +592,7 @@ class _FriendCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(18),
         ),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             CircleAvatar(
               radius: 26,
@@ -560,11 +628,34 @@ class _FriendCard extends StatelessWidget {
                 ],
               ),
             ),
-            if (friend.lastMessageAt != null)
-              Text(
-                _formatDate(friend.lastMessageAt!),
-                style: const TextStyle(color: _kSubtle, fontSize: 11),
-              ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (friend.lastMessageAt != null)
+                  Text(
+                    _formatDate(friend.lastMessageAt!),
+                    style: const TextStyle(color: _kSubtle, fontSize: 11),
+                  ),
+                if (friend.lastMessageAt != null && onUnfriend != null)
+                  const SizedBox(height: 4),
+                if (onUnfriend != null)
+                  PopupMenuButton<String>(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    icon: const Icon(Icons.more_horiz, color: _kSubtle),
+                    tooltip: 'Friend actions',
+                    onSelected: (value) {
+                      if (value == 'unfriend') {
+                        onUnfriend?.call();
+                      }
+                    },
+                    itemBuilder: (context) => const [
+                      PopupMenuItem(value: 'unfriend', child: Text('Unfriend')),
+                    ],
+                  ),
+              ],
+            ),
           ],
         ),
       ),

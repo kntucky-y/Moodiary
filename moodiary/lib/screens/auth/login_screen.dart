@@ -68,6 +68,11 @@ class _LoginScreenState extends State<LoginScreen> {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('token', data['token']);
         await prefs.setString('user_name', data['user']['name']);
+        final user = data['user'] as Map<String, dynamic>;
+        final userId = (user['id'] ?? user['_id'])?.toString();
+        if (userId != null && userId.isNotEmpty) {
+          await prefs.setString('user_id', userId);
+        }
 
         final companionId = prefs.getInt('companion_id');
         final companionName = prefs.getString('companion_name');

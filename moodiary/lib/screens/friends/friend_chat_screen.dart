@@ -46,6 +46,13 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
     final prefs = await SharedPreferences.getInstance();
     _token = prefs.getString('token');
     _userId = prefs.getString('user_id');
+    if (_userId == null && _token != null) {
+      final derivedId = _deriveUserIdFromToken(_token!);
+      if (derivedId != null) {
+        _userId = derivedId;
+        await prefs.setString('user_id', derivedId);
+      }
+    }
     await _loadHistory();
     _connectSocket();
   }
@@ -122,6 +129,35 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
           _scrollToBottom();
         }
       })
+      ..on('friends:removed', (data) {
+        if (data is Map && data['friendshipId'] == widget.friendshipId) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${widget.friendName} is no longer connected.'),
+            ),
+          );
+          Navigator.of(context).pop();
+        }
+      })
+      ..on('friends:error', (data) {
+        if (!mounted) return;
+        final isMap = data is Map;
+        final sameRoom =
+            !isMap ||
+            data['friendshipId'] == null ||
+            data['friendshipId'] == widget.friendshipId;
+        if (!sameRoom) return;
+        final message = isMap && data['error'] is String
+            ? data['error'] as String
+            : null;
+        final copy = (message == null || message.isEmpty)
+            ? 'Chat connection issue. Please try again.'
+            : message;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(copy)));
+      })
       ..onDisconnect((_) {
         // no-op
       });
@@ -186,6 +222,23 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
     super.dispose();
   }
 
+  String? _deriveUserIdFromToken(String token) {
+    try {
+      final parts = token.split('.');
+      if (parts.length != 3) return null;
+      final normalizedPayload = base64Url.normalize(parts[1]);
+      final decodedPayload = utf8.decode(base64Url.decode(normalizedPayload));
+      final payload = jsonDecode(decodedPayload);
+      if (payload is! Map<String, dynamic>) return null;
+      final candidate = payload['userId'] ?? payload['id'] ?? payload['_id'];
+      if (candidate == null) return null;
+      final userId = candidate.toString();
+      return userId.isEmpty ? null : userId;
+    } catch (_) {
+      return null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -248,8 +301,11 @@ class _FriendMessage {
         ? DateTime.parse(createdRaw).toLocal()
         : DateTime.fromMillisecondsSinceEpoch(createdRaw as int).toLocal();
     final sender = json['sender']?.toString();
+    final rawId = json['id'] ?? json['_id'];
     return _FriendMessage(
-      id: json['id'].toString(),
+      id: rawId != null
+          ? rawId.toString()
+          : 'remote-${DateTime.now().millisecondsSinceEpoch}',
       text: json['text'] as String,
       createdAt: createdAt,
       isMine: sender != null && sender == viewerId,

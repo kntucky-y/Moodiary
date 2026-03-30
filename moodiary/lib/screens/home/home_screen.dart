@@ -390,6 +390,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('token');
     await prefs.remove('user_name');
+    await prefs.remove('user_id');
     await prefs.remove('companion_id');
     await prefs.remove('companion_name');
     if (mounted) {
