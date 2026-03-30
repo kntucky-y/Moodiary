@@ -152,7 +152,7 @@ class CompanionScreen extends StatelessWidget {
                           borderRadius: BorderRadius.circular(16),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.08),
+                              color: Colors.black.withValues(alpha: 0.08),
                               blurRadius: 8,
                               offset: const Offset(0, 3),
                             ),
@@ -164,11 +164,12 @@ class CompanionScreen extends StatelessWidget {
                             width: 64,
                             height: 64,
                             fit: BoxFit.contain,
-                            errorBuilder: (_, __, ___) => const Icon(
-                              Icons.sentiment_satisfied_alt,
-                              size: 48,
-                              color: Color(0xFFCCCCCC),
-                            ),
+                            errorBuilder: (context, error, stackTrace) =>
+                                const Icon(
+                                  Icons.sentiment_satisfied_alt,
+                                  size: 48,
+                                  color: Color(0xFFCCCCCC),
+                                ),
                           ),
                         ),
                       ),
@@ -232,7 +233,7 @@ class _CompanionModal extends StatelessWidget {
                   width: 80,
                   height: 80,
                   fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => const Icon(
+                  errorBuilder: (context, error, stackTrace) => const Icon(
                     Icons.sentiment_satisfied_alt,
                     size: 60,
                     color: Color(0xFFCCCCCC),

@@ -8,7 +8,10 @@ import '../calendar/calendar_screen.dart';
 import '../journal/journal_screen.dart';
 import '../forums/forums_screen.dart';
 import '../home/home_screen.dart';
+import '../companion/companion_screen.dart';
+import '../onboarding/onboarding_screen.dart';
 import '../../utils/transitions.dart';
+import '../../widgets/app_sidebar.dart';
 import 'friend_chat_screen.dart';
 
 const _kBaseUrl = 'https://moodiary-production.up.railway.app';
@@ -35,6 +38,7 @@ class FriendsScreen extends StatefulWidget {
 
 class _FriendsScreenState extends State<FriendsScreen> {
   bool _loading = true;
+  bool _sidebarOpen = false;
   String? _token;
   List<_FriendSummary> _friends = [];
   List<_FriendRequest> _incoming = [];
@@ -110,23 +114,26 @@ class _FriendsScreenState extends State<FriendsScreen> {
         body: jsonEncode({'email': email}),
       );
       if (resp.statusCode == 201) {
-        if (mounted) {
-          Navigator.of(context).pop();
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('Friend request sent!')));
-        }
+        if (!mounted) return;
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Friend request sent!')));
         await _loadFriends();
       } else {
-        final data = jsonDecode(resp.body);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(data['error'] ?? 'Request failed')),
-        );
+        final message = _responseErrorMessage(resp, fallback: 'Request failed');
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message)));
       }
     } catch (err) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Could not send: $err')));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not send friend request. Please try again.'),
+        ),
+      );
     }
   }
 
@@ -137,12 +144,14 @@ class _FriendsScreenState extends State<FriendsScreen> {
       headers: {'Authorization': 'Bearer $_token'},
     );
     if (resp.statusCode == 200) {
+      if (!mounted) return;
       await _loadFriends();
     } else {
-      final data = jsonDecode(resp.body);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(data['error'] ?? 'Unable to accept')),
-      );
+      final message = _responseErrorMessage(resp, fallback: 'Unable to accept');
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     }
   }
 
@@ -153,13 +162,56 @@ class _FriendsScreenState extends State<FriendsScreen> {
       headers: {'Authorization': 'Bearer $_token'},
     );
     if (resp.statusCode == 200) {
+      if (!mounted) return;
       await _loadFriends();
     } else {
-      final data = jsonDecode(resp.body);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(data['error'] ?? 'Unable to update request')),
+      final message = _responseErrorMessage(
+        resp,
+        fallback: 'Unable to update request',
       );
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     }
+  }
+
+  String _responseErrorMessage(http.Response resp, {required String fallback}) {
+    if (resp.body.isEmpty) {
+      return '$fallback (${resp.statusCode})';
+    }
+    try {
+      final decoded = jsonDecode(resp.body);
+      if (decoded is Map<String, dynamic>) {
+        final value = decoded['error'] ?? decoded['message'];
+        if (value is String && value.trim().isNotEmpty) {
+          return value;
+        }
+      }
+    } catch (_) {
+      // Ignore parsing issues and fall back to generic copy.
+    }
+    return '$fallback (${resp.statusCode})';
+  }
+
+  void _closeSidebar() => setState(() => _sidebarOpen = false);
+
+  void _openScreen(Widget page) {
+    _closeSidebar();
+    Navigator.of(context).push(FadeSlideRoute(page: page));
+  }
+
+  Future<void> _logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('token');
+    await prefs.remove('user_name');
+    await prefs.remove('companion_id');
+    await prefs.remove('companion_name');
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      FadeSlideRoute(page: const OnboardingScreen()),
+      (_) => false,
+    );
   }
 
   void _openAddFriendSheet() {
@@ -186,59 +238,121 @@ class _FriendsScreenState extends State<FriendsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _kHeaderBg,
-      body: Column(
+      body: Stack(
         children: [
-          _FriendsHeader(onAddFriend: _openAddFriendSheet),
-          Expanded(
-            child: Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(40)),
+          Column(
+            children: [
+              _FriendsHeader(
+                onAddFriend: _openAddFriendSheet,
+                onOpenSidebar: () => setState(() => _sidebarOpen = true),
               ),
-              child: _loading
-                  ? const Center(child: CircularProgressIndicator())
-                  : RefreshIndicator(
-                      onRefresh: _loadFriends,
-                      child: ListView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        padding: const EdgeInsets.fromLTRB(20, 24, 20, 120),
-                        children: [
-                          if (_incoming.isNotEmpty)
-                            _RequestSection(
-                              title: 'Friend requests',
-                              requests: _incoming,
-                              onPrimary: _acceptRequest,
-                              onSecondary: _rejectRequest,
-                            ),
-                          if (_outgoing.isNotEmpty)
-                            _RequestSection(
-                              title: 'Pending invites',
-                              requests: _outgoing,
-                              outgoing: true,
-                              onSecondary: _rejectRequest,
-                            ),
-                          const SizedBox(height: 12),
-                          const Text(
-                            'Buddies',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
-                              color: _kDark,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          if (_friends.isEmpty)
-                            const _EmptyFriends()
-                          else
-                            ..._friends.map(
-                              (friend) => _FriendCard(
-                                friend: friend,
-                                onTap: () => _openChat(friend),
-                              ),
-                            ),
-                        ],
-                      ),
+              Expanded(
+                child: Container(
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(40),
                     ),
+                  ),
+                  child: _loading
+                      ? const Center(child: CircularProgressIndicator())
+                      : RefreshIndicator(
+                          onRefresh: _loadFriends,
+                          child: ListView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.fromLTRB(20, 24, 20, 120),
+                            children: [
+                              if (_incoming.isNotEmpty)
+                                _RequestSection(
+                                  title: 'Friend requests',
+                                  requests: _incoming,
+                                  onPrimary: _acceptRequest,
+                                  onSecondary: _rejectRequest,
+                                ),
+                              if (_outgoing.isNotEmpty)
+                                _RequestSection(
+                                  title: 'Pending invites',
+                                  requests: _outgoing,
+                                  outgoing: true,
+                                  onSecondary: _rejectRequest,
+                                ),
+                              const SizedBox(height: 12),
+                              const Text(
+                                'Buddies',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 18,
+                                  color: _kDark,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              if (_friends.isEmpty)
+                                const _EmptyFriends()
+                              else
+                                ..._friends.map(
+                                  (friend) => _FriendCard(
+                                    friend: friend,
+                                    onTap: () => _openChat(friend),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                ),
+              ),
+            ],
+          ),
+          if (_sidebarOpen)
+            GestureDetector(
+              onTap: _closeSidebar,
+              child: Container(color: Colors.black54),
+            ),
+          AnimatedPositioned(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+            left: _sidebarOpen ? 0 : -280,
+            top: 0,
+            bottom: 0,
+            width: 260,
+            child: AppSidebar(
+              userName: widget.userName,
+              activeSection: SidebarSection.friends,
+              onClose: _closeSidebar,
+              onNavigateHome: () => _openScreen(
+                HomeScreen(
+                  userName: widget.userName,
+                  companionId: widget.companionId,
+                  companionName: widget.companionName,
+                ),
+              ),
+              onNavigateCalendar: () => _openScreen(
+                CalendarScreen(
+                  userName: widget.userName,
+                  companionId: widget.companionId,
+                  companionName: widget.companionName,
+                ),
+              ),
+              onNavigateJournal: () => _openScreen(
+                JournalScreen(
+                  userName: widget.userName,
+                  companionId: widget.companionId,
+                  companionName: widget.companionName,
+                ),
+              ),
+              onNavigateFriends: _closeSidebar,
+              onNavigateForums: () => _openScreen(
+                ForumsScreen(
+                  userName: widget.userName,
+                  companionId: widget.companionId,
+                  companionName: widget.companionName,
+                ),
+              ),
+              onChangeCompanion: () =>
+                  _openScreen(CompanionScreen(userName: widget.userName)),
+              onLogout: () {
+                _closeSidebar();
+                _logout();
+              },
             ),
           ),
         ],
@@ -311,8 +425,12 @@ class _FriendRequest {
 
 class _FriendsHeader extends StatelessWidget {
   final VoidCallback onAddFriend;
+  final VoidCallback onOpenSidebar;
 
-  const _FriendsHeader({required this.onAddFriend});
+  const _FriendsHeader({
+    required this.onAddFriend,
+    required this.onOpenSidebar,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -329,7 +447,7 @@ class _FriendsHeader extends StatelessWidget {
             Row(
               children: [
                 GestureDetector(
-                  onTap: () => Navigator.of(context).maybePop(),
+                  onTap: onOpenSidebar,
                   child: const Icon(Icons.menu, color: _kDark),
                 ),
                 const Spacer(),
@@ -410,7 +528,7 @@ class _FriendCard extends StatelessWidget {
           children: [
             CircleAvatar(
               radius: 26,
-              backgroundColor: _kPurple.withOpacity(0.15),
+              backgroundColor: _kPurple.withValues(alpha: 0.15),
               child: Text(
                 friend.name.isEmpty ? '?' : friend.name[0].toUpperCase(),
                 style: const TextStyle(

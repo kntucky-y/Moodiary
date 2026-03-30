@@ -1,13 +1,19 @@
 import 'dart:convert';
 import 'dart:math' show Random;
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../calendar/calendar_screen.dart';
 import '../home/home_screen.dart';
 import '../journal/journal_screen.dart';
+import '../friends/friends_screen.dart';
+import '../companion/companion_screen.dart';
+import '../onboarding/onboarding_screen.dart';
 import '../../utils/transitions.dart';
+import '../../widgets/app_sidebar.dart';
 
 const _kPurple = Color(0xFFA076F9);
 const _kDark = Color(0xFF3D3B40);
@@ -23,80 +29,13 @@ const _kCardPalette = <Color>[
   Color(0xFFDDEBFF),
 ];
 
-class _ForumComment {
-  final String id;
-  final String moodAsset;
-  final String text;
-  final String authorName;
-
-  const _ForumComment({
-    required this.id,
-    required this.moodAsset,
-    required this.text,
-    required this.authorName,
-  });
-
-  factory _ForumComment.fromJson(Map<String, dynamic> j) {
-    return _ForumComment(
-      id: (j['id'] ?? '').toString(),
-      moodAsset: (j['moodAsset'] ?? 'assets/okay.png').toString(),
-      text: (j['text'] ?? '').toString(),
-      authorName: (j['authorName'] ?? 'Anonymous').toString(),
-    );
-  }
-}
-
-class _ForumPost {
-  final String id;
-  final int companionId;
-  final String title;
-  final String content;
-  final bool anonymous;
-  final String author;
-  final bool isMine;
-  int likes;
-  bool likedByMe;
-  final List<_ForumComment> comments;
-
-  _ForumPost({
-    required this.id,
-    required this.companionId,
-    required this.title,
-    required this.content,
-    required this.anonymous,
-    required this.author,
-    required this.isMine,
-    required this.likes,
-    required this.likedByMe,
-    required this.comments,
-  });
-
-  factory _ForumPost.fromJson(Map<String, dynamic> j) {
-    final commentsJson = (j['comments'] as List<dynamic>? ?? []);
-    return _ForumPost(
-      id: (j['id'] ?? '').toString(),
-      companionId: (j['companionId'] as int?) ?? 1,
-      title: (j['title'] ?? '').toString(),
-      content: (j['content'] ?? '').toString(),
-      anonymous: (j['isAnonymous'] as bool?) ?? true,
-      author: (j['authorName'] ?? 'Anonymous').toString(),
-      isMine: (j['isMine'] as bool?) ?? false,
-      likes: (j['likes'] as int?) ?? 0,
-      likedByMe: (j['likedByMe'] as bool?) ?? false,
-      comments: commentsJson
-          .map((c) => _ForumComment.fromJson(c as Map<String, dynamic>))
-          .toList(),
-    );
-  }
-
-  int get commentCount => comments.length;
-  String get doodleAsset => 'assets/doodle$companionId.png';
-  Color get cardColor {
-    final seed = id.isEmpty ? title : id;
-    final idx = seed.hashCode.abs() % _kCardPalette.length;
-    return _kCardPalette[idx];
-  }
-}
+const _commentMoodAssets = <String>[
+  'assets/terrible.png',
+  'assets/bad.png',
+  'assets/okay.png',
+  'assets/good.png',
+  'assets/excellent.png',
+];
 
 class ForumsScreen extends StatefulWidget {
   final String userName;
@@ -115,20 +54,16 @@ class ForumsScreen extends StatefulWidget {
 }
 
 class _ForumsScreenState extends State<ForumsScreen> {
-  final List<String> _commentMoodAssets = const [
-    'assets/okay.png',
-    'assets/good.png',
-    'assets/wink.png',
-    'assets/bliss.png',
-  ];
-
-  List<_ForumPost> _posts = [];
   bool _loading = true;
+  bool _sidebarOpen = false;
   bool _fabExpanded = false;
   bool _showMineOnly = false;
-  String? _activePostId;
+
   String? _token;
+  String? _activePostId;
+  List<_ForumPost> _posts = [];
   final Set<String> _likeBusyPostIds = <String>{};
+  final Random _random = Random();
 
   @override
   void initState() {
@@ -138,44 +73,42 @@ class _ForumsScreenState extends State<ForumsScreen> {
 
   Future<void> _init() async {
     final prefs = await SharedPreferences.getInstance();
-    _token = prefs.getString('token');
-    await _fetchPosts();
+    final token = prefs.getString('token');
+    if (!mounted) return;
+    setState(() => _token = token);
+    if (token == null) {
+      setState(() => _loading = false);
+    } else {
+      await _fetchPosts();
+    }
   }
 
-  Map<String, String> get _authHeaders {
-    final t = _token;
-    if (t == null || t.isEmpty) return {};
-    return {'Authorization': 'Bearer $t'};
-  }
-
-  String _todayStr() {
-    final now = DateTime.now();
-    return '${now.year}/${now.month.toString().padLeft(2, '0')}/${now.day.toString().padLeft(2, '0')}';
-  }
+  Map<String, String> get _authHeaders => {
+    if (_token != null) 'Authorization': 'Bearer $_token',
+  };
 
   List<_ForumPost> get _visiblePosts =>
       _showMineOnly ? _posts.where((p) => p.isMine).toList() : _posts;
 
-  Future<void> _fetchPosts({bool silent = false}) async {
+  Future<void> _fetchPosts({bool silent = true}) async {
     if (_token == null) {
-      if (mounted) setState(() => _loading = false);
+      if (_loading) setState(() => _loading = false);
       return;
     }
-    if (!silent && mounted) setState(() => _loading = true);
-
+    if (!silent) {
+      setState(() => _loading = true);
+    }
     try {
       final resp = await http.get(
         Uri.parse('$_kBaseUrl/api/forums'),
         headers: _authHeaders,
       );
-
       if (!mounted) return;
       if (resp.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(resp.body) as List<dynamic>;
+        final data = jsonDecode(resp.body) as List<dynamic>;
         final parsed = data
             .map((e) => _ForumPost.fromJson(e as Map<String, dynamic>))
             .toList();
-
         setState(() {
           _posts = parsed;
           if (_activePostId != null &&
@@ -199,6 +132,34 @@ class _ForumsScreenState extends State<ForumsScreen> {
     }
   }
 
+  void _openSidebar() {
+    setState(() {
+      _sidebarOpen = true;
+      _fabExpanded = false;
+    });
+  }
+
+  void _closeSidebar() => setState(() => _sidebarOpen = false);
+
+  void _openScreen(Widget page) {
+    _closeSidebar();
+    Navigator.of(context).push(FadeSlideRoute(page: page));
+  }
+
+  Future<void> _logout() async {
+    _closeSidebar();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('token');
+    await prefs.remove('user_name');
+    await prefs.remove('companion_id');
+    await prefs.remove('companion_name');
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      FadeSlideRoute(page: const OnboardingScreen()),
+      (_) => false,
+    );
+  }
+
   Future<void> _createPost({
     required String title,
     required String content,
@@ -216,7 +177,6 @@ class _ForumsScreenState extends State<ForumsScreen> {
           'companionId': widget.companionId,
         }),
       );
-
       if (!mounted) return;
       if (resp.statusCode == 201) {
         final created = _ForumPost.fromJson(
@@ -244,10 +204,9 @@ class _ForumsScreenState extends State<ForumsScreen> {
 
   Future<void> _toggleLike(String postId) async {
     final idx = _posts.indexWhere((p) => p.id == postId);
-    if (idx < 0) return;
+    if (idx < 0 || _token == null) return;
     final post = _posts[idx];
     if (_likeBusyPostIds.contains(post.id)) return;
-    if (_token == null) return;
 
     setState(() => _likeBusyPostIds.add(post.id));
     try {
@@ -255,7 +214,6 @@ class _ForumsScreenState extends State<ForumsScreen> {
         Uri.parse('$_kBaseUrl/api/forums/${post.id}/like'),
         headers: _authHeaders,
       );
-
       if (!mounted) return;
       if (resp.statusCode == 200) {
         final data = jsonDecode(resp.body) as Map<String, dynamic>;
@@ -318,11 +276,12 @@ class _ForumsScreenState extends State<ForumsScreen> {
                           'assets/doodle${widget.companionId}.png',
                           width: 42,
                           height: 42,
-                          errorBuilder: (_, _, _) => const Icon(
-                            Icons.chat_bubble_outline,
-                            size: 30,
-                            color: _kSubtle,
-                          ),
+                          errorBuilder: (context, error, stackTrace) =>
+                              const Icon(
+                                Icons.chat_bubble_outline,
+                                size: 30,
+                                color: _kSubtle,
+                              ),
                         ),
                         const Spacer(),
                         IconButton(
@@ -515,7 +474,6 @@ class _ForumsScreenState extends State<ForumsScreen> {
         headers: {'Content-Type': 'application/json', ..._authHeaders},
         body: jsonEncode(payload),
       );
-
       if (!mounted) return;
       if (resp.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -545,7 +503,6 @@ class _ForumsScreenState extends State<ForumsScreen> {
     final i = _posts.indexWhere((p) => p.id == activeId);
     if (i < 0) return;
     final post = _posts[i];
-    final random = Random();
 
     try {
       final resp = await http.post(
@@ -554,11 +511,10 @@ class _ForumsScreenState extends State<ForumsScreen> {
         body: jsonEncode({
           'text': trimmed,
           'moodAsset':
-              _commentMoodAssets[random.nextInt(_commentMoodAssets.length)],
+              _commentMoodAssets[_random.nextInt(_commentMoodAssets.length)],
           'isAnonymous': true,
         }),
       );
-
       if (!mounted) return;
       if (resp.statusCode == 201) {
         final updated = _ForumPost.fromJson(
@@ -584,162 +540,223 @@ class _ForumsScreenState extends State<ForumsScreen> {
     }
   }
 
+  String _todayStr() {
+    final now = DateTime.now();
+    final year = now.year;
+    final month = now.month.toString().padLeft(2, '0');
+    final day = now.day.toString().padLeft(2, '0');
+    return '$year/$month/$day';
+  }
+
   @override
   Widget build(BuildContext context) {
-    final activePostIdx = _activePostId == null
-        ? -1
-        : _posts.indexWhere((p) => p.id == _activePostId);
-    final activePost = activePostIdx >= 0 ? _posts[activePostIdx] : null;
     final visiblePosts = _visiblePosts;
+    _ForumPost? activePost;
+    if (_activePostId != null) {
+      for (final post in _posts) {
+        if (post.id == _activePostId) {
+          activePost = post;
+          break;
+        }
+      }
+    }
+    final detailPost = activePost;
 
     return Scaffold(
       backgroundColor: _kHeaderBg,
-      body: Column(
+      body: Stack(
         children: [
-          SafeArea(
-            bottom: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 10, 20, 8),
-              child: Column(
-                children: [
-                  Row(
+          Column(
+            children: [
+              SafeArea(
+                bottom: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 10, 20, 8),
+                  child: Column(
                     children: [
-                      IconButton(
-                        onPressed: () =>
-                            Navigator.of(context).pushAndRemoveUntil(
-                              FadeSlideRoute(
-                                page: HomeScreen(
-                                  userName: widget.userName,
-                                  companionId: widget.companionId,
-                                  companionName: widget.companionName,
-                                ),
-                              ),
-                              (_) => false,
+                      Row(
+                        children: [
+                          IconButton(
+                            onPressed: _openSidebar,
+                            icon: const Icon(
+                              Icons.menu,
+                              color: _kDark,
+                              size: 26,
                             ),
-                        icon: const Icon(
-                          Icons.arrow_back_ios_new_rounded,
-                          color: _kDark,
-                          size: 22,
-                        ),
-                        tooltip: 'Back to Home',
+                            tooltip: 'Open menu',
+                          ),
+                          const Spacer(),
+                          Text(
+                            _todayStr(),
+                            style: const TextStyle(
+                              color: _kDark,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const Spacer(),
+                          IconButton(
+                            onPressed: () => _fetchPosts(silent: false),
+                            icon: const Icon(
+                              Icons.refresh_rounded,
+                              color: _kDark,
+                              size: 22,
+                            ),
+                            tooltip: 'Refresh forums',
+                          ),
+                        ],
                       ),
-                      const Spacer(),
-                      Text(
-                        _todayStr(),
-                        style: const TextStyle(
-                          color: _kDark,
-                          fontWeight: FontWeight.bold,
+                      const SizedBox(height: 8),
+                      RichText(
+                        text: TextSpan(
+                          children: [
+                            TextSpan(
+                              text: 'For',
+                              style: GoogleFonts.lexend(
+                                fontSize: 52,
+                                fontWeight: FontWeight.bold,
+                                color: _kDark,
+                              ),
+                            ),
+                            TextSpan(
+                              text: 'u',
+                              style: GoogleFonts.caveat(
+                                fontSize: 56,
+                                fontWeight: FontWeight.bold,
+                                color: const Color(0xFF86C58C),
+                              ),
+                            ),
+                            TextSpan(
+                              text: 'ms',
+                              style: GoogleFonts.playfairDisplay(
+                                fontSize: 52,
+                                fontWeight: FontWeight.bold,
+                                color: _kPurple,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      const Spacer(),
-                      IconButton(
-                        onPressed: () => _fetchPosts(silent: false),
-                        icon: const Icon(
-                          Icons.refresh_rounded,
-                          color: _kDark,
-                          size: 22,
-                        ),
-                        tooltip: 'Refresh forums',
+                      const SizedBox(height: 4),
+                      const Text(
+                        'A safe space to share and connect',
+                        style: TextStyle(color: _kSubtle, fontSize: 15),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          ChoiceChip(
+                            label: const Text('All posts'),
+                            selected: !_showMineOnly,
+                            onSelected: (_) =>
+                                setState(() => _showMineOnly = false),
+                          ),
+                          const SizedBox(width: 8),
+                          ChoiceChip(
+                            label: const Text('My posts'),
+                            selected: _showMineOnly,
+                            onSelected: (_) =>
+                                setState(() => _showMineOnly = true),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
-                  RichText(
-                    text: TextSpan(
-                      children: [
-                        TextSpan(
-                          text: 'For',
-                          style: GoogleFonts.lexend(
-                            fontSize: 52,
-                            fontWeight: FontWeight.bold,
-                            color: _kDark,
-                          ),
-                        ),
-                        TextSpan(
-                          text: 'u',
-                          style: GoogleFonts.caveat(
-                            fontSize: 56,
-                            fontWeight: FontWeight.bold,
-                            color: const Color(0xFF86C58C),
-                          ),
-                        ),
-                        TextSpan(
-                          text: 'ms',
-                          style: GoogleFonts.playfairDisplay(
-                            fontSize: 52,
-                            fontWeight: FontWeight.bold,
-                            color: _kPurple,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'A safe space to share and connect',
-                    style: TextStyle(color: _kSubtle, fontSize: 15),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      ChoiceChip(
-                        label: const Text('All posts'),
-                        selected: !_showMineOnly,
-                        onSelected: (_) =>
-                            setState(() => _showMineOnly = false),
-                      ),
-                      const SizedBox(width: 8),
-                      ChoiceChip(
-                        label: const Text('My posts'),
-                        selected: _showMineOnly,
-                        onSelected: (_) => setState(() => _showMineOnly = true),
-                      ),
-                    ],
-                  ),
-                ],
+                ),
               ),
-            ),
+              Expanded(
+                child: _loading
+                    ? const Center(child: CircularProgressIndicator())
+                    : _token == null
+                    ? const _ForumEmptyState(
+                        title: 'Please login first',
+                        subtitle: 'Forums requires an authenticated account.',
+                        icon: Icons.lock_outline_rounded,
+                      )
+                    : AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 260),
+                        switchInCurve: Curves.easeOutCubic,
+                        switchOutCurve: Curves.easeInCubic,
+                        child: detailPost != null
+                            ? _ForumDetailView(
+                                key: const ValueKey('forum-detail'),
+                                post: detailPost,
+                                onClose: _closePostDetail,
+                                onLikeTap: () => _toggleLike(detailPost.id),
+                                onReportTap: () =>
+                                    _showReportDialog(detailPost.id),
+                                onAddComment: _addComment,
+                              )
+                            : _ForumListView(
+                                key: const ValueKey('forum-list'),
+                                posts: visiblePosts,
+                                companionId: widget.companionId,
+                                fabExpanded: _fabExpanded,
+                                onPostTap: (i) =>
+                                    _openPostDetail(visiblePosts[i].id),
+                                onLikeTap: (i) =>
+                                    _toggleLike(visiblePosts[i].id),
+                                onReportTap: (i) =>
+                                    _showReportDialog(visiblePosts[i].id),
+                                onExpandFab: () =>
+                                    setState(() => _fabExpanded = true),
+                                onCollapseFab: () =>
+                                    setState(() => _fabExpanded = false),
+                                onCreatePost: _showComposerDialog,
+                              ),
+                      ),
+              ),
+            ],
           ),
-          Expanded(
-            child: _loading
-                ? const Center(child: CircularProgressIndicator())
-                : _token == null
-                ? const _ForumEmptyState(
-                    title: 'Please login first',
-                    subtitle: 'Forums requires an authenticated account.',
-                    icon: Icons.lock_outline_rounded,
-                  )
-                : AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 260),
-                    switchInCurve: Curves.easeOutCubic,
-                    switchOutCurve: Curves.easeInCubic,
-                    child: activePost == null
-                        ? _ForumListView(
-                            key: const ValueKey('forum-list'),
-                            posts: visiblePosts,
-                            companionId: widget.companionId,
-                            fabExpanded: _fabExpanded,
-                            onPostTap: (i) =>
-                                _openPostDetail(visiblePosts[i].id),
-                            onLikeTap: (i) => _toggleLike(visiblePosts[i].id),
-                            onReportTap: (i) =>
-                                _showReportDialog(visiblePosts[i].id),
-                            onExpandFab: () =>
-                                setState(() => _fabExpanded = true),
-                            onCollapseFab: () =>
-                                setState(() => _fabExpanded = false),
-                            onCreatePost: _showComposerDialog,
-                          )
-                        : _ForumDetailView(
-                            key: const ValueKey('forum-detail'),
-                            post: activePost,
-                            onClose: _closePostDetail,
-                            onLikeTap: () => _toggleLike(activePost.id),
-                            onReportTap: () => _showReportDialog(activePost.id),
-                            onAddComment: _addComment,
-                          ),
-                  ),
+          if (_sidebarOpen)
+            GestureDetector(
+              onTap: _closeSidebar,
+              child: Container(color: Colors.black54),
+            ),
+          AnimatedPositioned(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+            left: _sidebarOpen ? 0 : -280,
+            top: 0,
+            bottom: 0,
+            width: 260,
+            child: AppSidebar(
+              userName: widget.userName,
+              activeSection: SidebarSection.forums,
+              onClose: _closeSidebar,
+              onNavigateHome: () => _openScreen(
+                HomeScreen(
+                  userName: widget.userName,
+                  companionId: widget.companionId,
+                  companionName: widget.companionName,
+                ),
+              ),
+              onNavigateCalendar: () => _openScreen(
+                CalendarScreen(
+                  userName: widget.userName,
+                  companionId: widget.companionId,
+                  companionName: widget.companionName,
+                ),
+              ),
+              onNavigateJournal: () => _openScreen(
+                JournalScreen(
+                  userName: widget.userName,
+                  companionId: widget.companionId,
+                  companionName: widget.companionName,
+                ),
+              ),
+              onNavigateFriends: () => _openScreen(
+                FriendsScreen(
+                  userName: widget.userName,
+                  companionId: widget.companionId,
+                  companionName: widget.companionName,
+                ),
+              ),
+              onNavigateForums: _closeSidebar,
+              onChangeCompanion: () =>
+                  _openScreen(CompanionScreen(userName: widget.userName)),
+              onLogout: () => _logout(),
+            ),
           ),
         ],
       ),
@@ -846,7 +863,8 @@ class _ForumListView extends StatelessWidget {
                         'assets/doodle$companionId.png',
                         width: 72,
                         height: 72,
-                        errorBuilder: (_, _, _) => const SizedBox(),
+                        errorBuilder: (context, error, stackTrace) =>
+                            const SizedBox(),
                       ),
                       const SizedBox(width: 8),
                       Column(
@@ -1024,10 +1042,11 @@ class _ForumDetailViewState extends State<_ForumDetailView> {
                           c.moodAsset,
                           width: 32,
                           height: 32,
-                          errorBuilder: (_, _, _) => const Icon(
-                            Icons.sentiment_satisfied_alt_rounded,
-                            color: _kSubtle,
-                          ),
+                          errorBuilder: (context, error, stackTrace) =>
+                              const Icon(
+                                Icons.sentiment_satisfied_alt_rounded,
+                                color: _kSubtle,
+                              ),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
@@ -1154,7 +1173,7 @@ class _PostCard extends StatelessWidget {
               post.doodleAsset,
               width: compactText ? 62 : 74,
               height: compactText ? 62 : 74,
-              errorBuilder: (_, _, _) =>
+              errorBuilder: (context, error, stackTrace) =>
                   const Icon(Icons.face_outlined, size: 56, color: _kSubtle),
             ),
             const SizedBox(width: 10),
@@ -1306,6 +1325,20 @@ class _ForumBottomNav extends StatelessWidget {
           (_) => false,
         ),
       ),
+      _NavItem(
+        icon: Icons.people_alt_rounded,
+        label: 'Friends',
+        onTap: () => Navigator.of(context).pushAndRemoveUntil(
+          FadeSlideRoute(
+            page: FriendsScreen(
+              userName: userName,
+              companionId: companionId,
+              companionName: companionName,
+            ),
+          ),
+          (_) => false,
+        ),
+      ),
       const _NavItem(
         icon: Icons.chat_bubble_rounded,
         label: 'Forums',
@@ -1411,4 +1444,81 @@ class _NavItem {
     this.active = false,
     this.onTap,
   });
+}
+
+class _ForumPost {
+  final String id;
+  final String title;
+  final String content;
+  final bool isAnonymous;
+  final String author;
+  final int companionId;
+  final bool isMine;
+  final List<_ForumComment> comments;
+  int likes;
+  bool likedByMe;
+
+  _ForumPost({
+    required this.id,
+    required this.title,
+    required this.content,
+    required this.isAnonymous,
+    required this.author,
+    required this.companionId,
+    required this.isMine,
+    required this.comments,
+    required this.likes,
+    required this.likedByMe,
+  });
+
+  factory _ForumPost.fromJson(Map<String, dynamic> json) {
+    final rawComments = json['comments'] as List<dynamic>? ?? [];
+    return _ForumPost(
+      id: json['id'] as String? ?? '',
+      title: json['title'] as String? ?? '',
+      content: json['content'] as String? ?? '',
+      isAnonymous: (json['isAnonymous'] as bool?) ?? true,
+      author: json['authorName'] as String? ?? 'Anonymous',
+      companionId: (json['companionId'] as int?) ?? 1,
+      isMine: (json['isMine'] as bool?) ?? false,
+      comments: rawComments
+          .map((e) => _ForumComment.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      likes: (json['likes'] as int?) ?? 0,
+      likedByMe: (json['likedByMe'] as bool?) ?? false,
+    );
+  }
+
+  int get commentCount => comments.length;
+
+  Color get cardColor {
+    final idx = id.hashCode.abs() % _kCardPalette.length;
+    return _kCardPalette[idx];
+  }
+
+  String get doodleAsset => 'assets/doodle$companionId.png';
+}
+
+class _ForumComment {
+  final String id;
+  final String moodAsset;
+  final String text;
+  final bool isAnonymous;
+  final String authorName;
+
+  const _ForumComment({
+    required this.id,
+    required this.moodAsset,
+    required this.text,
+    required this.isAnonymous,
+    required this.authorName,
+  });
+
+  factory _ForumComment.fromJson(Map<String, dynamic> json) => _ForumComment(
+    id: json['id'] as String? ?? '',
+    moodAsset: json['moodAsset'] as String? ?? 'assets/okay.png',
+    text: json['text'] as String? ?? '',
+    isAnonymous: (json['isAnonymous'] as bool?) ?? true,
+    authorName: json['authorName'] as String? ?? 'Anonymous',
+  );
 }

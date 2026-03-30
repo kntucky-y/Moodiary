@@ -3,7 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../calendar/calendar_screen.dart';
+import '../home/home_screen.dart';
+import '../friends/friends_screen.dart';
+import '../forums/forums_screen.dart';
+import '../companion/companion_screen.dart';
+import '../onboarding/onboarding_screen.dart';
 import '../../utils/transitions.dart';
+import '../../widgets/app_sidebar.dart';
 
 const _kPurple = Color(0xFFA076F9);
 const _kDark = Color(0xFF3D3B40);
@@ -71,6 +78,7 @@ class _JournalScreenState extends State<JournalScreen> {
   List<_JournalEntry> _archivedEntries = [];
   bool _loading = true;
   String? _token;
+  bool _sidebarOpen = false;
   bool _fabExpanded = false;
   bool _showArchived = false;
   final Set<String> _workingIds = <String>{};
@@ -143,6 +151,34 @@ class _JournalScreenState extends State<JournalScreen> {
       _fabExpanded = false;
     });
     await _fetchEntries(archived: nextShowArchived);
+  }
+
+  void _openSidebar() {
+    setState(() {
+      _sidebarOpen = true;
+      _fabExpanded = false;
+    });
+  }
+
+  void _closeSidebar() => setState(() => _sidebarOpen = false);
+
+  void _openScreen(Widget page) {
+    _closeSidebar();
+    Navigator.of(context).push(FadeSlideRoute(page: page));
+  }
+
+  Future<void> _logout() async {
+    _closeSidebar();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('token');
+    await prefs.remove('user_name');
+    await prefs.remove('companion_id');
+    await prefs.remove('companion_name');
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      FadeSlideRoute(page: const OnboardingScreen()),
+      (_) => false,
+    );
   }
 
   Future<bool> _confirmAction({
@@ -382,10 +418,10 @@ class _JournalScreenState extends State<JournalScreen> {
                       Row(
                         children: [
                           GestureDetector(
-                            onTap: () => Navigator.of(context).pop(),
+                            onTap: _openSidebar,
                             child: const Icon(
-                              Icons.arrow_back_ios_new_rounded,
-                              size: 22,
+                              Icons.menu,
+                              size: 26,
                               color: _kDark,
                             ),
                           ),
@@ -475,9 +511,9 @@ class _JournalScreenState extends State<JournalScreen> {
                             children: [
                               Image.asset(
                                 'assets/doodle${widget.companionId}.png',
-                                width: 80,
-                                errorBuilder: (_, __, ___) =>
-                                    const Icon(Icons.book_outlined, size: 80),
+                                width: 72,
+                                errorBuilder: (context, error, stackTrace) =>
+                                    const SizedBox(),
                               ),
                               const SizedBox(height: 12),
                               Text(
@@ -507,13 +543,63 @@ class _JournalScreenState extends State<JournalScreen> {
               ),
             ],
           ),
+          if (_sidebarOpen)
+            GestureDetector(
+              onTap: _closeSidebar,
+              child: Container(color: Colors.black54),
+            ),
+          AnimatedPositioned(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+            left: _sidebarOpen ? 0 : -280,
+            top: 0,
+            bottom: 0,
+            width: 260,
+            child: AppSidebar(
+              userName: widget.userName,
+              activeSection: SidebarSection.journal,
+              onClose: _closeSidebar,
+              onNavigateHome: () => _openScreen(
+                HomeScreen(
+                  userName: widget.userName,
+                  companionId: widget.companionId,
+                  companionName: widget.companionName,
+                ),
+              ),
+              onNavigateCalendar: () => _openScreen(
+                CalendarScreen(
+                  userName: widget.userName,
+                  companionId: widget.companionId,
+                  companionName: widget.companionName,
+                ),
+              ),
+              onNavigateJournal: _closeSidebar,
+              onNavigateFriends: () => _openScreen(
+                FriendsScreen(
+                  userName: widget.userName,
+                  companionId: widget.companionId,
+                  companionName: widget.companionName,
+                ),
+              ),
+              onNavigateForums: () => _openScreen(
+                ForumsScreen(
+                  userName: widget.userName,
+                  companionId: widget.companionId,
+                  companionName: widget.companionName,
+                ),
+              ),
+              onChangeCompanion: () =>
+                  _openScreen(CompanionScreen(userName: widget.userName)),
+              onLogout: () => _logout(),
+            ),
+          ),
           // ── FAB / companion bubble ───────────────────────────────────────────
-          if (!_showArchived && _fabExpanded)
+          if (!_showArchived && _fabExpanded && !_sidebarOpen)
             GestureDetector(
               onTap: () => setState(() => _fabExpanded = false),
               child: Container(color: Colors.transparent),
             ),
-          if (!_showArchived)
+          if (!_showArchived && !_sidebarOpen)
             AnimatedPositioned(
               duration: const Duration(milliseconds: 250),
               curve: Curves.easeOutCubic,
@@ -526,7 +612,8 @@ class _JournalScreenState extends State<JournalScreen> {
                         Image.asset(
                           'assets/doodle${widget.companionId}.png',
                           width: 72,
-                          errorBuilder: (_, __, ___) => const SizedBox(),
+                          errorBuilder: (context, error, stackTrace) =>
+                              const SizedBox(),
                         ),
                         const SizedBox(width: 8),
                         Column(
@@ -629,6 +716,11 @@ class _JournalScreenState extends State<JournalScreen> {
                     ),
             ),
         ],
+      ),
+      bottomNavigationBar: _JournalBottomNav(
+        userName: widget.userName,
+        companionId: widget.companionId,
+        companionName: widget.companionName,
       ),
     );
   }
@@ -754,7 +846,7 @@ class _EntryCard extends StatelessWidget {
                     asset,
                     width: 36,
                     height: 36,
-                    errorBuilder: (_, __, ___) =>
+                    errorBuilder: (context, error, stackTrace) =>
                         const Icon(Icons.sentiment_neutral, size: 36),
                   ),
                 ],
@@ -845,6 +937,133 @@ class _EntryCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ─── Bottom navigation ─────────────────────────────────────────────────────
+class _JournalBottomNav extends StatelessWidget {
+  final String userName;
+  final int companionId;
+  final String companionName;
+
+  const _JournalBottomNav({
+    required this.userName,
+    required this.companionId,
+    required this.companionName,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: Color(0xFFF0F0F0), width: 1.5)),
+      ),
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _JournalNavBtn(
+            icon: Icons.calendar_month_outlined,
+            label: 'Calendar',
+            onTap: () => Navigator.of(context).pushAndRemoveUntil(
+              FadeSlideRoute(
+                page: CalendarScreen(
+                  userName: userName,
+                  companionId: companionId,
+                  companionName: companionName,
+                ),
+              ),
+              (_) => false,
+            ),
+          ),
+          const _JournalNavBtn(
+            icon: Icons.book_outlined,
+            label: 'Journal',
+            active: true,
+          ),
+          _JournalNavBtn(
+            icon: Icons.home_rounded,
+            label: 'Home',
+            onTap: () => Navigator.of(context).pushAndRemoveUntil(
+              FadeSlideRoute(
+                page: HomeScreen(
+                  userName: userName,
+                  companionId: companionId,
+                  companionName: companionName,
+                ),
+              ),
+              (_) => false,
+            ),
+          ),
+          _JournalNavBtn(
+            icon: Icons.people_alt_rounded,
+            label: 'Friends',
+            onTap: () => Navigator.of(context).pushAndRemoveUntil(
+              FadeSlideRoute(
+                page: FriendsScreen(
+                  userName: userName,
+                  companionId: companionId,
+                  companionName: companionName,
+                ),
+              ),
+              (_) => false,
+            ),
+          ),
+          _JournalNavBtn(
+            icon: Icons.chat_bubble_outline,
+            label: 'Forums',
+            onTap: () => Navigator.of(context).pushAndRemoveUntil(
+              FadeSlideRoute(
+                page: ForumsScreen(
+                  userName: userName,
+                  companionId: companionId,
+                  companionName: companionName,
+                ),
+              ),
+              (_) => false,
+            ),
+          ),
+          const _JournalNavBtn(icon: Icons.folder_outlined, label: 'Resources'),
+        ],
+      ),
+    );
+  }
+}
+
+class _JournalNavBtn extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool active;
+  final VoidCallback? onTap;
+
+  const _JournalNavBtn({
+    required this.icon,
+    required this.label,
+    this.active = false,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TapScale(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: active ? _kPurple : _kSubtle, size: 26),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              color: active ? _kPurple : _kSubtle,
+              fontWeight: active ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1121,7 +1340,7 @@ class _TagPicker extends StatelessWidget {
                       _kTagAssets[tag]!,
                       width: 40,
                       height: 40,
-                      errorBuilder: (_, __, ___) =>
+                      errorBuilder: (context, error, stackTrace) =>
                           const Icon(Icons.sentiment_neutral, size: 40),
                     ),
                   ),

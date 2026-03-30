@@ -294,7 +294,10 @@ class _ChatBubble extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               _formatTime(message.createdAt),
-              style: TextStyle(color: textColor.withOpacity(0.7), fontSize: 10),
+              style: TextStyle(
+                color: textColor.withValues(alpha: 0.7),
+                fontSize: 10,
+              ),
             ),
             if (message.pending)
               const Text(
@@ -405,7 +408,7 @@ class _MessageComposer extends StatelessWidget {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: sending ? _kPurple.withOpacity(0.5) : _kPurple,
+                  color: sending ? _kPurple.withValues(alpha: 0.5) : _kPurple,
                   shape: BoxShape.circle,
                 ),
                 child: sending

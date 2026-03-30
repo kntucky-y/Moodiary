@@ -8,6 +8,7 @@ const authRoutes = require('./routes/auth');
 const chatRoutes = require('./routes/chat');
 const journalRoutes = require('./routes/journal');
 const forumRoutes = require('./routes/forums');
+const friendRoutes = require('./routes/friends');
 
 const app = express();
 
@@ -19,6 +20,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/journal', journalRoutes);
 app.use('/api/forums', forumRoutes);
+app.use('/api/friends', friendRoutes);
 
 // Health-check — visit /api/health to confirm env vars are loaded on Railway
 app.get('/api/health', (req, res) => {

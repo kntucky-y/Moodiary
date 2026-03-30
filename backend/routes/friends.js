@@ -1,0 +1,288 @@
+const express = require('express');
+const mongoose = require('mongoose');
+const auth = require('../middleware/auth');
+const User = require('../models/User');
+const FriendRequest = require('../models/FriendRequest');
+const Friendship = require('../models/Friendship');
+const FriendMessage = require('../models/FriendMessage');
+
+const router = express.Router();
+
+const isValidObjectId = (value) => mongoose.Types.ObjectId.isValid(value);
+const buildPairKey = (a, b) => [a.toString(), b.toString()].sort().join(':');
+
+const formatFriendship = (doc, viewerId) => {
+  const members = doc.members || [];
+  const friend = members.find(
+    (member) => member && member._id.toString() !== viewerId.toString(),
+  );
+
+  return {
+    id: doc._id.toString(),
+    friend: {
+      id: friend?._id?.toString() ?? '',
+      name: friend?.name ?? 'Friend',
+      email: friend?.email ?? '',
+    },
+    lastMessage: doc.lastMessage
+      ? {
+          text: doc.lastMessage.text ?? '',
+          createdAt: doc.lastMessage.createdAt,
+        }
+      : null,
+  };
+};
+
+const formatRequest = (doc, type) => {
+  const counterpart =
+    type === 'incoming' ? doc.requester : doc.recipient;
+  return {
+    id: doc._id.toString(),
+    friend: {
+      id: counterpart?._id?.toString() ?? '',
+      name: counterpart?.name ?? 'Friend',
+      email: counterpart?.email ?? '',
+    },
+  };
+};
+
+const formatMessage = (doc) => ({
+  id: doc._id.toString(),
+  text: doc.text,
+  sender: doc.sender.toString(),
+  createdAt: doc.createdAt,
+});
+
+const ensureFriendshipAccess = async (friendshipId, userId) => {
+  if (!isValidObjectId(friendshipId)) {
+    const err = new Error('Invalid friendship id');
+    err.status = 400;
+    throw err;
+  }
+  const friendship = await Friendship.findById(friendshipId);
+  if (!friendship) {
+    const err = new Error('Friendship not found');
+    err.status = 404;
+    throw err;
+  }
+  const allowed = friendship.members.some(
+    (member) => member.toString() === userId.toString(),
+  );
+  if (!allowed) {
+    const err = new Error('You are not part of this friendship');
+    err.status = 403;
+    throw err;
+  }
+  return friendship;
+};
+
+const upsertFriendship = async (userA, userB) => {
+  const pairKey = buildPairKey(userA, userB);
+  let friendship = await Friendship.findOne({ pairKey });
+  if (!friendship) {
+    friendship = await Friendship.create({ members: [userA, userB], pairKey });
+  }
+  return friendship;
+};
+
+router.get('/', auth, async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    const [friendships, incoming, outgoing] = await Promise.all([
+      Friendship.find({ members: userId })
+        .populate('members', 'name email')
+        .sort({ updatedAt: -1 })
+        .lean(),
+      FriendRequest.find({ recipient: userId, status: 'pending' })
+        .populate('requester', 'name email')
+        .lean(),
+      FriendRequest.find({ requester: userId, status: 'pending' })
+        .populate('recipient', 'name email')
+        .lean(),
+    ]);
+
+    res.json({
+      friends: friendships.map((doc) => formatFriendship(doc, userId)),
+      pending: {
+        incoming: incoming.map((doc) => formatRequest(doc, 'incoming')),
+        outgoing: outgoing.map((doc) => formatRequest(doc, 'outgoing')),
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/request', auth, async (req, res) => {
+  const email = (req.body.email || '').toLowerCase().trim();
+  if (!email) {
+    return res.status(400).json({ error: 'Email is required' });
+  }
+
+  try {
+    const requesterId = req.userId;
+    const recipient = await User.findOne({ email });
+
+    if (!recipient) {
+      return res.status(404).json({ error: 'No user found with that email' });
+    }
+    if (recipient._id.toString() === requesterId) {
+      return res.status(400).json({ error: 'You cannot add yourself' });
+    }
+
+    const pairKey = buildPairKey(requesterId, recipient._id);
+    const existingFriendship = await Friendship.findOne({ pairKey });
+    if (existingFriendship) {
+      return res.status(409).json({ error: 'You are already friends' });
+    }
+
+    const incoming = await FriendRequest.findOne({
+      requester: recipient._id,
+      recipient: requesterId,
+      status: 'pending',
+    });
+
+    if (incoming) {
+      incoming.status = 'accepted';
+      await incoming.save();
+      const friendship = await upsertFriendship(requesterId, recipient._id);
+      const populated = await Friendship.findById(friendship._id)
+        .populate('members', 'name email')
+        .lean();
+      return res.status(201).json({
+        friendship: formatFriendship(populated, requesterId),
+        autoAccepted: true,
+      });
+    }
+
+    const existingOutgoing = await FriendRequest.findOne({
+      requester: requesterId,
+      recipient: recipient._id,
+      status: 'pending',
+    }).populate('recipient', 'name email');
+
+    if (existingOutgoing) {
+      return res.status(200).json({
+        request: formatRequest(existingOutgoing.toObject(), 'outgoing'),
+      });
+    }
+
+    const requestDoc = await FriendRequest.create({
+      requester: requesterId,
+      recipient: recipient._id,
+    });
+
+    await requestDoc.populate('recipient', 'name email');
+    res.status(201).json({
+      request: formatRequest(requestDoc.toObject(), 'outgoing'),
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/:id/accept', auth, async (req, res) => {
+  try {
+    if (!isValidObjectId(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid request id' });
+    }
+    const request = await FriendRequest.findById(req.params.id);
+    if (!request || request.status !== 'pending') {
+      return res.status(404).json({ error: 'Request not found' });
+    }
+    if (request.recipient.toString() !== req.userId.toString()) {
+      return res.status(403).json({ error: 'You cannot accept this request' });
+    }
+
+    request.status = 'accepted';
+    await request.save();
+
+    const friendship = await upsertFriendship(
+      request.requester,
+      request.recipient,
+    );
+
+    await FriendRequest.deleteMany({
+      status: 'pending',
+      $or: [
+        { requester: request.requester, recipient: request.recipient },
+        { requester: request.recipient, recipient: request.requester },
+      ],
+    });
+
+    const populated = await Friendship.findById(friendship._id)
+      .populate('members', 'name email')
+      .lean();
+    res.json({ friend: formatFriendship(populated, req.userId) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/:id/reject', auth, async (req, res) => {
+  try {
+    if (!isValidObjectId(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid request id' });
+    }
+    const request = await FriendRequest.findById(req.params.id);
+    if (!request) {
+      return res.status(404).json({ error: 'Request not found' });
+    }
+
+    const isRecipient = request.recipient.toString() === req.userId.toString();
+    const isRequester = request.requester.toString() === req.userId.toString();
+
+    if (!isRecipient && !isRequester) {
+      return res.status(403).json({ error: 'You cannot update this request' });
+    }
+
+    await request.deleteOne();
+    res.json({ status: 'removed' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/:id/messages', auth, async (req, res) => {
+  try {
+    await ensureFriendshipAccess(req.params.id, req.userId);
+    const messages = await FriendMessage.find({ friendship: req.params.id })
+      .sort({ createdAt: 1 })
+      .lean();
+    res.json(messages.map(formatMessage));
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+router.post('/:id/messages', auth, async (req, res) => {
+  const text = (req.body.text || '').trim();
+  if (!text) {
+    return res.status(400).json({ error: 'Message text is required' });
+  }
+
+  try {
+    await ensureFriendshipAccess(req.params.id, req.userId);
+
+    const message = await FriendMessage.create({
+      friendship: new mongoose.Types.ObjectId(req.params.id),
+      sender: req.userId,
+      text,
+    });
+
+    await Friendship.findByIdAndUpdate(req.params.id, {
+      lastMessage: {
+        text,
+        sender: req.userId,
+        createdAt: message.createdAt,
+      },
+    });
+
+    res.status(201).json(formatMessage(message));
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+module.exports = router;

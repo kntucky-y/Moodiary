@@ -10,6 +10,7 @@ import '../journal/journal_screen.dart';
 import '../forums/forums_screen.dart';
 import '../friends/friends_screen.dart';
 import '../../utils/transitions.dart';
+import '../../widgets/app_sidebar.dart';
 
 const _kPurple = Color(0xFFA076F9);
 const _kLightPurple = Color(0xFFD8B4F8);
@@ -87,14 +88,14 @@ const _taskPool = [
     'music',
     'Listen to Calming Music',
     'Music around 60 BPM can induce alpha brainwaves associated with relaxed alertness. Put on a gentle playlist and just breathe.',
-    'assets/water.png',
+    'assets/reading.png',
     5,
   ),
   _MoodTask(
     'connect',
     'Reach Out to Someone',
     'Send a kind message to a friend or family member. Social connection is one of the strongest predictors of long-term mental wellbeing.',
-    'assets/reading.png',
+    'assets/water.png',
     15,
   ),
   _MoodTask(
@@ -416,7 +417,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 task.asset,
                 width: 80,
                 height: 80,
-                errorBuilder: (_, _, _) =>
+                errorBuilder: (context, error, stackTrace) =>
                     const Icon(Icons.task_alt, size: 60, color: _kPurple),
               ),
               const SizedBox(height: 16),
@@ -600,7 +601,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           borderRadius: BorderRadius.circular(20),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
+                              color: Colors.black.withValues(alpha: 0.05),
                               blurRadius: 8,
                               offset: const Offset(0, 2),
                             ),
@@ -634,11 +635,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                           mood.asset,
                                           width: 44,
                                           height: 44,
-                                          errorBuilder: (_, _, _) => const Icon(
-                                            Icons.sentiment_neutral,
-                                            size: 44,
-                                            color: _kSubtle,
-                                          ),
+                                          errorBuilder:
+                                              (context, error, stackTrace) =>
+                                                  const Icon(
+                                                    Icons.sentiment_neutral,
+                                                    size: 44,
+                                                    color: _kSubtle,
+                                                  ),
                                         ),
                                         const SizedBox(height: 4),
                                         Text(
@@ -695,9 +698,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             top: 0,
             bottom: 0,
             width: 260,
-            child: _Sidebar(
+            child: AppSidebar(
               userName: widget.userName,
+              activeSection: SidebarSection.home,
               onClose: () => setState(() => _sidebarOpen = false),
+              onNavigateHome: () => setState(() => _sidebarOpen = false),
               onNavigateCalendar: () {
                 setState(() => _sidebarOpen = false);
                 Navigator.of(context).push(
@@ -715,6 +720,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 Navigator.of(context).push(
                   FadeSlideRoute(
                     page: JournalScreen(
+                      userName: widget.userName,
+                      companionId: widget.companionId,
+                      companionName: widget.companionName,
+                    ),
+                  ),
+                );
+              },
+              onNavigateFriends: () {
+                setState(() => _sidebarOpen = false);
+                Navigator.of(context).push(
+                  FadeSlideRoute(
+                    page: FriendsScreen(
                       userName: widget.userName,
                       companionId: widget.companionId,
                       companionName: widget.companionName,
@@ -831,7 +848,7 @@ class _Header extends StatelessWidget {
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
+                              color: Colors.black.withValues(alpha: 0.1),
                               blurRadius: 8,
                             ),
                           ],
@@ -858,7 +875,7 @@ class _Header extends StatelessWidget {
                           border: Border.all(color: Colors.white, width: 3),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.15),
+                              color: Colors.black.withValues(alpha: 0.15),
                               blurRadius: 10,
                             ),
                           ],
@@ -869,11 +886,12 @@ class _Header extends StatelessWidget {
                             width: 70,
                             height: 70,
                             fit: BoxFit.contain,
-                            errorBuilder: (_, _, _) => const Icon(
-                              Icons.sentiment_satisfied_alt,
-                              size: 50,
-                              color: Color(0xFFCCCCCC),
-                            ),
+                            errorBuilder: (context, error, stackTrace) =>
+                                const Icon(
+                                  Icons.sentiment_satisfied_alt,
+                                  size: 50,
+                                  color: Color(0xFFCCCCCC),
+                                ),
                           ),
                         ),
                       ),
@@ -935,7 +953,7 @@ class _TaskCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 8,
                 offset: const Offset(0, 2),
               ),
@@ -947,7 +965,7 @@ class _TaskCard extends StatelessWidget {
                 task.asset,
                 width: 48,
                 height: 48,
-                errorBuilder: (_, _, _) =>
+                errorBuilder: (context, error, stackTrace) =>
                     const Icon(Icons.task_alt, size: 48, color: _kSubtle),
               ),
               const SizedBox(width: 12),
@@ -1068,7 +1086,7 @@ class _MoodScoreCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: _kPurple.withOpacity(0.08),
+            color: _kPurple.withValues(alpha: 0.08),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -1105,9 +1123,11 @@ class _MoodScoreCard extends StatelessWidget {
                       vertical: 3,
                     ),
                     decoration: BoxDecoration(
-                      color: _statusColor.withOpacity(0.15),
+                      color: _statusColor.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: _statusColor.withOpacity(0.5)),
+                      border: Border.all(
+                        color: _statusColor.withValues(alpha: 0.5),
+                      ),
                     ),
                     child: Text(
                       _statusLabel,
@@ -1259,152 +1279,6 @@ class _NavItem {
     this.active = false,
     required this.onTap,
   });
-}
-
-// ─── Sidebar ──────────────────────────────────────────────────────────────────
-class _Sidebar extends StatelessWidget {
-  final String userName;
-  final VoidCallback onClose;
-  final VoidCallback onNavigateCalendar;
-  final VoidCallback onNavigateJournal;
-  final VoidCallback onNavigateForums;
-  final VoidCallback onChangeCompanion;
-  final VoidCallback onLogout;
-
-  const _Sidebar({
-    required this.userName,
-    required this.onClose,
-    required this.onNavigateCalendar,
-    required this.onNavigateJournal,
-    required this.onNavigateForums,
-    required this.onChangeCompanion,
-    required this.onLogout,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      elevation: 16,
-      child: SafeArea(
-        child: Container(
-          color: Colors.white,
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Text(
-                    'moodiary',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: _kPurple,
-                    ),
-                  ),
-                  const Spacer(),
-                  IconButton(icon: const Icon(Icons.close), onPressed: onClose),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Hi, $userName!',
-                style: const TextStyle(color: _kSubtle, fontSize: 13),
-              ),
-              const SizedBox(height: 24),
-              const _SidebarItem(
-                icon: Icons.home_rounded,
-                label: 'Home',
-                active: true,
-              ),
-              TapScale(
-                onTap: onNavigateCalendar,
-                child: const _SidebarItem(
-                  icon: Icons.calendar_month_outlined,
-                  label: 'Calendar',
-                ),
-              ),
-              TapScale(
-                onTap: onNavigateJournal,
-                child: const _SidebarItem(
-                  icon: Icons.book_outlined,
-                  label: 'Journal',
-                ),
-              ),
-              TapScale(
-                onTap: onNavigateForums,
-                child: const _SidebarItem(
-                  icon: Icons.chat_bubble_outline,
-                  label: 'Forums',
-                ),
-              ),
-              const _SidebarItem(
-                icon: Icons.folder_outlined,
-                label: 'Resources',
-              ),
-              TapScale(
-                onTap: onChangeCompanion,
-                child: const _SidebarItem(
-                  icon: Icons.swap_horiz_rounded,
-                  label: 'Change Companion',
-                ),
-              ),
-              const Spacer(),
-              TapScale(
-                onTap: onLogout,
-                child: const Row(
-                  children: [
-                    Icon(Icons.logout, color: _kSubtle, size: 22),
-                    SizedBox(width: 12),
-                    Text(
-                      'Logout',
-                      style: TextStyle(color: _kSubtle, fontSize: 16),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SidebarItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool active;
-  const _SidebarItem({
-    required this.icon,
-    required this.label,
-    this.active = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      child: Row(
-        children: [
-          Icon(
-            icon,
-            color: active ? _kPurple : const Color(0xFF888888),
-            size: 22,
-          ),
-          const SizedBox(width: 12),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 16,
-              color: active ? _kPurple : const Color(0xFF444444),
-              fontWeight: active ? FontWeight.bold : FontWeight.normal,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 // ─── Companion Chat ──────────────────────────────────────────────────────────
@@ -1589,7 +1463,7 @@ class _CompanionChatState extends State<_CompanionChat> {
                       width: 32,
                       height: 32,
                       fit: BoxFit.contain,
-                      errorBuilder: (_, _, _) => const Icon(
+                      errorBuilder: (context, error, stackTrace) => const Icon(
                         Icons.sentiment_satisfied_alt,
                         color: _kSubtle,
                       ),

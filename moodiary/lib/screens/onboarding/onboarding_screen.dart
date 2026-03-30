@@ -7,7 +7,6 @@ import '../auth/login_screen.dart';
 const _kBg = Color(0xFFF5F0E8);
 const _kPurple = Color(0xFF9B7FDB);
 const _kDark = Color(0xFF1A1A2E);
-const _kBlue = Color(0xFF4A90D9);
 const _kGreen = Color(0xFF5DB87A);
 const _kTeal = Color(0xFF44BBCC);
 const _kYellow = Color(0xFFE8B84B);
@@ -699,7 +698,7 @@ class _FloatingImageState extends State<_FloatingImage>
         widget.path,
         width: widget.size,
         height: widget.size,
-        errorBuilder: (_, _, _) => Icon(
+        errorBuilder: (context, error, stackTrace) => Icon(
           Icons.sentiment_satisfied_alt_rounded,
           size: widget.size,
           color: const Color(0xFFCCCCCC),
@@ -711,18 +710,18 @@ class _FloatingImageState extends State<_FloatingImage>
 
 class _MoodImage extends StatelessWidget {
   final String path;
-  final double? size;
-  const _MoodImage(this.path, {this.size});
+  const _MoodImage(this.path);
 
   @override
   Widget build(BuildContext context) {
+    const double moodSize = 48;
     return Image.asset(
       path,
-      width: size,
-      height: size,
-      errorBuilder: (_, _, _) => Icon(
+      width: moodSize,
+      height: moodSize,
+      errorBuilder: (context, error, stackTrace) => Icon(
         Icons.sentiment_satisfied_alt_rounded,
-        size: size ?? 48,
+        size: moodSize,
         color: const Color(0xFFCCCCCC),
       ),
     );

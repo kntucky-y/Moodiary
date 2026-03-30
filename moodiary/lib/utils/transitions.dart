@@ -4,10 +4,10 @@ import 'package:flutter/material.dart';
 class FadeSlideRoute<T> extends PageRouteBuilder<T> {
   FadeSlideRoute({required Widget page})
     : super(
-        pageBuilder: (_, __, ___) => page,
+        pageBuilder: (context, animation, secondaryAnimation) => page,
         transitionDuration: const Duration(milliseconds: 350),
         reverseTransitionDuration: const Duration(milliseconds: 250),
-        transitionsBuilder: (_, animation, __, child) {
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
           final fade = CurvedAnimation(
             parent: animation,
             curve: Curves.easeOut,

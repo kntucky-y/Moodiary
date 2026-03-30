@@ -24,7 +24,6 @@ const chatHistorySchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// One document per user per companion
 chatHistorySchema.index({ userId: 1, companionName: 1 }, { unique: true });
 
 module.exports = mongoose.model('ChatHistory', chatHistorySchema);

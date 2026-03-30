@@ -8,7 +8,10 @@ import '../home/home_screen.dart';
 import '../journal/journal_screen.dart';
 import '../forums/forums_screen.dart';
 import '../friends/friends_screen.dart';
+import '../companion/companion_screen.dart';
+import '../onboarding/onboarding_screen.dart';
 import '../../utils/transitions.dart';
+import '../../widgets/app_sidebar.dart';
 
 const _kPurple = Color(0xFFA076F9);
 const _kDark = Color(0xFF3D3B40);
@@ -154,6 +157,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   DateTime _displayMonth = DateTime(DateTime.now().year, DateTime.now().month);
   final Map<String, _MoodLog> _logs = {};
   bool _loading = true;
+  bool _sidebarOpen = false;
   String? _token;
 
   @override
@@ -212,6 +216,31 @@ class _CalendarScreenState extends State<CalendarScreen> {
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  void _openSidebar() {
+    setState(() => _sidebarOpen = true);
+  }
+
+  void _closeSidebar() => setState(() => _sidebarOpen = false);
+
+  void _openScreen(Widget page) {
+    _closeSidebar();
+    Navigator.of(context).push(FadeSlideRoute(page: page));
+  }
+
+  Future<void> _logout() async {
+    _closeSidebar();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('token');
+    await prefs.remove('user_name');
+    await prefs.remove('companion_id');
+    await prefs.remove('companion_name');
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      FadeSlideRoute(page: const OnboardingScreen()),
+      (_) => false,
+    );
   }
 
   Future<void> _saveLog(
@@ -324,31 +353,87 @@ class _CalendarScreenState extends State<CalendarScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _kHeaderBg,
-      body: Column(
+      body: Stack(
         children: [
-          _buildHeader(),
-          Expanded(
-            child: Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(40)),
-              ),
-              child: _loading
-                  ? const Center(
-                      child: CircularProgressIndicator(color: _kPurple),
-                    )
-                  : SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildCalendar(),
-                          const SizedBox(height: 28),
-                          _buildTrendChart(),
-                          const SizedBox(height: 12),
-                        ],
-                      ),
+          Column(
+            children: [
+              _buildHeader(),
+              Expanded(
+                child: Container(
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(40),
                     ),
+                  ),
+                  child: _loading
+                      ? const Center(
+                          child: CircularProgressIndicator(color: _kPurple),
+                        )
+                      : SingleChildScrollView(
+                          padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildCalendar(),
+                              const SizedBox(height: 28),
+                              _buildTrendChart(),
+                              const SizedBox(height: 12),
+                            ],
+                          ),
+                        ),
+                ),
+              ),
+            ],
+          ),
+          if (_sidebarOpen)
+            GestureDetector(
+              onTap: _closeSidebar,
+              child: Container(color: Colors.black54),
+            ),
+          AnimatedPositioned(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+            left: _sidebarOpen ? 0 : -280,
+            top: 0,
+            bottom: 0,
+            width: 260,
+            child: AppSidebar(
+              userName: widget.userName,
+              activeSection: SidebarSection.calendar,
+              onClose: _closeSidebar,
+              onNavigateHome: () => _openScreen(
+                HomeScreen(
+                  userName: widget.userName,
+                  companionId: widget.companionId,
+                  companionName: widget.companionName,
+                ),
+              ),
+              onNavigateCalendar: _closeSidebar,
+              onNavigateJournal: () => _openScreen(
+                JournalScreen(
+                  userName: widget.userName,
+                  companionId: widget.companionId,
+                  companionName: widget.companionName,
+                ),
+              ),
+              onNavigateFriends: () => _openScreen(
+                FriendsScreen(
+                  userName: widget.userName,
+                  companionId: widget.companionId,
+                  companionName: widget.companionName,
+                ),
+              ),
+              onNavigateForums: () => _openScreen(
+                ForumsScreen(
+                  userName: widget.userName,
+                  companionId: widget.companionId,
+                  companionName: widget.companionName,
+                ),
+              ),
+              onChangeCompanion: () =>
+                  _openScreen(CompanionScreen(userName: widget.userName)),
+              onLogout: () => _logout(),
             ),
           ),
         ],
@@ -369,12 +454,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 GestureDetector(
-                  onTap: () => Navigator.of(context).maybePop(),
-                  child: const Icon(
-                    Icons.arrow_back_ios_new,
-                    color: _kDark,
-                    size: 20,
-                  ),
+                  onTap: _openSidebar,
+                  child: const Icon(Icons.menu, color: _kDark, size: 24),
                 ),
                 Text(
                   _formattedDate,
@@ -700,7 +781,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           ),
                           belowBarData: BarAreaData(
                             show: true,
-                            color: _kPurple.withOpacity(0.08),
+                            color: _kPurple.withValues(alpha: 0.08),
                           ),
                         ),
                       ],
@@ -989,11 +1070,12 @@ class _LogModalState extends State<_LogModal> {
                           _moodAssets[i],
                           width: 44,
                           height: 44,
-                          errorBuilder: (_, _, _) => const Icon(
-                            Icons.sentiment_neutral,
-                            size: 44,
-                            color: _kSubtle,
-                          ),
+                          errorBuilder: (context, error, stackTrace) =>
+                              const Icon(
+                                Icons.sentiment_neutral,
+                                size: 44,
+                                color: _kSubtle,
+                              ),
                         ),
                       ),
                       const SizedBox(height: 4),
