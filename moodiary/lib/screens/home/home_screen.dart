@@ -9,16 +9,16 @@ import '../calendar/calendar_screen.dart';
 import '../journal/journal_screen.dart';
 import '../forums/forums_screen.dart';
 import '../friends/friends_screen.dart';
+import '../../services/local_notifications_service.dart';
+import '../../services/theme_controller.dart';
+import '../../theme/moodiary_colors.dart';
 import '../../utils/transitions.dart';
 import '../../widgets/app_sidebar.dart';
 import '../../services/realtime_notifications.dart';
+import '../settings/settings_screen.dart';
 
 const _kPurple = Color(0xFFA076F9);
 const _kLightPurple = Color(0xFFD8B4F8);
-const _kDark = Color(0xFF3D3B40);
-const _kBg = Color(0xFFF7F5F2);
-const _kCardBg = Colors.white;
-const _kSubtle = Color(0xFF8A8A8D);
 
 // ─── Task pool — 3 are picked randomly every day ─────────────────────────────
 const _taskPool = [
@@ -429,9 +429,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     await prefs.remove('token');
     await prefs.remove('user_name');
     await prefs.remove('user_id');
-    await prefs.remove('companion_id');
-    await prefs.remove('companion_name');
     RealtimeNotifications.instance.disconnect();
+    await ThemeController.instance.resetToDefault();
+    await LocalNotificationsService.instance.cancelAllScheduled();
     if (mounted) {
       Navigator.of(context).pushAndRemoveUntil(
         FadeSlideRoute(page: const OnboardingScreen()),
@@ -448,6 +448,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       context: context,
       builder: (_) => Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        backgroundColor: context.mdSurface,
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
@@ -458,10 +459,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               Text(
                 task.title,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: _kDark,
+                  color: context.mdPrimaryText,
                 ),
               ),
               const SizedBox(height: 8),
@@ -472,8 +473,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 ),
                 decoration: BoxDecoration(
                   color: isCompleted
-                      ? const Color(0xFFDCFCE7)
-                      : const Color(0xFFF3F0FB),
+                      ? (context.isDarkMode
+                            ? const Color(0xFF1D3B2F)
+                            : const Color(0xFFDCFCE7))
+                      : (context.isDarkMode
+                            ? const Color(0xFF22263D)
+                            : const Color(0xFFF3F0FB)),
                   borderRadius: BorderRadius.circular(50),
                 ),
                 child: Text(
@@ -489,9 +494,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               Text(
                 task.description,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 14,
-                  color: Color(0xFF666666),
+                  color: context.mdSecondaryText,
                   height: 1.5,
                 ),
               ),
@@ -508,9 +513,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                 _undoTask(index);
                               },
                               style: OutlinedButton.styleFrom(
-                                foregroundColor: const Color(0xFF888888),
-                                side: const BorderSide(
-                                  color: Color(0xFFDDDDDD),
+                                foregroundColor: context.mdSecondaryText,
+                                side: BorderSide(
+                                  color: context.isDarkMode
+                                      ? Colors.white24
+                                      : const Color(0xFFDDDDDD),
                                 ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(50),
@@ -573,8 +580,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    final primaryText = context.mdPrimaryText;
+    final subtleText = context.mdSecondaryText;
+    final scaffoldColor = context.mdScaffold;
+    final cardColor = context.mdSurface;
+    final cardShadow = context.mdCardGlow;
+
     return Scaffold(
-      backgroundColor: _kBg,
+      backgroundColor: scaffoldColor,
       body: Stack(
         children: [
           Column(
@@ -596,12 +609,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
+                          Text(
                             "Today's Task",
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
-                              color: _kDark,
+                              color: primaryText,
                             ),
                           ),
                           if (_pendingCount > 0)
@@ -631,11 +644,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       const SizedBox(height: 12),
                       Container(
                         decoration: BoxDecoration(
-                          color: _kCardBg,
+                          color: cardColor,
                           borderRadius: BorderRadius.circular(20),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.05),
+                              color: cardShadow,
                               blurRadius: 8,
                               offset: const Offset(0, 2),
                             ),
@@ -644,12 +657,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         padding: const EdgeInsets.all(16),
                         child: Column(
                           children: [
-                            const Text(
+                            Text(
                               'How are you today?',
                               style: TextStyle(
                                 fontWeight: FontWeight.w600,
                                 fontSize: 15,
-                                color: _kDark,
+                                color: primaryText,
                               ),
                             ),
                             const SizedBox(height: 12),
@@ -671,10 +684,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                           height: 44,
                                           errorBuilder:
                                               (context, error, stackTrace) =>
-                                                  const Icon(
+                                                  Icon(
                                                     Icons.sentiment_neutral,
                                                     size: 44,
-                                                    color: _kSubtle,
+                                                    color: subtleText,
                                                   ),
                                         ),
                                         const SizedBox(height: 4),
@@ -684,7 +697,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                             fontSize: 10,
                                             color: selected
                                                 ? _kPurple
-                                                : _kSubtle,
+                                                : subtleText,
                                             fontWeight: selected
                                                 ? FontWeight.bold
                                                 : FontWeight.normal,
@@ -723,7 +736,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           if (_sidebarOpen)
             GestureDetector(
               onTap: () => setState(() => _sidebarOpen = false),
-              child: Container(color: Colors.black54),
+              child: Container(
+                color: Colors.black.withValues(
+                  alpha: context.isDarkMode ? 0.65 : 0.45,
+                ),
+              ),
             ),
           AnimatedPositioned(
             duration: const Duration(milliseconds: 300),
@@ -785,6 +802,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ),
                 );
               },
+              onNavigateSettings: () {
+                setState(() => _sidebarOpen = false);
+                Navigator.of(context).push(
+                  FadeSlideRoute(
+                    page: SettingsScreen(userName: widget.userName),
+                  ),
+                );
+              },
               onChangeCompanion: () {
                 setState(() => _sidebarOpen = false);
                 Navigator.of(context).push(
@@ -827,6 +852,14 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bubbleColor = context.mdSurface;
+    final bubbleText = context.mdPrimaryText;
+    final bubbleShadow = context.mdCardGlow;
+    final avatarHalo = context.isDarkMode
+        ? const Color(0xFFf4be45)
+        : const Color(0xFFFEF08A);
+    final avatarBorder = context.isDarkMode ? Colors.white24 : Colors.white;
+
     return ClipPath(
       clipper: _WavyClipper(),
       child: Container(
@@ -874,23 +907,20 @@ class _Header extends StatelessWidget {
                       child: Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: bubbleColor,
                           borderRadius: const BorderRadius.only(
                             topLeft: Radius.circular(16),
                             topRight: Radius.circular(16),
                             bottomRight: Radius.circular(16),
                           ),
                           boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.1),
-                              blurRadius: 8,
-                            ),
+                            BoxShadow(color: bubbleShadow, blurRadius: 8),
                           ],
                         ),
                         child: Text(
                           '$greeting\nReady to take care of yourself today? Tap on me to talk!',
-                          style: const TextStyle(
-                            color: _kDark,
+                          style: TextStyle(
+                            color: bubbleText,
                             fontSize: 12,
                             height: 1.4,
                           ),
@@ -904,9 +934,9 @@ class _Header extends StatelessWidget {
                         width: 90,
                         height: 90,
                         decoration: BoxDecoration(
-                          color: const Color(0xFFFEF08A),
+                          color: avatarHalo,
                           shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 3),
+                          border: Border.all(color: avatarBorder, width: 3),
                           boxShadow: [
                             BoxShadow(
                               color: Colors.black.withValues(alpha: 0.15),
@@ -1054,6 +1084,14 @@ class _TaskCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final primaryText = context.mdPrimaryText;
+    final subtleText = context.mdSecondaryText;
+    final cardColor = context.mdSurface;
+    final cardShadow = context.mdCardGlow;
+    final badgeBg = context.isDarkMode
+        ? const Color(0xFF2C2F45)
+        : const Color(0xFFF3F0FB);
+
     return TapScale(
       onTap: onTap,
       child: AnimatedOpacity(
@@ -1063,11 +1101,11 @@ class _TaskCard extends StatelessWidget {
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: _kCardBg,
+            color: cardColor,
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
+                color: cardShadow,
                 blurRadius: 8,
                 offset: const Offset(0, 2),
               ),
@@ -1086,7 +1124,7 @@ class _TaskCard extends StatelessWidget {
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
-                        color: _kDark,
+                        color: primaryText,
                         decoration: completed
                             ? TextDecoration.lineThrough
                             : TextDecoration.none,
@@ -1097,7 +1135,7 @@ class _TaskCard extends StatelessWidget {
                       task.description,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 12, color: _kSubtle),
+                      style: TextStyle(fontSize: 12, color: subtleText),
                     ),
                   ],
                 ),
@@ -1118,7 +1156,7 @@ class _TaskCard extends StatelessWidget {
                         vertical: 3,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF3F0FB),
+                        color: badgeBg,
                         borderRadius: BorderRadius.circular(50),
                       ),
                       child: Text(
@@ -1183,18 +1221,25 @@ class _MoodScoreCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final primaryText = context.mdPrimaryText;
+    final subtleText = context.mdSecondaryText;
+    final gradientColors = context.isDarkMode
+        ? [const Color(0xFF1E2234), const Color(0xFF121424)]
+        : [const Color(0xFFF3F0FB), const Color(0xFFEDE9FE)];
+    final cardShadow = context.mdCardGlow;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFF3F0FB), Color(0xFFEDE9FE)],
+        gradient: LinearGradient(
+          colors: gradientColors,
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: _kPurple.withValues(alpha: 0.08),
+            color: cardShadow,
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -1206,12 +1251,12 @@ class _MoodScoreCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 '🌟 Mood Score',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 15,
-                  color: _kDark,
+                  color: primaryText,
                 ),
               ),
               Row(
@@ -1251,7 +1296,7 @@ class _MoodScoreCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-          Text(_message, style: const TextStyle(fontSize: 12, color: _kSubtle)),
+          Text(_message, style: TextStyle(fontSize: 12, color: subtleText)),
         ],
       ),
     );
@@ -1335,10 +1380,16 @@ class _BottomNav extends StatelessWidget {
       ),
       _NavItem(Icons.folder_outlined, 'Resources', onTap: () {}),
     ];
+    final navBg = context.mdSurface;
+    final borderColor = context.isDarkMode
+        ? Colors.white10
+        : const Color(0xFFF0F0F0);
+    final inactiveColor = context.mdSecondaryText;
+
     return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: Color(0xFFF0F0F0), width: 1.5)),
+      decoration: BoxDecoration(
+        color: navBg,
+        border: Border(top: BorderSide(color: borderColor, width: 1.5)),
       ),
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
@@ -1352,7 +1403,7 @@ class _BottomNav extends StatelessWidget {
                   children: [
                     Icon(
                       item.icon,
-                      color: item.active ? _kPurple : _kSubtle,
+                      color: item.active ? _kPurple : inactiveColor,
                       size: 26,
                     ),
                     const SizedBox(height: 2),
@@ -1360,7 +1411,7 @@ class _BottomNav extends StatelessWidget {
                       item.label,
                       style: TextStyle(
                         fontSize: 10,
-                        color: item.active ? _kPurple : _kSubtle,
+                        color: item.active ? _kPurple : inactiveColor,
                         fontWeight: item.active
                             ? FontWeight.bold
                             : FontWeight.normal,
@@ -1535,11 +1586,28 @@ class _CompanionChatState extends State<_CompanionChat> {
   @override
   Widget build(BuildContext context) {
     final bool showPrompts = _messages.length <= 1;
+    final sheetColor = context.mdSurface;
+    final secondarySurface = context.mdSecondarySurface;
+    final primaryText = context.mdPrimaryText;
+    final subtleText = context.mdSecondaryText;
+    final dividerColor = context.isDarkMode
+        ? Colors.white12
+        : const Color(0xFFE6E6E6);
+    final promptBg = context.isDarkMode
+        ? const Color(0xFF2C3250)
+        : const Color(0xFFF3F0FB);
+    final promptText = context.isDarkMode ? Colors.white : _kPurple;
+    final inputFill = context.mdInputFill;
+    final inputBorder = context.mdInputBorder;
+    final handleColor = context.isDarkMode
+        ? Colors.white24
+        : const Color(0xFFDDDDDD);
+
     return Container(
       height: MediaQuery.of(context).size.height * 0.72,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      decoration: BoxDecoration(
+        color: sheetColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: Column(
         children: [
@@ -1549,7 +1617,7 @@ class _CompanionChatState extends State<_CompanionChat> {
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: const Color(0xFFDDDDDD),
+              color: handleColor,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -1561,8 +1629,8 @@ class _CompanionChatState extends State<_CompanionChat> {
                 Container(
                   width: 42,
                   height: 42,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFF3F0FB),
+                  decoration: BoxDecoration(
+                    color: secondarySurface,
                     shape: BoxShape.circle,
                   ),
                   child: Center(
@@ -1571,9 +1639,9 @@ class _CompanionChatState extends State<_CompanionChat> {
                       width: 32,
                       height: 32,
                       fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) => const Icon(
+                      errorBuilder: (context, error, stackTrace) => Icon(
                         Icons.sentiment_satisfied_alt,
-                        color: _kSubtle,
+                        color: subtleText,
                       ),
                     ),
                   ),
@@ -1581,21 +1649,21 @@ class _CompanionChatState extends State<_CompanionChat> {
                 const SizedBox(width: 12),
                 Text(
                   widget.companionName,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: _kDark,
+                    color: primaryText,
                   ),
                 ),
                 const Spacer(),
                 IconButton(
-                  icon: const Icon(Icons.close, color: _kSubtle),
+                  icon: Icon(Icons.close, color: subtleText),
                   onPressed: () => Navigator.of(context).pop(),
                 ),
               ],
             ),
           ),
-          const Divider(height: 1),
+          Divider(height: 1, color: dividerColor),
 
           // ── Messages
           Expanded(
@@ -1631,12 +1699,12 @@ class _CompanionChatState extends State<_CompanionChat> {
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF3F0FB),
+                      color: promptBg,
                       borderRadius: BorderRadius.circular(50),
                     ),
                     child: Text(
                       _prompts[i],
-                      style: const TextStyle(color: _kPurple, fontSize: 12),
+                      style: TextStyle(color: promptText, fontSize: 12),
                     ),
                   ),
                 ),
@@ -1644,7 +1712,7 @@ class _CompanionChatState extends State<_CompanionChat> {
             ),
 
           // ── Input row
-          const Divider(height: 1),
+          Divider(height: 1, color: dividerColor),
           Padding(
             padding: EdgeInsets.fromLTRB(
               16,
@@ -1659,18 +1727,30 @@ class _CompanionChatState extends State<_CompanionChat> {
                     controller: _input,
                     textCapitalization: TextCapitalization.sentences,
                     onSubmitted: _send,
+                    style: TextStyle(color: primaryText),
                     decoration: InputDecoration(
                       hintText: 'Say something…',
-                      hintStyle: const TextStyle(color: Color(0xFFBBBBBB)),
+                      hintStyle: TextStyle(color: subtleText),
                       filled: true,
-                      fillColor: const Color(0xFFF5F5F5),
+                      fillColor: inputFill,
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 16,
                         vertical: 10,
                       ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(50),
-                        borderSide: BorderSide.none,
+                        borderSide: BorderSide(color: inputBorder),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(50),
+                        borderSide: BorderSide(color: inputBorder),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(50),
+                        borderSide: const BorderSide(
+                          color: _kPurple,
+                          width: 1.5,
+                        ),
                       ),
                     ),
                   ),
@@ -1708,6 +1788,8 @@ class _ChatBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isUser = message.isUser;
+    final companionBg = context.mdSecondarySurface;
+    final companionText = context.mdPrimaryText;
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
@@ -1717,7 +1799,7 @@ class _ChatBubble extends StatelessWidget {
         ),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: isUser ? _kPurple : const Color(0xFFF3F0FB),
+          color: isUser ? _kPurple : companionBg,
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(18),
             topRight: const Radius.circular(18),
@@ -1728,7 +1810,7 @@ class _ChatBubble extends StatelessWidget {
         child: Text(
           message.text,
           style: TextStyle(
-            color: isUser ? Colors.white : _kDark,
+            color: isUser ? Colors.white : companionText,
             fontSize: 14,
             height: 1.4,
           ),
@@ -1766,13 +1848,15 @@ class _TypingBubbleState extends State<_TypingBubble>
 
   @override
   Widget build(BuildContext context) {
+    final bubbleBg = context.mdSecondarySurface;
+    final dotColor = context.mdSecondaryText;
     return Align(
       alignment: Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: const Color(0xFFF3F0FB),
+          color: bubbleBg,
           borderRadius: const BorderRadius.only(
             topLeft: Radius.circular(18),
             topRight: Radius.circular(18),
@@ -1796,8 +1880,8 @@ class _TypingBubbleState extends State<_TypingBubble>
                     margin: const EdgeInsets.symmetric(horizontal: 2),
                     width: 7,
                     height: 7,
-                    decoration: const BoxDecoration(
-                      color: _kSubtle,
+                    decoration: BoxDecoration(
+                      color: dotColor,
                       shape: BoxShape.circle,
                     ),
                   ),

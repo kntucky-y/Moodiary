@@ -9,6 +9,10 @@ import '../friends/friends_screen.dart';
 import '../forums/forums_screen.dart';
 import '../companion/companion_screen.dart';
 import '../onboarding/onboarding_screen.dart';
+import '../settings/settings_screen.dart';
+import '../../services/local_notifications_service.dart';
+import '../../services/realtime_notifications.dart';
+import '../../services/theme_controller.dart';
 import '../../utils/transitions.dart';
 import '../../widgets/app_sidebar.dart';
 
@@ -175,6 +179,9 @@ class _JournalScreenState extends State<JournalScreen> {
     await prefs.remove('user_id');
     await prefs.remove('companion_id');
     await prefs.remove('companion_name');
+    RealtimeNotifications.instance.disconnect();
+    await ThemeController.instance.resetToDefault();
+    await LocalNotificationsService.instance.cancelAllScheduled();
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
       FadeSlideRoute(page: const OnboardingScreen()),
@@ -589,6 +596,8 @@ class _JournalScreenState extends State<JournalScreen> {
                   companionName: widget.companionName,
                 ),
               ),
+              onNavigateSettings: () =>
+                  _openScreen(SettingsScreen(userName: widget.userName)),
               onChangeCompanion: () =>
                   _openScreen(CompanionScreen(userName: widget.userName)),
               onLogout: () => _logout(),

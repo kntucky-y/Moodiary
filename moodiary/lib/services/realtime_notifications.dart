@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 
+import 'local_notifications_service.dart';
 import '../utils/in_app_notifications.dart';
 
 class RealtimeNotifications {
@@ -76,6 +77,10 @@ class RealtimeNotifications {
       title: title,
       message: message,
       icon: icon,
+    );
+    LocalNotificationsService.instance.showInstant(
+      title: title,
+      message: message,
     );
     _controller.add(payload);
   }

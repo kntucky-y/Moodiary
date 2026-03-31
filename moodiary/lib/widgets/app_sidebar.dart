@@ -1,11 +1,19 @@
 import 'package:flutter/material.dart';
 
+import '../theme/moodiary_colors.dart';
 import '../utils/transitions.dart';
 
 const _kPurple = Color(0xFFA076F9);
-const _kSubtle = Color(0xFF8A8A8D);
 
-enum SidebarSection { home, calendar, journal, friends, forums, resources }
+enum SidebarSection {
+  home,
+  calendar,
+  journal,
+  friends,
+  forums,
+  resources,
+  settings,
+}
 
 class AppSidebar extends StatelessWidget {
   final String userName;
@@ -16,6 +24,7 @@ class AppSidebar extends StatelessWidget {
   final VoidCallback? onNavigateJournal;
   final VoidCallback? onNavigateFriends;
   final VoidCallback? onNavigateForums;
+  final VoidCallback? onNavigateSettings;
   final VoidCallback? onChangeCompanion;
   final VoidCallback? onLogout;
 
@@ -29,12 +38,16 @@ class AppSidebar extends StatelessWidget {
     this.onNavigateJournal,
     this.onNavigateFriends,
     this.onNavigateForums,
+    this.onNavigateSettings,
     this.onChangeCompanion,
     this.onLogout,
   });
 
   @override
   Widget build(BuildContext context) {
+    final subtleText = context.mdSecondaryText;
+    final surface = context.mdSurface;
+
     final items = [
       _SidebarEntry(
         section: SidebarSection.home,
@@ -72,13 +85,19 @@ class AppSidebar extends StatelessWidget {
         label: 'Resources',
         onTap: null,
       ),
+      _SidebarEntry(
+        section: SidebarSection.settings,
+        icon: Icons.settings_outlined,
+        label: 'Settings',
+        onTap: onNavigateSettings,
+      ),
     ];
 
     return Material(
       elevation: 16,
       child: SafeArea(
         child: Container(
-          color: Colors.white,
+          color: surface,
           padding: const EdgeInsets.all(24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -94,13 +113,16 @@ class AppSidebar extends StatelessWidget {
                     ),
                   ),
                   const Spacer(),
-                  IconButton(icon: const Icon(Icons.close), onPressed: onClose),
+                  IconButton(
+                    icon: Icon(Icons.close, color: subtleText),
+                    onPressed: onClose,
+                  ),
                 ],
               ),
               const SizedBox(height: 8),
               Text(
                 'Hi, $userName!',
-                style: const TextStyle(color: _kSubtle, fontSize: 13),
+                style: TextStyle(color: subtleText, fontSize: 13),
               ),
               const SizedBox(height: 24),
               ...items.map(_buildItem),
@@ -117,13 +139,13 @@ class AppSidebar extends StatelessWidget {
               if (onLogout != null)
                 TapScale(
                   onTap: onLogout!,
-                  child: const Row(
+                  child: Row(
                     children: [
-                      Icon(Icons.logout, color: _kSubtle, size: 22),
-                      SizedBox(width: 12),
+                      Icon(Icons.logout, color: subtleText, size: 22),
+                      const SizedBox(width: 12),
                       Text(
                         'Logout',
-                        style: TextStyle(color: _kSubtle, fontSize: 16),
+                        style: TextStyle(color: subtleText, fontSize: 16),
                       ),
                     ],
                   ),
@@ -181,19 +203,17 @@ class _SidebarItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final subtleText = context.mdSecondaryText;
+    final primaryText = context.mdPrimaryText;
     return Row(
       children: [
-        Icon(
-          icon,
-          color: active ? _kPurple : const Color(0xFF888888),
-          size: 22,
-        ),
+        Icon(icon, color: active ? _kPurple : subtleText, size: 22),
         const SizedBox(width: 12),
         Text(
           label,
           style: TextStyle(
             fontSize: 16,
-            color: active ? _kPurple : const Color(0xFF444444),
+            color: active ? _kPurple : primaryText,
             fontWeight: active ? FontWeight.bold : FontWeight.normal,
           ),
         ),

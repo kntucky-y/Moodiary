@@ -12,9 +12,12 @@ import '../journal/journal_screen.dart';
 import '../friends/friends_screen.dart';
 import '../companion/companion_screen.dart';
 import '../onboarding/onboarding_screen.dart';
+import '../settings/settings_screen.dart';
 import '../../utils/transitions.dart';
 import '../../widgets/app_sidebar.dart';
+import '../../services/local_notifications_service.dart';
 import '../../services/realtime_notifications.dart';
+import '../../services/theme_controller.dart';
 
 const _kPurple = Color(0xFFA076F9);
 const _kDark = Color(0xFF3D3B40);
@@ -156,6 +159,8 @@ class _ForumsScreenState extends State<ForumsScreen> {
     await prefs.remove('companion_id');
     await prefs.remove('companion_name');
     RealtimeNotifications.instance.disconnect();
+    await ThemeController.instance.resetToDefault();
+    await LocalNotificationsService.instance.cancelAllScheduled();
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
       FadeSlideRoute(page: const OnboardingScreen()),
@@ -756,6 +761,8 @@ class _ForumsScreenState extends State<ForumsScreen> {
                 ),
               ),
               onNavigateForums: _closeSidebar,
+              onNavigateSettings: () =>
+                  _openScreen(SettingsScreen(userName: widget.userName)),
               onChangeCompanion: () =>
                   _openScreen(CompanionScreen(userName: widget.userName)),
               onLogout: () => _logout(),

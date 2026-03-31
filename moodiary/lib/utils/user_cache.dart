@@ -1,0 +1,28 @@
+import 'package:shared_preferences/shared_preferences.dart';
+
+/// Centralized helpers for clearing state that should be scoped to a
+/// particular authenticated user.
+class UserCache {
+  static const _scopedKeys = <String>{
+    'tasks_date',
+    'tasks_indices',
+    'tasks_completed',
+    'mood_logs_cache',
+    'companion_id',
+    'companion_name',
+  };
+
+  static Future<void> clear([SharedPreferences? prefs]) async {
+    final instance = prefs ?? await SharedPreferences.getInstance();
+    for (final key in _scopedKeys) {
+      await instance.remove(key);
+    }
+    final moodScoreKeys = instance
+        .getKeys()
+        .where((key) => key.startsWith('mood_score_'))
+        .toList();
+    for (final key in moodScoreKeys) {
+      await instance.remove(key);
+    }
+  }
+}

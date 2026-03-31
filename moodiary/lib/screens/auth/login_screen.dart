@@ -3,13 +3,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../services/auth_service.dart';
 import '../../services/realtime_notifications.dart';
+import '../../theme/moodiary_colors.dart';
 import '../../utils/transitions.dart';
+import '../../utils/user_cache.dart';
 import '../companion/companion_screen.dart';
 import '../home/home_screen.dart';
 import 'reset_password_screen.dart';
 
 const _kPurple = Color(0xFF9B7FDB);
-const _kDark = Color(0xFF1A1A2E);
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -45,6 +46,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     final prefs = await SharedPreferences.getInstance();
+    final lastUserId = prefs.getString('last_user_id');
     await prefs.setString('token', token);
 
     final userName = (user['name'] ?? 'Friend') as String;
@@ -52,7 +54,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
     final userId = (user['id'] ?? user['_id'])?.toString();
     if (userId != null && userId.isNotEmpty) {
+      if (lastUserId != null && lastUserId != userId) {
+        await UserCache.clear(prefs);
+      }
       await prefs.setString('user_id', userId);
+      await prefs.setString('last_user_id', userId);
     }
 
     await RealtimeNotifications.instance.ensureConnected(token: token);
@@ -219,8 +225,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final primaryText = context.mdPrimaryText;
+    final subtleText = context.mdSecondaryText;
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: context.mdScaffold,
       body: Stack(
         children: [
           // Beige curved top section
@@ -230,7 +239,7 @@ class _LoginScreenState extends State<LoginScreen> {
               clipper: _TopCurveClipper(),
               child: Container(
                 height: MediaQuery.of(context).size.height * 0.28,
-                color: const Color(0xFFF0E8DC),
+                color: context.mdSecondarySurface,
               ),
             ),
           ),
@@ -248,13 +257,13 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: _isLogin
                         ? RichText(
                             key: const ValueKey('login-title'),
-                            text: const TextSpan(
+                            text: TextSpan(
                               style: TextStyle(
                                 fontSize: 34,
                                 fontWeight: FontWeight.bold,
-                                color: _kDark,
+                                color: primaryText,
                               ),
-                              children: [
+                              children: const [
                                 TextSpan(text: 'Log '),
                                 TextSpan(
                                   text: 'I',
@@ -266,13 +275,13 @@ class _LoginScreenState extends State<LoginScreen> {
                           )
                         : RichText(
                             key: const ValueKey('signup-title'),
-                            text: const TextSpan(
+                            text: TextSpan(
                               style: TextStyle(
                                 fontSize: 34,
                                 fontWeight: FontWeight.bold,
-                                color: _kDark,
+                                color: primaryText,
                               ),
-                              children: [
+                              children: const [
                                 TextSpan(text: 'Sign '),
                                 TextSpan(
                                   text: 'U',
@@ -285,34 +294,36 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 36),
                   // Email field (shared)
-                  const Text(
+                  Text(
                     'Your Email',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: _kDark,
+                      color: primaryText,
                     ),
                   ),
                   const SizedBox(height: 8),
                   TextField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
-                    decoration: _fieldDecoration('Enter your email'),
+                    style: TextStyle(color: primaryText),
+                    decoration: _fieldDecoration(context, 'Enter your email'),
                   ),
                   const SizedBox(height: 24),
                   // Name field (signup only)
                   if (!_isLogin) ...[
-                    const Text(
+                    Text(
                       'Name',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: _kDark,
+                        color: primaryText,
                       ),
                     ),
                     const SizedBox(height: 8),
                     TextField(
-                      decoration: _fieldDecoration('Enter your name'),
+                      style: TextStyle(color: primaryText),
+                      decoration: _fieldDecoration(context, 'Enter your name'),
                       controller: _nameController,
                     ),
                     const SizedBox(height: 24),
@@ -322,12 +333,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
+                        Text(
                           'Password',
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
-                            color: _kDark,
+                            color: primaryText,
                           ),
                         ),
                         TextButton(
@@ -337,33 +348,32 @@ class _LoginScreenState extends State<LoginScreen> {
                             minimumSize: Size.zero,
                             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           ),
-                          child: const Text(
+                          child: Text(
                             'Forgot password?',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Color(0xFF888888),
-                            ),
+                            style: TextStyle(fontSize: 13, color: subtleText),
                           ),
                         ),
                       ],
                     )
                   else
-                    const Text(
+                    Text(
                       'Password',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: _kDark,
+                        color: primaryText,
                       ),
                     ),
                   const SizedBox(height: 8),
                   TextField(
                     controller: _passwordController,
+                    style: TextStyle(color: primaryText),
                     obscureText: _isLogin
                         ? _obscurePassword
                         : _obscurePasswordSignup,
                     decoration:
                         _fieldDecoration(
+                          context,
                           _isLogin
                               ? 'Enter your password'
                               : 'Create a password',
@@ -375,7 +385,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                       : _obscurePasswordSignup)
                                   ? Icons.visibility_off_outlined
                                   : Icons.visibility_outlined,
-                              color: const Color(0xFFAAAAAA),
+                              color: subtleText,
                               size: 20,
                             ),
                             onPressed: () => setState(() {
@@ -431,7 +441,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         _isLogin
                             ? "Don't have an account?  "
                             : 'Already have an account?  ',
-                        style: const TextStyle(color: Color(0xFF888888)),
+                        style: TextStyle(color: subtleText),
                       ),
                       GestureDetector(
                         onTap: () => setState(() => _isLogin = !_isLogin),
@@ -468,15 +478,24 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  InputDecoration _fieldDecoration(String hint) {
+  InputDecoration _fieldDecoration(BuildContext context, String hint) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: const TextStyle(color: Color(0xFFBBBBBB)),
-      enabledBorder: const UnderlineInputBorder(
-        borderSide: BorderSide(color: Color(0xFFDDDDDD)),
+      hintStyle: TextStyle(color: context.mdSecondaryText),
+      filled: true,
+      fillColor: context.mdInputFill,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(color: context.mdInputBorder),
       ),
-      focusedBorder: const UnderlineInputBorder(
-        borderSide: BorderSide(color: _kPurple),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(color: context.mdAccentPurple, width: 1.5),
+      ),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(color: context.mdInputBorder),
       ),
     );
   }
