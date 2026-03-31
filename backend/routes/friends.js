@@ -14,6 +14,23 @@ const { getIO, emitNotification } = require('../socket');
 
 const router = express.Router();
 
+let legacyStatusFixPromise;
+const ensureLegacyFriendshipsActive = () => {
+  if (!legacyStatusFixPromise) {
+    legacyStatusFixPromise = Friendship.updateMany(
+      { status: { $exists: false } },
+      { $set: { status: 'active' } },
+    ).catch((err) => {
+      console.warn('Failed to backfill friendship statuses', err.message);
+    });
+  }
+  return legacyStatusFixPromise;
+};
+
+const activeFriendshipFilter = {
+  $or: [{ status: 'active' }, { status: { $exists: false } }],
+};
+
 const formatFriendship = (doc, viewerId) => {
   const members = doc.members || [];
   const friend = members.find(
@@ -75,9 +92,10 @@ const upsertFriendship = async (userA, userB) => {
 router.get('/', auth, async (req, res) => {
   try {
     const userId = req.userId;
+    await ensureLegacyFriendshipsActive();
 
     const [friendships, incoming, outgoing] = await Promise.all([
-      Friendship.find({ members: userId, status: 'active' })
+      Friendship.find({ members: userId, ...activeFriendshipFilter })
         .populate('members', 'name email')
         .sort({ updatedAt: -1 })
         .lean(),

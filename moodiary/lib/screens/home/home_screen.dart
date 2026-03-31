@@ -23,88 +23,118 @@ const _kSubtle = Color(0xFF8A8A8D);
 // ─── Task pool — 3 are picked randomly every day ─────────────────────────────
 const _taskPool = [
   _MoodTask(
-    'water',
-    'Drink Enough Water',
-    'Staying hydrated is crucial for brain function. Dehydration impairs concentration, memory, and mood. Drink at least 8 glasses today.',
-    'assets/water.png',
-    10,
+    id: 'water',
+    title: 'Drink Enough Water',
+    description:
+        'Staying hydrated is crucial for brain function. Dehydration impairs concentration, memory, and mood. Drink at least 8 glasses today.',
+    points: 10,
+    asset: 'assets/water.png',
   ),
   _MoodTask(
-    'reading',
-    'Keep Reading',
-    'Reading for 20 minutes lowers your heart rate and reduces cortisol. It builds vocabulary, empathy, and a steady sense of calm.',
-    'assets/reading.png',
-    15,
+    id: 'reading',
+    title: 'Keep Reading',
+    description:
+        'Reading for 20 minutes lowers your heart rate and reduces cortisol. It builds vocabulary, empathy, and a steady sense of calm.',
+    points: 15,
+    asset: 'assets/reading.png',
   ),
   _MoodTask(
-    'meditate',
-    'Try Meditation',
-    'Just 5 minutes of focused breathing activates your parasympathetic nervous system, reducing anxiety and improving emotional regulation.',
-    'assets/meditation.png',
-    15,
+    id: 'meditate',
+    title: 'Try Meditation',
+    description:
+        'Just 5 minutes of focused breathing activates your parasympathetic nervous system, reducing anxiety and improving emotional regulation.',
+    points: 15,
+    asset: 'assets/meditation.png',
   ),
   _MoodTask(
-    'walk',
-    'Take a 10-Minute Walk',
-    'A brisk walk boosts serotonin and endorphins. Even a short stroll outside can lift your mood for hours afterwards.',
-    'assets/water.png',
-    10,
+    id: 'walk',
+    title: 'Take a 10-Minute Walk',
+    description:
+        'A brisk walk boosts serotonin and endorphins. Even a short stroll outside can lift your mood for hours afterwards.',
+    points: 10,
+    icon: Icons.directions_walk_rounded,
+    iconColor: Color(0xFF2563EB),
+    iconBackground: Color(0xFFE0F2FE),
   ),
   _MoodTask(
-    'gratitude',
-    'Write 3 Gratitudes',
-    'Journaling what you\'re grateful for rewires your brain toward positivity. Try to be specific — small moments count the most.',
-    'assets/reading.png',
-    15,
+    id: 'gratitude',
+    title: 'Write 3 Gratitudes',
+    description:
+        'Journaling what you\'re grateful for rewires your brain toward positivity. Try to be specific — small moments count the most.',
+    points: 15,
+    icon: Icons.favorite_border_rounded,
+    iconColor: Color(0xFFEA580C),
+    iconBackground: Color(0xFFFFEDD5),
   ),
   _MoodTask(
-    'breathe',
-    'Practice Deep Breathing',
-    'Try the 4-7-8 technique: inhale for 4 seconds, hold for 7, exhale for 8. Repeat 3 times to calm your nervous system almost instantly.',
-    'assets/meditation.png',
-    10,
+    id: 'breathe',
+    title: 'Practice Deep Breathing',
+    description:
+        'Try the 4-7-8 technique: inhale for 4 seconds, hold for 7, exhale for 8. Repeat 3 times to calm your nervous system almost instantly.',
+    points: 10,
+    icon: Icons.air_rounded,
+    iconColor: Color(0xFF0EA5E9),
+    iconBackground: Color(0xFFE0F2FE),
   ),
   _MoodTask(
-    'stretch',
-    'Stretch for 5 Minutes',
-    'Gentle stretching relieves built-up muscle tension and improves blood flow to the brain, making it easier to focus and feel at ease.',
-    'assets/water.png',
-    5,
+    id: 'stretch',
+    title: 'Stretch for 5 Minutes',
+    description:
+        'Gentle stretching relieves built-up muscle tension and improves blood flow to the brain, making it easier to focus and feel at ease.',
+    points: 5,
+    icon: Icons.accessibility_new_rounded,
+    iconColor: Color(0xFF16A34A),
+    iconBackground: Color(0xFFDCFCE7),
   ),
   _MoodTask(
-    'sleep',
-    'Protect Your Sleep',
-    'Even one extra hour of sleep dramatically improves emotion regulation, memory consolidation, and next-day energy. Guard your bedtime.',
-    'assets/reading.png',
-    20,
+    id: 'sleep',
+    title: 'Protect Your Sleep',
+    description:
+        'Even one extra hour of sleep dramatically improves emotion regulation, memory consolidation, and next-day energy. Guard your bedtime.',
+    points: 20,
+    icon: Icons.bedtime_rounded,
+    iconColor: Color(0xFF7C3AED),
+    iconBackground: Color(0xFFEDE9FE),
   ),
   _MoodTask(
-    'screen',
-    'Take a Screen Break',
-    'Step away from all screens for 15 minutes. Look at something at least 6 metres away to rest your eyes and quiet your mind.',
-    'assets/meditation.png',
-    10,
+    id: 'screen',
+    title: 'Take a Screen Break',
+    description:
+        'Step away from all screens for 15 minutes. Look at something at least 6 metres away to rest your eyes and quiet your mind.',
+    points: 10,
+    icon: Icons.phonelink_off_rounded,
+    iconColor: Color(0xFF6366F1),
+    iconBackground: Color(0xFFE0E7FF),
   ),
   _MoodTask(
-    'music',
-    'Listen to Calming Music',
-    'Music around 60 BPM can induce alpha brainwaves associated with relaxed alertness. Put on a gentle playlist and just breathe.',
-    'assets/reading.png',
-    5,
+    id: 'music',
+    title: 'Listen to Calming Music',
+    description:
+        'Music around 60 BPM can induce alpha brainwaves associated with relaxed alertness. Put on a gentle playlist and just breathe.',
+    points: 5,
+    icon: Icons.music_note_rounded,
+    iconColor: Color(0xFFDB2777),
+    iconBackground: Color(0xFFFCE7F3),
   ),
   _MoodTask(
-    'connect',
-    'Reach Out to Someone',
-    'Send a kind message to a friend or family member. Social connection is one of the strongest predictors of long-term mental wellbeing.',
-    'assets/water.png',
-    15,
+    id: 'connect',
+    title: 'Reach Out to Someone',
+    description:
+        'Send a kind message to a friend or family member. Social connection is one of the strongest predictors of long-term mental wellbeing.',
+    points: 15,
+    icon: Icons.chat_bubble_rounded,
+    iconColor: Color(0xFF3B82F6),
+    iconBackground: Color(0xFFE0F2FE),
   ),
   _MoodTask(
-    'meal',
-    'Prepare a Healthy Meal',
-    'What you eat directly shapes your mood via the gut-brain axis. Prepare something colourful and nutritious — even a simple salad counts.',
-    'assets/meditation.png',
-    20,
+    id: 'meal',
+    title: 'Prepare a Healthy Meal',
+    description:
+        'What you eat directly shapes your mood via the gut-brain axis. Prepare something colourful and nutritious — even a simple salad counts.',
+    points: 20,
+    icon: Icons.restaurant_menu,
+    iconColor: Color(0xFFDC2626),
+    iconBackground: Color(0xFFFFE4E6),
   ),
 ];
 
@@ -123,15 +153,22 @@ class _MoodTask {
   final String id;
   final String title;
   final String description;
-  final String asset;
   final int points;
-  const _MoodTask(
-    this.id,
-    this.title,
-    this.description,
+  final String? asset;
+  final IconData? icon;
+  final Color iconColor;
+  final Color iconBackground;
+
+  const _MoodTask({
+    required this.id,
+    required this.title,
+    required this.description,
+    required this.points,
     this.asset,
-    this.points,
-  );
+    this.icon,
+    this.iconColor = _kPurple,
+    this.iconBackground = const Color(0xFFF3F0FB),
+  }) : assert(asset != null || icon != null, 'Provide an asset or icon');
 }
 
 class _Mood {
@@ -416,13 +453,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Image.asset(
-                task.asset,
-                width: 80,
-                height: 80,
-                errorBuilder: (context, error, stackTrace) =>
-                    const Icon(Icons.task_alt, size: 60, color: _kPurple),
-              ),
+              _TaskArtwork(task: task, size: 80),
               const SizedBox(height: 16),
               Text(
                 task.title,
@@ -931,6 +962,61 @@ class _WavyClipper extends CustomClipper<Path> {
 }
 
 // ─── Task Card ────────────────────────────────────────────────────────────────
+class _TaskArtwork extends StatelessWidget {
+  final _MoodTask task;
+  final double size;
+
+  const _TaskArtwork({required this.task, required this.size});
+
+  @override
+  Widget build(BuildContext context) {
+    if (task.asset != null) {
+      return Image.asset(
+        task.asset!,
+        width: size,
+        height: size,
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) => _TaskIconFallback(
+          icon: task.icon ?? Icons.task_alt,
+          size: size,
+          color: task.iconColor,
+          background: task.iconBackground,
+        ),
+      );
+    }
+    return _TaskIconFallback(
+      icon: task.icon ?? Icons.task_alt,
+      size: size,
+      color: task.iconColor,
+      background: task.iconBackground,
+    );
+  }
+}
+
+class _TaskIconFallback extends StatelessWidget {
+  final IconData icon;
+  final double size;
+  final Color color;
+  final Color background;
+
+  const _TaskIconFallback({
+    required this.icon,
+    required this.size,
+    required this.color,
+    required this.background,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(color: background, shape: BoxShape.circle),
+      child: Icon(icon, color: color, size: size * 0.58),
+    );
+  }
+}
+
 class _TaskCard extends StatelessWidget {
   final _MoodTask task;
   final bool completed;
@@ -964,13 +1050,7 @@ class _TaskCard extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Image.asset(
-                task.asset,
-                width: 48,
-                height: 48,
-                errorBuilder: (context, error, stackTrace) =>
-                    const Icon(Icons.task_alt, size: 48, color: _kSubtle),
-              ),
+              _TaskArtwork(task: task, size: 48),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(

@@ -1,18 +1,17 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../home/home_screen.dart';
-import '../companion/companion_screen.dart';
-import '../../utils/transitions.dart';
+
+import '../../services/auth_service.dart';
 import '../../services/realtime_notifications.dart';
+import '../../utils/transitions.dart';
+import '../companion/companion_screen.dart';
+import '../home/home_screen.dart';
+import 'reset_password_screen.dart';
 
 const _kPurple = Color(0xFF9B7FDB);
 const _kDark = Color(0xFF1A1A2E);
-
-// Change this to your machine's local IP when testing on a real device/emulator
-// e.g. 'http://10.0.2.2:3000' for Android emulator, 'http://localhost:3000' for desktop
-const _kBaseUrl = 'https://moodiary-production.up.railway.app';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -26,6 +25,9 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLogin = true;
   bool _obscurePasswordSignup = true;
   bool _isLoading = false;
+  String? _activeSocialProvider;
+
+  final _googleSignIn = GoogleSignIn(scopes: ['email']);
 
   final _emailController = TextEditingController();
   final _nameController = TextEditingController();
@@ -37,6 +39,46 @@ class _LoginScreenState extends State<LoginScreen> {
     _nameController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _finalizeLogin(Map<String, dynamic> data) async {
+    final token = data['token'] as String?;
+    final user = (data['user'] as Map<String, dynamic>?) ?? {};
+
+    if (token == null) {
+      throw AuthException('Invalid response from server');
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('token', token);
+
+    final userName = (user['name'] ?? 'Friend') as String;
+    await prefs.setString('user_name', userName);
+
+    final userId = (user['id'] ?? user['_id'])?.toString();
+    if (userId != null && userId.isNotEmpty) {
+      await prefs.setString('user_id', userId);
+    }
+
+    await RealtimeNotifications.instance.ensureConnected(token: token);
+
+    final companionId = prefs.getInt('companion_id');
+    final companionName = prefs.getString('companion_name');
+
+    if (!mounted) return;
+
+    Navigator.of(context).pushAndRemoveUntil(
+      FadeSlideRoute(
+        page: companionId != null && companionName != null
+            ? HomeScreen(
+                userName: userName,
+                companionId: companionId,
+                companionName: companionName,
+              )
+            : CompanionScreen(userName: userName),
+      ),
+      (_) => false,
+    );
   }
 
   Future<void> _submit() async {
@@ -52,55 +94,19 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final endpoint = _isLogin ? '/api/auth/login' : '/api/auth/register';
-      final body = _isLogin
-          ? {'email': email, 'password': password}
-          : {'email': email, 'password': password, 'name': name};
+      final data = _isLogin
+          ? await AuthService.instance.login(email: email, password: password)
+          : await AuthService.instance.register(
+              name: name,
+              email: email,
+              password: password,
+            );
 
-      final response = await http.post(
-        Uri.parse('$_kBaseUrl$endpoint'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(body),
-      );
-
-      final data = jsonDecode(response.body);
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('token', data['token']);
-        await prefs.setString('user_name', data['user']['name']);
-        final user = data['user'] as Map<String, dynamic>;
-        final userId = (user['id'] ?? user['_id'])?.toString();
-        if (userId != null && userId.isNotEmpty) {
-          await prefs.setString('user_id', userId);
-        }
-
-        await RealtimeNotifications.instance.ensureConnected(
-          token: data['token'] as String,
-        );
-
-        final companionId = prefs.getInt('companion_id');
-        final companionName = prefs.getString('companion_name');
-
-        if (mounted) {
-          Navigator.of(context).pushAndRemoveUntil(
-            FadeSlideRoute(
-              page: companionId != null && companionName != null
-                  ? HomeScreen(
-                      userName: data['user']['name'],
-                      companionId: companionId,
-                      companionName: companionName,
-                    )
-                  : CompanionScreen(userName: data['user']['name']),
-            ),
-            (_) => false,
-          );
-        }
-      } else {
-        _showError(data['error'] ?? 'Something went wrong');
-      }
-    } catch (e) {
-      _showError('Cannot connect to server. Is the backend running?');
+      await _finalizeLogin(data);
+    } on AuthException catch (error) {
+      _showError(error.message);
+    } catch (_) {
+      _showError('Cannot connect to the server right now');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -112,8 +118,176 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  void _showInfo(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _showForgotPasswordSheet() async {
+    final controller = TextEditingController(
+      text: _emailController.text.trim(),
+    );
+    bool isSubmitting = false;
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 24,
+            right: 24,
+            top: 24,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+          ),
+          child: StatefulBuilder(
+            builder: (sheetContext, setModalState) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Forgot password',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: controller,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: const InputDecoration(
+                      labelText: 'Email address',
+                      hintText: 'you@example.com',
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: isSubmitting
+                          ? null
+                          : () async {
+                              final email = controller.text.trim();
+                              if (email.isEmpty) {
+                                _showError('Please enter your email');
+                                return;
+                              }
+
+                              setModalState(() => isSubmitting = true);
+
+                              try {
+                                final message = await AuthService.instance
+                                    .requestPasswordReset(email: email);
+                                if (!mounted) return;
+                                Navigator.of(context).pop();
+                                _showInfo(message);
+                              } on AuthException catch (error) {
+                                setModalState(() => isSubmitting = false);
+                                _showError(error.message);
+                              } catch (_) {
+                                setModalState(() => isSubmitting = false);
+                                _showError(
+                                  'Unable to send reset email right now',
+                                );
+                              }
+                            },
+                      child: isSubmitting
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Text('Send reset link'),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const ResetPasswordScreen(),
+                        ),
+                      );
+                    },
+                    child: const Text('Already have a reset token?'),
+                  ),
+                ],
+              );
+            },
+          ),
+        );
+      },
+    );
+
+    controller.dispose();
+  }
+
+  Future<void> _handleGoogleSignIn() async {
+    setState(() => _activeSocialProvider = 'google');
+    try {
+      final account = await _googleSignIn.signIn();
+      if (account == null) {
+        return;
+      }
+
+      final auth = await account.authentication;
+      final idToken = auth.idToken;
+      if (idToken == null) {
+        _showError('Unable to retrieve Google token');
+        return;
+      }
+
+      final data = await AuthService.instance.loginWithGoogle(idToken);
+      await _finalizeLogin(data);
+    } on AuthException catch (error) {
+      _showError(error.message);
+    } catch (_) {
+      _showError('Google sign-in failed. Please try again.');
+    } finally {
+      if (mounted) setState(() => _activeSocialProvider = null);
+    }
+  }
+
+  Future<void> _handleFacebookSignIn() async {
+    setState(() => _activeSocialProvider = 'facebook');
+    try {
+      final result = await FacebookAuth.instance.login(
+        permissions: const ['email', 'public_profile'],
+      );
+
+      switch (result.status) {
+        case LoginStatus.success:
+          final token = result.accessToken?.tokenString;
+          if (token == null) {
+            _showError('Facebook did not return a token');
+            break;
+          }
+          final data = await AuthService.instance.loginWithFacebook(token);
+          await _finalizeLogin(data);
+          break;
+        case LoginStatus.cancelled:
+          _showInfo('Facebook sign-in cancelled');
+          break;
+        case LoginStatus.failed:
+        case LoginStatus.operationInProgress:
+          _showError(result.message ?? 'Facebook sign-in failed');
+          break;
+      }
+    } on AuthException catch (error) {
+      _showError(error.message);
+    } catch (_) {
+      _showError('Facebook sign-in failed. Please try again.');
+    } finally {
+      if (mounted) setState(() => _activeSocialProvider = null);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final socialBusy = _activeSocialProvider != null;
+    final googleLoading = _activeSocialProvider == 'google';
+    final facebookLoading = _activeSocialProvider == 'facebook';
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: Stack(
@@ -226,7 +400,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                         TextButton(
-                          onPressed: () {},
+                          onPressed: _showForgotPasswordSheet,
                           style: TextButton.styleFrom(
                             padding: EdgeInsets.zero,
                             minimumSize: Size.zero,
@@ -342,12 +516,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     children: [
                       _SocialButton(
                         color: const Color(0xFF1877F2),
-                        onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Facebook sign-in coming soon'),
-                            duration: Duration(seconds: 2),
-                          ),
-                        ),
+                        onTap: socialBusy ? null : _handleFacebookSignIn,
+                        loading: facebookLoading,
                         child: const Text(
                           'f',
                           style: TextStyle(
@@ -361,12 +531,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       _SocialButton(
                         color: Colors.white,
                         border: true,
-                        onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Google sign-in coming soon'),
-                            duration: Duration(seconds: 2),
-                          ),
-                        ),
+                        onTap: socialBusy ? null : _handleGoogleSignIn,
+                        loading: googleLoading,
                         child: const Text(
                           'G',
                           style: TextStyle(
@@ -443,17 +609,20 @@ class _SocialButton extends StatelessWidget {
   final Widget child;
   final bool border;
   final VoidCallback? onTap;
+  final bool loading;
   const _SocialButton({
     required this.color,
     required this.child,
     this.border = false,
     this.onTap,
+    this.loading = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final indicatorColor = border ? const Color(0xFF4285F4) : Colors.white;
     return TapScale(
-      onTap: onTap,
+      onTap: loading ? null : onTap,
       child: Container(
         width: 52,
         height: 52,
@@ -469,7 +638,18 @@ class _SocialButton extends StatelessWidget {
             ),
           ],
         ),
-        child: Center(child: child),
+        child: Center(
+          child: loading
+              ? SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation(indicatorColor),
+                  ),
+                )
+              : child,
+        ),
       ),
     );
   }

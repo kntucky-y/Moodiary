@@ -16,8 +16,23 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: true,
+      required: function () {
+        return this.provider === 'local';
+      },
     },
+    provider: {
+      type: String,
+      enum: ['local', 'google', 'facebook'],
+      default: 'local',
+    },
+    providerId: {
+      type: String,
+      unique: true,
+      sparse: true,
+    },
+    avatarUrl: String,
+    resetToken: String,
+    resetTokenExpires: Date,
   },
   { timestamps: true }
 );
