@@ -10,9 +10,15 @@ const User = require('../models/User');
 const { sendPasswordResetEmail } = require('../utils/email');
 
 const jwtOptions = { expiresIn: '7d' };
-const googleClient = process.env.GOOGLE_CLIENT_ID
-  ? new OAuth2Client(process.env.GOOGLE_CLIENT_ID)
-  : null;
+
+const parseAudiences = (value) =>
+  (value || '')
+    .split(',')
+    .map((id) => id.trim())
+    .filter(Boolean);
+
+const googleAudiences = parseAudiences(process.env.GOOGLE_CLIENT_ID);
+const googleClient = googleAudiences.length ? new OAuth2Client() : null;
 
 const signToken = (userId) =>
   jwt.sign({ userId }, process.env.JWT_SECRET, jwtOptions);
@@ -193,7 +199,7 @@ router.post('/google', async (req, res) => {
 
     const ticket = await googleClient.verifyIdToken({
       idToken,
-      audience: process.env.GOOGLE_CLIENT_ID,
+      audience: googleAudiences,
     });
 
     const payload = ticket.getPayload();
@@ -227,27 +233,34 @@ router.post('/google', async (req, res) => {
     respondWithAuth(res, user);
   } catch (err) {
     console.error('Google login error', err);
-    res.status(500).json({ error: 'Unable to sign in with Google' });
+    const message = err?.message || 'Unable to sign in with Google';
+    res.status(500).json({ error: message });
   }
 });
 
 async function fetchFacebookProfile(accessToken) {
-  if (!process.env.FACEBOOK_APP_ID || !process.env.FACEBOOK_APP_SECRET) {
-    throw new Error('Facebook credentials missing');
-  }
+  const appId = process.env.FACEBOOK_APP_ID;
+  const appSecret = process.env.FACEBOOK_APP_SECRET;
+  const hasAppCredentials = appId && appSecret;
 
-  const appAccessToken = `${process.env.FACEBOOK_APP_ID}|${process.env.FACEBOOK_APP_SECRET}`;
+  if (hasAppCredentials) {
+    const appAccessToken = `${appId}|${appSecret}`;
 
-  const debug = await axios.get('https://graph.facebook.com/debug_token', {
-    params: {
-      input_token: accessToken,
-      access_token: appAccessToken,
-    },
-  });
+    const debug = await axios.get('https://graph.facebook.com/debug_token', {
+      params: {
+        input_token: accessToken,
+        access_token: appAccessToken,
+      },
+    });
 
-  const debugData = debug.data?.data;
-  if (!debugData?.is_valid || debugData.app_id !== process.env.FACEBOOK_APP_ID) {
-    throw new Error('Invalid Facebook token');
+    const debugData = debug.data?.data;
+    if (!debugData?.is_valid || debugData.app_id !== appId) {
+      throw new Error('Invalid Facebook token');
+    }
+  } else {
+    console.warn(
+      'FACEBOOK_APP_ID / FACEBOOK_APP_SECRET missing. Skipping token validation.',
+    );
   }
 
   const profile = await axios.get('https://graph.facebook.com/me', {
@@ -301,7 +314,8 @@ router.post('/facebook', async (req, res) => {
     respondWithAuth(res, user);
   } catch (err) {
     console.error('Facebook login error', err);
-    res.status(500).json({ error: 'Unable to sign in with Facebook' });
+    const message = err?.message || 'Unable to sign in with Facebook';
+    res.status(500).json({ error: message });
   }
 });
 

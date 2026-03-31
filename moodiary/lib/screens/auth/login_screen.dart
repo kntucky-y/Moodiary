@@ -3,6 +3,7 @@ import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../config/oauth_config.dart';
 import '../../services/auth_service.dart';
 import '../../services/realtime_notifications.dart';
 import '../../utils/transitions.dart';
@@ -27,11 +28,23 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   String? _activeSocialProvider;
 
-  final _googleSignIn = GoogleSignIn(scopes: ['email']);
+  late final GoogleSignIn _googleSignIn;
 
   final _emailController = TextEditingController();
   final _nameController = TextEditingController();
   final _passwordController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _googleSignIn = GoogleSignIn(
+      scopes: const ['email'],
+      serverClientId: googleServerClientId.isEmpty
+          ? null
+          : googleServerClientId,
+      clientId: googleWebClientId.isEmpty ? null : googleWebClientId,
+    );
+  }
 
   @override
   void dispose() {
@@ -223,10 +236,19 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _handleGoogleSignIn() async {
+    if (googleServerClientId.isEmpty) {
+      _showError(
+        'Google sign-in is not configured for this build. Provide '
+        "GOOGLE_SERVER_CLIENT_ID via --dart-define when running Flutter.",
+      );
+      return;
+    }
+
     setState(() => _activeSocialProvider = 'google');
     try {
       final account = await _googleSignIn.signIn();
       if (account == null) {
+        _showInfo('Google sign-in cancelled');
         return;
       }
 
@@ -241,8 +263,10 @@ class _LoginScreenState extends State<LoginScreen> {
       await _finalizeLogin(data);
     } on AuthException catch (error) {
       _showError(error.message);
-    } catch (_) {
-      _showError('Google sign-in failed. Please try again.');
+    } catch (err) {
+      _showError(
+        err is Exception ? err.toString() : 'Google sign-in failed. Try again.',
+      );
     } finally {
       if (mounted) setState(() => _activeSocialProvider = null);
     }
@@ -257,7 +281,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
       switch (result.status) {
         case LoginStatus.success:
-          final token = result.accessToken?.tokenString;
+          final accessToken = result.accessToken;
+          final token =
+              accessToken?.tokenString ??
+              (accessToken == null
+                  ? null
+                  : (accessToken as dynamic).token as String?);
           if (token == null) {
             _showError('Facebook did not return a token');
             break;
