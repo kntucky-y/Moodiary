@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../config/oauth_config.dart';
 import '../../services/auth_service.dart';
 import '../../services/realtime_notifications.dart';
 import '../../utils/transitions.dart';
@@ -26,25 +23,10 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLogin = true;
   bool _obscurePasswordSignup = true;
   bool _isLoading = false;
-  String? _activeSocialProvider;
-
-  late final GoogleSignIn _googleSignIn;
 
   final _emailController = TextEditingController();
   final _nameController = TextEditingController();
   final _passwordController = TextEditingController();
-
-  @override
-  void initState() {
-    super.initState();
-    _googleSignIn = GoogleSignIn(
-      scopes: const ['email'],
-      serverClientId: googleServerClientId.isEmpty
-          ? null
-          : googleServerClientId,
-      clientId: googleWebClientId.isEmpty ? null : googleWebClientId,
-    );
-  }
 
   @override
   void dispose() {
@@ -235,88 +217,8 @@ class _LoginScreenState extends State<LoginScreen> {
     controller.dispose();
   }
 
-  Future<void> _handleGoogleSignIn() async {
-    if (googleServerClientId.isEmpty) {
-      _showError(
-        'Google sign-in is not configured for this build. Provide '
-        "GOOGLE_SERVER_CLIENT_ID via --dart-define when running Flutter.",
-      );
-      return;
-    }
-
-    setState(() => _activeSocialProvider = 'google');
-    try {
-      final account = await _googleSignIn.signIn();
-      if (account == null) {
-        _showInfo('Google sign-in cancelled');
-        return;
-      }
-
-      final auth = await account.authentication;
-      final idToken = auth.idToken;
-      if (idToken == null) {
-        _showError('Unable to retrieve Google token');
-        return;
-      }
-
-      final data = await AuthService.instance.loginWithGoogle(idToken);
-      await _finalizeLogin(data);
-    } on AuthException catch (error) {
-      _showError(error.message);
-    } catch (err) {
-      _showError(
-        err is Exception ? err.toString() : 'Google sign-in failed. Try again.',
-      );
-    } finally {
-      if (mounted) setState(() => _activeSocialProvider = null);
-    }
-  }
-
-  Future<void> _handleFacebookSignIn() async {
-    setState(() => _activeSocialProvider = 'facebook');
-    try {
-      final result = await FacebookAuth.instance.login(
-        permissions: const ['email', 'public_profile'],
-      );
-
-      switch (result.status) {
-        case LoginStatus.success:
-          final accessToken = result.accessToken;
-          final token =
-              accessToken?.tokenString ??
-              (accessToken == null
-                  ? null
-                  : (accessToken as dynamic).token as String?);
-          if (token == null) {
-            _showError('Facebook did not return a token');
-            break;
-          }
-          final data = await AuthService.instance.loginWithFacebook(token);
-          await _finalizeLogin(data);
-          break;
-        case LoginStatus.cancelled:
-          _showInfo('Facebook sign-in cancelled');
-          break;
-        case LoginStatus.failed:
-        case LoginStatus.operationInProgress:
-          _showError(result.message ?? 'Facebook sign-in failed');
-          break;
-      }
-    } on AuthException catch (error) {
-      _showError(error.message);
-    } catch (_) {
-      _showError('Facebook sign-in failed. Please try again.');
-    } finally {
-      if (mounted) setState(() => _activeSocialProvider = null);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final socialBusy = _activeSocialProvider != null;
-    final googleLoading = _activeSocialProvider == 'google';
-    final facebookLoading = _activeSocialProvider == 'facebook';
-
     return Scaffold(
       backgroundColor: Colors.white,
       body: Stack(
@@ -521,59 +423,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: 36),
-                  // Divider
-                  const Row(
-                    children: [
-                      Expanded(child: Divider()),
-                      Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 12),
-                        child: Text(
-                          'or log in with',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Color(0xFF888888),
-                          ),
-                        ),
-                      ),
-                      Expanded(child: Divider()),
-                    ],
-                  ),
-                  const SizedBox(height: 28),
-                  // Social buttons
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _SocialButton(
-                        color: const Color(0xFF1877F2),
-                        onTap: socialBusy ? null : _handleFacebookSignIn,
-                        loading: facebookLoading,
-                        child: const Text(
-                          'f',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 20),
-                      _SocialButton(
-                        color: Colors.white,
-                        border: true,
-                        onTap: socialBusy ? null : _handleGoogleSignIn,
-                        loading: googleLoading,
-                        child: const Text(
-                          'G',
-                          style: TextStyle(
-                            color: Color(0xFF4285F4),
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 36),
                   // Sign up link
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -628,57 +477,6 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
       focusedBorder: const UnderlineInputBorder(
         borderSide: BorderSide(color: _kPurple),
-      ),
-    );
-  }
-}
-
-class _SocialButton extends StatelessWidget {
-  final Color color;
-  final Widget child;
-  final bool border;
-  final VoidCallback? onTap;
-  final bool loading;
-  const _SocialButton({
-    required this.color,
-    required this.child,
-    this.border = false,
-    this.onTap,
-    this.loading = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final indicatorColor = border ? const Color(0xFF4285F4) : Colors.white;
-    return TapScale(
-      onTap: loading ? null : onTap,
-      child: Container(
-        width: 52,
-        height: 52,
-        decoration: BoxDecoration(
-          color: color,
-          shape: BoxShape.circle,
-          border: border ? Border.all(color: const Color(0xFFDDDDDD)) : null,
-          boxShadow: [
-            BoxShadow(
-              color: const Color.fromRGBO(0, 0, 0, 0.08),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Center(
-          child: loading
-              ? SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation(indicatorColor),
-                  ),
-                )
-              : child,
-        ),
       ),
     );
   }

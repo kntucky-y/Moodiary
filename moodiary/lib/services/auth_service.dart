@@ -58,14 +58,6 @@ class AuthService {
     );
   }
 
-  Future<Map<String, dynamic>> loginWithGoogle(String idToken) async {
-    return _postJson('/api/auth/google', body: {'idToken': idToken});
-  }
-
-  Future<Map<String, dynamic>> loginWithFacebook(String accessToken) async {
-    return _postJson('/api/auth/facebook', body: {'accessToken': accessToken});
-  }
-
   Future<Map<String, dynamic>> _postJson(
     String path, {
     required Map<String, dynamic> body,

@@ -3,22 +3,11 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-const axios = require('axios');
-const { OAuth2Client } = require('google-auth-library');
 
 const User = require('../models/User');
 const { sendPasswordResetEmail } = require('../utils/email');
 
 const jwtOptions = { expiresIn: '7d' };
-
-const parseAudiences = (value) =>
-  (value || '')
-    .split(',')
-    .map((id) => id.trim())
-    .filter(Boolean);
-
-const googleAudiences = parseAudiences(process.env.GOOGLE_CLIENT_ID);
-const googleClient = googleAudiences.length ? new OAuth2Client() : null;
 
 const signToken = (userId) =>
   jwt.sign({ userId }, process.env.JWT_SECRET, jwtOptions);
@@ -93,7 +82,7 @@ router.post('/login', async (req, res) => {
 
     if (user.provider !== 'local') {
       return res.status(400).json({
-        error: 'Use the social sign-in buttons associated with this account',
+        error: 'This account previously used social login. Please reset your password to continue.',
       });
     }
 
@@ -180,142 +169,6 @@ router.post('/reset-password', async (req, res) => {
   } catch (err) {
     console.error('Reset password error', err);
     res.status(500).json({ error: 'Unable to reset password' });
-  }
-});
-
-// POST /api/auth/google
-router.post('/google', async (req, res) => {
-  try {
-    if (!googleClient) {
-      return res
-        .status(500)
-        .json({ error: 'Google OAuth is not configured on the server' });
-    }
-
-    const { idToken } = req.body;
-    if (!idToken) {
-      return res.status(400).json({ error: 'idToken is required' });
-    }
-
-    const ticket = await googleClient.verifyIdToken({
-      idToken,
-      audience: googleAudiences,
-    });
-
-    const payload = ticket.getPayload();
-    const { sub, email, name, picture } = payload;
-
-    if (!email) {
-      return res.status(400).json({ error: 'Google account has no email' });
-    }
-
-    let user = await User.findOne({
-      $or: [{ providerId: sub }, { email }],
-    });
-
-    if (!user) {
-      user = await User.create({
-        name: name || email.split('@')[0],
-        email,
-        provider: 'google',
-        providerId: sub,
-        avatarUrl: picture,
-      });
-    } else {
-      user.providerId = user.providerId || sub;
-      user.avatarUrl = user.avatarUrl || picture;
-      if (!user.password) {
-        user.provider = 'google';
-      }
-      await user.save();
-    }
-
-    respondWithAuth(res, user);
-  } catch (err) {
-    console.error('Google login error', err);
-    const message = err?.message || 'Unable to sign in with Google';
-    res.status(500).json({ error: message });
-  }
-});
-
-async function fetchFacebookProfile(accessToken) {
-  const appId = process.env.FACEBOOK_APP_ID;
-  const appSecret = process.env.FACEBOOK_APP_SECRET;
-  const hasAppCredentials = appId && appSecret;
-
-  if (hasAppCredentials) {
-    const appAccessToken = `${appId}|${appSecret}`;
-
-    const debug = await axios.get('https://graph.facebook.com/debug_token', {
-      params: {
-        input_token: accessToken,
-        access_token: appAccessToken,
-      },
-    });
-
-    const debugData = debug.data?.data;
-    if (!debugData?.is_valid || debugData.app_id !== appId) {
-      throw new Error('Invalid Facebook token');
-    }
-  } else {
-    console.warn(
-      'FACEBOOK_APP_ID / FACEBOOK_APP_SECRET missing. Skipping token validation.',
-    );
-  }
-
-  const profile = await axios.get('https://graph.facebook.com/me', {
-    params: {
-      fields: 'id,name,email,picture.type(large)',
-      access_token: accessToken,
-    },
-  });
-
-  return profile.data;
-}
-
-// POST /api/auth/facebook
-router.post('/facebook', async (req, res) => {
-  try {
-    const { accessToken } = req.body;
-    if (!accessToken) {
-      return res.status(400).json({ error: 'accessToken is required' });
-    }
-
-    const profile = await fetchFacebookProfile(accessToken);
-    const email = profile.email;
-
-    if (!email) {
-      return res
-        .status(400)
-        .json({ error: 'Facebook account must share an email address' });
-    }
-
-    let user = await User.findOne({
-      $or: [{ providerId: profile.id }, { email }],
-    });
-
-    if (!user) {
-      user = await User.create({
-        name: profile.name || email.split('@')[0],
-        email,
-        provider: 'facebook',
-        providerId: profile.id,
-        avatarUrl: profile.picture?.data?.url,
-      });
-    } else {
-      user.providerId = user.providerId || profile.id;
-      user.avatarUrl = user.avatarUrl || profile.picture?.data?.url;
-      if (!user.password) {
-        user.provider = 'facebook';
-      }
-      await user.save();
-    }
-
-    respondWithAuth(res, user);
-  } catch (err) {
-    console.error('Facebook login error', err);
-    const message = err?.message || 'Unable to sign in with Facebook';
-    res.status(500).json({ error: message });
   }
 });
 

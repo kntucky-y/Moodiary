@@ -970,49 +970,74 @@ class _TaskArtwork extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final accent = task.iconColor;
+    final background = task.iconBackground;
+    final gradientTop =
+        Color.lerp(background, Colors.white, 0.55) ?? background;
+    final gradientBottom =
+        Color.lerp(background, Colors.black, 0.05) ?? background;
+
+    Widget content;
     if (task.asset != null) {
-      return Image.asset(
-        task.asset!,
-        width: size,
-        height: size,
-        fit: BoxFit.contain,
-        errorBuilder: (context, error, stackTrace) => _TaskIconFallback(
-          icon: task.icon ?? Icons.task_alt,
-          size: size,
-          color: task.iconColor,
-          background: task.iconBackground,
+      content = ClipRRect(
+        borderRadius: BorderRadius.circular(size * 0.25),
+        child: Image.asset(
+          task.asset!,
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) => _TaskGlyph(
+            icon: task.icon ?? Icons.task_alt,
+            color: accent,
+            size: size * 0.52,
+          ),
         ),
       );
+    } else {
+      content = _TaskGlyph(
+        icon: task.icon ?? Icons.task_alt,
+        color: accent,
+        size: size * 0.52,
+      );
     }
-    return _TaskIconFallback(
-      icon: task.icon ?? Icons.task_alt,
-      size: size,
-      color: task.iconColor,
-      background: task.iconBackground,
+
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [gradientTop, gradientBottom],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(size * 0.35),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Padding(padding: EdgeInsets.all(size * 0.18), child: content),
     );
   }
 }
 
-class _TaskIconFallback extends StatelessWidget {
+class _TaskGlyph extends StatelessWidget {
   final IconData icon;
   final double size;
   final Color color;
-  final Color background;
 
-  const _TaskIconFallback({
+  const _TaskGlyph({
     required this.icon,
     required this.size,
     required this.color,
-    required this.background,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(color: background, shape: BoxShape.circle),
-      child: Icon(icon, color: color, size: size * 0.58),
+    return FittedBox(
+      fit: BoxFit.contain,
+      child: Icon(icon, color: color, size: size),
     );
   }
 }
