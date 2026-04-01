@@ -116,9 +116,9 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
               (m) =>
                   m.pending &&
                   m.text == incoming.text &&
-                  incoming.isMine &&
+                  (incoming.isMine || _userId == null) &&
                   (incoming.createdAt.difference(m.createdAt).abs() <
-                      const Duration(seconds: 3)),
+                      const Duration(seconds: 15)),
             );
             if (pendingIndex != -1) {
               _messages[pendingIndex] = incoming;
@@ -185,6 +185,16 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
         _socket!.emit('friends:message', {
           'friendshipId': widget.friendshipId,
           'text': text,
+        });
+
+        // Fallback: if socket echo/ack is delayed, refresh once to clear stale
+        // optimistic states so messages don't remain "sending...".
+        Future<void>.delayed(const Duration(seconds: 2), () async {
+          if (!mounted) return;
+          final hasPending = _messages.any((m) => m.pending);
+          if (hasPending) {
+            await _loadHistory();
+          }
         });
       } else {
         await http.post(
