@@ -58,6 +58,30 @@ class AuthService {
     );
   }
 
+  Future<void> registerPushToken({
+    required String authToken,
+    required String pushToken,
+  }) async {
+    await _sendAuthedJson(
+      '/api/auth/push-token',
+      authToken: authToken,
+      method: 'POST',
+      body: {'token': pushToken},
+    );
+  }
+
+  Future<void> removePushToken({
+    required String authToken,
+    required String pushToken,
+  }) async {
+    await _sendAuthedJson(
+      '/api/auth/push-token',
+      authToken: authToken,
+      method: 'DELETE',
+      body: {'token': pushToken},
+    );
+  }
+
   Future<Map<String, dynamic>> _postJson(
     String path, {
     required Map<String, dynamic> body,
@@ -80,6 +104,43 @@ class AuthService {
       throw AuthException(
         decoded['error']?.toString() ?? 'Authentication failed',
       );
+    } catch (error) {
+      if (error is AuthException) {
+        rethrow;
+      }
+      throw AuthException('Cannot reach the server. Please try again.');
+    }
+  }
+
+  Future<void> _sendAuthedJson(
+    String path, {
+    required String authToken,
+    required String method,
+    required Map<String, dynamic> body,
+  }) async {
+    final uri = Uri.parse('$kBackendBaseUrl$path');
+    try {
+      final headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $authToken',
+      };
+      final encodedBody = jsonEncode(body);
+      late final http.Response response;
+      if (method == 'POST') {
+        response = await _client.post(uri, headers: headers, body: encodedBody);
+      } else {
+        response = await _client.delete(
+          uri,
+          headers: headers,
+          body: encodedBody,
+        );
+      }
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return;
+      }
+      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+      throw AuthException(decoded['error']?.toString() ?? 'Request failed');
     } catch (error) {
       if (error is AuthException) {
         rethrow;

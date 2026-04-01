@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../services/auth_service.dart';
+import '../../services/push_notifications_service.dart';
 import '../../services/realtime_notifications.dart';
 import '../../theme/moodiary_colors.dart';
 import '../../utils/transitions.dart';
@@ -62,6 +63,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     await RealtimeNotifications.instance.ensureConnected(token: token);
+    await PushNotificationsService.instance.syncWithAuthToken(token);
 
     final companionId = prefs.getInt('companion_id');
     final companionName = prefs.getString('companion_name');

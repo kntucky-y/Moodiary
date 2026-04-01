@@ -5,6 +5,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 
 const User = require('../models/User');
+const auth = require('../middleware/auth');
 const { sendPasswordResetEmail } = require('../utils/email');
 
 const jwtOptions = { expiresIn: '7d' };
@@ -30,6 +31,9 @@ const hashToken = (token) =>
 
 const ensurePasswordStrength = (password) =>
   typeof password === 'string' && password.trim().length >= 8;
+
+const normalizePushToken = (token) =>
+  typeof token === 'string' ? token.trim() : '';
 
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
@@ -169,6 +173,46 @@ router.post('/reset-password', async (req, res) => {
   } catch (err) {
     console.error('Reset password error', err);
     res.status(500).json({ error: 'Unable to reset password' });
+  }
+});
+
+// POST /api/auth/push-token
+router.post('/push-token', auth, async (req, res) => {
+  try {
+    const token = normalizePushToken(req.body.token);
+    if (!token) {
+      return res.status(400).json({ error: 'Push token is required' });
+    }
+
+    await User.updateMany({}, { $pull: { pushTokens: token } });
+
+    await User.findByIdAndUpdate(req.userId, {
+      $addToSet: { pushTokens: token },
+    });
+
+    res.json({ status: 'registered' });
+  } catch (err) {
+    console.error('Push token registration error', err);
+    res.status(500).json({ error: 'Unable to register push token' });
+  }
+});
+
+// DELETE /api/auth/push-token
+router.delete('/push-token', auth, async (req, res) => {
+  try {
+    const token = normalizePushToken(req.body.token);
+    if (!token) {
+      return res.status(400).json({ error: 'Push token is required' });
+    }
+
+    await User.findByIdAndUpdate(req.userId, {
+      $pull: { pushTokens: token },
+    });
+
+    res.json({ status: 'removed' });
+  } catch (err) {
+    console.error('Push token removal error', err);
+    res.status(500).json({ error: 'Unable to remove push token' });
   }
 });
 

@@ -5,6 +5,7 @@ const FriendMessage = require('./models/FriendMessage');
 const Friendship = require('./models/Friendship');
 const User = require('./models/User');
 const { ensureFriendshipAccess } = require('./utils/friendships');
+const { sendPushNotification } = require('./utils/push_notifications');
 
 let ioInstance;
 
@@ -130,14 +131,20 @@ const initSocket = (server) => {
 };
 
 const emitNotification = (targets, payload) => {
-  if (!ioInstance) return;
   const list = Array.isArray(targets) ? targets : [targets];
-  list
+  const recipientIds = list
     .map((id) => id && id.toString())
-    .filter(Boolean)
-    .forEach((userId) => {
+    .filter(Boolean);
+
+  if (ioInstance) {
+    recipientIds.forEach((userId) => {
       ioInstance.to(userRoom(userId)).emit('notifications:new', payload);
     });
+  }
+
+  sendPushNotification(recipientIds, payload).catch((err) => {
+    console.warn('Push send failed:', err.message);
+  });
 };
 
 const getIO = () => {

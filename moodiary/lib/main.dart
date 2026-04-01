@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'screens/onboarding/onboarding_screen.dart';
 import 'services/local_notifications_service.dart';
+import 'services/push_notifications_service.dart';
 import 'services/theme_controller.dart';
 import 'utils/in_app_notifications.dart';
 
@@ -12,6 +13,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await ThemeController.instance.load();
   await LocalNotificationsService.instance.initialize();
+  await PushNotificationsService.instance.initialize();
   InAppNotifications.instance.configure(_rootNavigatorKey);
   runApp(MoodiaryApp(themeController: ThemeController.instance));
 }

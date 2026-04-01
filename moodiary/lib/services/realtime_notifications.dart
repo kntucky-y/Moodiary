@@ -8,7 +8,9 @@ import 'local_notifications_service.dart';
 import '../utils/in_app_notifications.dart';
 
 class RealtimeNotifications {
-  RealtimeNotifications._();
+  RealtimeNotifications._() {
+    WidgetsBinding.instance.addObserver(_lifecycleObserver);
+  }
 
   static final RealtimeNotifications instance = RealtimeNotifications._();
   static const _kBaseUrl = 'https://moodiary-production.up.railway.app';
@@ -19,6 +21,9 @@ class RealtimeNotifications {
   io.Socket? _socket;
   String? _token;
   bool _connecting = false;
+  DateTime? _lastIssueAt;
+  String? _lastIssueMessage;
+  final _LifecycleObserver _lifecycleObserver = _LifecycleObserver();
 
   Stream<Map<String, dynamic>> get stream => _controller.stream;
 
@@ -43,13 +48,17 @@ class RealtimeNotifications {
       _socket = io.io(
         _kBaseUrl,
         io.OptionBuilder()
-            .setTransports(['websocket'])
+            .setTransports(['websocket', 'polling'])
             .setAuth({'token': _token})
             .disableAutoConnect()
             .build(),
       );
       _socket!
         ..connect()
+        ..onConnect((_) {
+          _lastIssueAt = null;
+          _lastIssueMessage = null;
+        })
         ..on('notifications:new', _handleNotification)
         ..onError((err) => _notifyConnectionIssue(err.toString()))
         ..onConnectError((err) => _notifyConnectionIssue(err.toString()));
@@ -112,9 +121,19 @@ class RealtimeNotifications {
   }
 
   void _notifyConnectionIssue(String? error) {
-    final copy = (error == null || error.isEmpty)
-        ? 'Realtime notifications are temporarily unavailable.'
-        : error;
+    if (_lifecycleObserver.state != AppLifecycleState.resumed) {
+      return;
+    }
+    final copy = _friendlyIssueMessage(error);
+    final now = DateTime.now();
+    final sameAsLast = _lastIssueMessage == copy;
+    final recentlyShown =
+        _lastIssueAt != null && now.difference(_lastIssueAt!).inSeconds < 20;
+    if (sameAsLast && recentlyShown) {
+      return;
+    }
+    _lastIssueAt = now;
+    _lastIssueMessage = copy;
     InAppNotifications.instance.show(
       title: 'Notifications paused',
       message: copy,
@@ -122,9 +141,34 @@ class RealtimeNotifications {
     );
   }
 
+  String _friendlyIssueMessage(String? error) {
+    final raw = (error ?? '').trim();
+    if (raw.isEmpty) {
+      return 'Realtime notifications are temporarily unavailable.';
+    }
+    final normalized = raw.toLowerCase();
+    if (normalized.contains('failed host lookup') ||
+        normalized.contains('socketexception')) {
+      return 'Cannot reach the notification server right now. Check your connection and try again.';
+    }
+    return 'Realtime notifications are temporarily unavailable.';
+  }
+
   void disconnect() {
     _socket?.dispose();
     _socket = null;
     _token = null;
+  }
+}
+
+class _LifecycleObserver with WidgetsBindingObserver {
+  AppLifecycleState state = AppLifecycleState.resumed;
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState nextState) {
+    state = nextState;
+    if (nextState == AppLifecycleState.resumed) {
+      unawaited(RealtimeNotifications.instance.ensureConnected());
+    }
   }
 }

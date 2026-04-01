@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "194025800391",
+    "project_id": "moodiary-notifs-2026-92842",
+    "storage_bucket": "moodiary-notifs-2026-92842.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:194025800391:android:41b4d7ec1547f7485db4e2",
+        "android_client_info": {
+          "package_name": "com.example.moodiary"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCKIt1C9SoMkR5yLo71zNkaR9sLZrXk2Ac"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

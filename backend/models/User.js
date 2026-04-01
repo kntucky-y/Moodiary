@@ -31,6 +31,10 @@ const userSchema = new mongoose.Schema(
       sparse: true,
     },
     avatarUrl: String,
+    pushTokens: {
+      type: [String],
+      default: [],
+    },
     resetToken: String,
     resetTokenExpires: Date,
   },
