@@ -30,7 +30,17 @@ class LocalNotificationsService {
       requestBadgePermission: false,
       requestSoundPermission: false,
     );
-    final settings = InitializationSettings(android: android, iOS: darwin);
+    const windows = WindowsInitializationSettings(
+      appName: 'Moodiary',
+      appUserModelId: 'com.moodiary.app',
+      guid: '4ef6c957-6a87-4c8b-8d67-7da73cb5c4e9',
+    );
+    final settings = InitializationSettings(
+      android: android,
+      iOS: darwin,
+      macOS: darwin,
+      windows: windows,
+    );
     await _plugin.initialize(settings: settings);
     await _configureTimeZone();
     _initialized = true;

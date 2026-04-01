@@ -15,11 +15,10 @@ import '../../services/realtime_notifications.dart';
 import '../../services/theme_controller.dart';
 import '../../utils/transitions.dart';
 import '../../widgets/app_sidebar.dart';
+import '../../theme/moodiary_colors.dart';
 
 const _kPurple = Color(0xFFA076F9);
-const _kDark = Color(0xFF3D3B40);
 const _kSubtle = Color(0xFF8A8A8D);
-const _kHeaderBg = Color(0xFFF3E8FF);
 const _kBaseUrl = 'https://moodiary-production.up.railway.app';
 
 // ─── Tag data ─────────────────────────────────────────────────────────────────
@@ -410,8 +409,9 @@ class _JournalScreenState extends State<JournalScreen> {
   @override
   Widget build(BuildContext context) {
     final shownEntries = _showArchived ? _archivedEntries : _activeEntries;
+    final primaryText = context.mdPrimaryText;
     return Scaffold(
-      backgroundColor: _kHeaderBg,
+      backgroundColor: context.mdScaffold,
       body: Stack(
         children: [
           Column(
@@ -427,18 +427,18 @@ class _JournalScreenState extends State<JournalScreen> {
                         children: [
                           GestureDetector(
                             onTap: _openSidebar,
-                            child: const Icon(
+                            child: Icon(
                               Icons.menu,
                               size: 26,
-                              color: _kDark,
+                              color: primaryText,
                             ),
                           ),
                           const Spacer(),
                           Text(
                             _todayStr(),
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              color: _kDark,
+                              color: primaryText,
                             ),
                           ),
                           const Spacer(),
@@ -452,7 +452,7 @@ class _JournalScreenState extends State<JournalScreen> {
                                   ? Icons.unarchive_outlined
                                   : Icons.archive_outlined,
                               size: 22,
-                              color: _showArchived ? _kPurple : _kDark,
+                              color: _showArchived ? _kPurple : primaryText,
                             ),
                           ),
                         ],
@@ -467,7 +467,7 @@ class _JournalScreenState extends State<JournalScreen> {
                               style: GoogleFonts.playfairDisplay(
                                 fontSize: 36,
                                 fontWeight: FontWeight.bold,
-                                color: _kDark,
+                                color: primaryText,
                               ),
                             ),
                             TextSpan(
@@ -475,7 +475,7 @@ class _JournalScreenState extends State<JournalScreen> {
                               style: GoogleFonts.lexend(
                                 fontSize: 36,
                                 fontWeight: FontWeight.bold,
-                                color: _kDark,
+                                color: primaryText,
                               ),
                             ),
                             TextSpan(
@@ -502,8 +502,8 @@ class _JournalScreenState extends State<JournalScreen> {
               // ── Entry list ──────────────────────────────────────────────────
               Expanded(
                 child: Container(
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
+                  decoration: BoxDecoration(
+                    color: context.mdSurface,
                     borderRadius: BorderRadius.vertical(
                       top: Radius.circular(36),
                     ),
@@ -677,10 +677,10 @@ class _JournalScreenState extends State<JournalScreen> {
                                   child: Container(
                                     width: 52,
                                     height: 52,
-                                    decoration: const BoxDecoration(
-                                      color: Colors.white,
+                                    decoration: BoxDecoration(
+                                      color: context.mdSurface,
                                       shape: BoxShape.circle,
-                                      boxShadow: [
+                                      boxShadow: const [
                                         BoxShadow(
                                           color: Color(0x22000000),
                                           blurRadius: 8,
@@ -688,9 +688,9 @@ class _JournalScreenState extends State<JournalScreen> {
                                         ),
                                       ],
                                     ),
-                                    child: const Icon(
+                                    child: Icon(
                                       Icons.add,
-                                      color: _kDark,
+                                      color: context.mdPrimaryText,
                                       size: 28,
                                     ),
                                   ),
@@ -727,15 +727,11 @@ class _JournalScreenState extends State<JournalScreen> {
             ),
         ],
       ),
-      bottomNavigationBar: _JournalBottomNav(
-        userName: widget.userName,
-        companionId: widget.companionId,
-        companionName: widget.companionName,
-      ),
     );
   }
 
   Widget _buildEntriesList(List<_JournalEntry> entries) {
+    final primaryText = context.mdPrimaryText;
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
       itemCount: entries.length + 1,
@@ -745,10 +741,10 @@ class _JournalScreenState extends State<JournalScreen> {
             padding: const EdgeInsets.only(bottom: 12),
             child: Text(
               _showArchived ? 'Archived Entries' : 'All Entries',
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 18,
-                color: _kDark,
+                color: primaryText,
               ),
             ),
           );
@@ -799,6 +795,7 @@ class _EntryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final primaryText = context.mdPrimaryText;
     final asset = _kTagAssets[entry.tag] ?? 'assets/okay.png';
     final preview = entry.content.length > 120
         ? '${entry.content.substring(0, 120)}...'
@@ -810,7 +807,7 @@ class _EntryCard extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: const Color(0xFFF9F9F9),
+          color: context.mdSecondarySurface,
           borderRadius: BorderRadius.circular(20),
         ),
         child: Row(
@@ -820,19 +817,19 @@ class _EntryCard extends StatelessWidget {
             Container(
               width: 78,
               padding: const EdgeInsets.only(right: 12),
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 border: Border(
-                  right: BorderSide(color: Color(0xFFE5E5E5), width: 1.5),
+                  right: BorderSide(color: context.mdInputBorder, width: 1.5),
                 ),
               ),
               child: Column(
                 children: [
                   Text(
                     formatDate(entry.createdAt),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
-                      color: _kDark,
+                      color: primaryText,
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -874,10 +871,10 @@ class _EntryCard extends StatelessWidget {
                       Expanded(
                         child: Text(
                           entry.title,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 14,
-                            color: _kDark,
+                            color: primaryText,
                           ),
                         ),
                       ),
@@ -896,9 +893,9 @@ class _EntryCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     preview,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
-                      color: Color(0xFF666666),
+                      color: context.mdSecondaryText,
                       height: 1.5,
                     ),
                   ),
@@ -947,133 +944,6 @@ class _EntryCard extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-// ─── Bottom navigation ─────────────────────────────────────────────────────
-class _JournalBottomNav extends StatelessWidget {
-  final String userName;
-  final int companionId;
-  final String companionName;
-
-  const _JournalBottomNav({
-    required this.userName,
-    required this.companionId,
-    required this.companionName,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: Color(0xFFF0F0F0), width: 1.5)),
-      ),
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _JournalNavBtn(
-            icon: Icons.calendar_month_outlined,
-            label: 'Calendar',
-            onTap: () => Navigator.of(context).pushAndRemoveUntil(
-              FadeSlideRoute(
-                page: CalendarScreen(
-                  userName: userName,
-                  companionId: companionId,
-                  companionName: companionName,
-                ),
-              ),
-              (_) => false,
-            ),
-          ),
-          const _JournalNavBtn(
-            icon: Icons.book_outlined,
-            label: 'Journal',
-            active: true,
-          ),
-          _JournalNavBtn(
-            icon: Icons.home_rounded,
-            label: 'Home',
-            onTap: () => Navigator.of(context).pushAndRemoveUntil(
-              FadeSlideRoute(
-                page: HomeScreen(
-                  userName: userName,
-                  companionId: companionId,
-                  companionName: companionName,
-                ),
-              ),
-              (_) => false,
-            ),
-          ),
-          _JournalNavBtn(
-            icon: Icons.people_alt_rounded,
-            label: 'Friends',
-            onTap: () => Navigator.of(context).pushAndRemoveUntil(
-              FadeSlideRoute(
-                page: FriendsScreen(
-                  userName: userName,
-                  companionId: companionId,
-                  companionName: companionName,
-                ),
-              ),
-              (_) => false,
-            ),
-          ),
-          _JournalNavBtn(
-            icon: Icons.chat_bubble_outline,
-            label: 'Forums',
-            onTap: () => Navigator.of(context).pushAndRemoveUntil(
-              FadeSlideRoute(
-                page: ForumsScreen(
-                  userName: userName,
-                  companionId: companionId,
-                  companionName: companionName,
-                ),
-              ),
-              (_) => false,
-            ),
-          ),
-          const _JournalNavBtn(icon: Icons.folder_outlined, label: 'Resources'),
-        ],
-      ),
-    );
-  }
-}
-
-class _JournalNavBtn extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool active;
-  final VoidCallback? onTap;
-
-  const _JournalNavBtn({
-    required this.icon,
-    required this.label,
-    this.active = false,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return TapScale(
-      onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: active ? _kPurple : _kSubtle, size: 26),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 10,
-              color: active ? _kPurple : _kSubtle,
-              fontWeight: active ? FontWeight.bold : FontWeight.normal,
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -1172,8 +1042,10 @@ class _JournalEditorScreenState extends State<_JournalEditorScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final primaryText = context.mdPrimaryText;
+    final secondaryText = context.mdSecondaryText;
     return Scaffold(
-      backgroundColor: const Color(0xFFF3E8FF),
+      backgroundColor: context.mdScaffold,
       body: SafeArea(
         child: Column(
           children: [
@@ -1184,10 +1056,10 @@ class _JournalEditorScreenState extends State<_JournalEditorScreen> {
                 children: [
                   GestureDetector(
                     onTap: () => Navigator.of(context).pop(false),
-                    child: const Icon(
+                    child: Icon(
                       Icons.arrow_back_ios_new_rounded,
                       size: 24,
-                      color: _kDark,
+                      color: primaryText,
                     ),
                   ),
                   const Spacer(),
@@ -1205,7 +1077,7 @@ class _JournalEditorScreenState extends State<_JournalEditorScreen> {
                               vertical: 8,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: context.mdSurface,
                               borderRadius: BorderRadius.circular(20),
                               boxShadow: const [
                                 BoxShadow(
@@ -1236,15 +1108,15 @@ class _JournalEditorScreenState extends State<_JournalEditorScreen> {
                   children: [
                     TextField(
                       controller: _titleCtrl,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
-                        color: _kDark,
+                        color: primaryText,
                       ),
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         hintText: 'Title...',
                         hintStyle: TextStyle(
-                          color: Color(0xFFB0B0B0),
+                          color: secondaryText,
                           fontWeight: FontWeight.bold,
                           fontSize: 24,
                         ),
@@ -1258,15 +1130,15 @@ class _JournalEditorScreenState extends State<_JournalEditorScreen> {
                         controller: _bodyCtrl,
                         maxLines: null,
                         expands: true,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 14,
-                          color: _kDark,
+                          color: primaryText,
                           height: 1.6,
                         ),
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           hintText: 'Start typing...',
                           hintStyle: TextStyle(
-                            color: Color(0xFFB0B0B0),
+                            color: secondaryText,
                             fontSize: 14,
                           ),
                           border: InputBorder.none,
@@ -1301,11 +1173,12 @@ class _TagPicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final primaryText = context.mdPrimaryText;
     return Container(
       margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.mdSurface,
         borderRadius: BorderRadius.circular(20),
         boxShadow: const [
           BoxShadow(
@@ -1317,12 +1190,12 @@ class _TagPicker extends StatelessWidget {
       ),
       child: Column(
         children: [
-          const Text(
+          Text(
             'Choose a tag!',
             style: TextStyle(
               fontWeight: FontWeight.w600,
               fontSize: 13,
-              color: _kDark,
+              color: primaryText,
             ),
           ),
           const SizedBox(height: 12),

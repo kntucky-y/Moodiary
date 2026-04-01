@@ -17,12 +17,11 @@ import '../../utils/transitions.dart';
 import '../../widgets/app_sidebar.dart';
 import '../../services/realtime_notifications.dart';
 import '../../services/theme_controller.dart';
+import '../../theme/moodiary_colors.dart';
 import 'friend_chat_screen.dart';
 
 const _kBaseUrl = 'https://moodiary-production.up.railway.app';
 const _kPurple = Color(0xFFA076F9);
-const _kDark = Color(0xFF2C2C2C);
-const _kHeaderBg = Color(0xFFF0ECFF);
 const _kSubtle = Color(0xFF9CA3AF);
 
 class FriendsScreen extends StatefulWidget {
@@ -353,7 +352,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _kHeaderBg,
+      backgroundColor: context.mdScaffold,
       body: Stack(
         children: [
           Column(
@@ -364,8 +363,8 @@ class _FriendsScreenState extends State<FriendsScreen> {
               ),
               Expanded(
                 child: Container(
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
+                  decoration: BoxDecoration(
+                    color: context.mdSurface,
                     borderRadius: BorderRadius.vertical(
                       top: Radius.circular(40),
                     ),
@@ -393,12 +392,12 @@ class _FriendsScreenState extends State<FriendsScreen> {
                                   onSecondary: _rejectRequest,
                                 ),
                               const SizedBox(height: 12),
-                              const Text(
+                              Text(
                                 'Buddies',
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 18,
-                                  color: _kDark,
+                                  color: context.mdPrimaryText,
                                 ),
                               ),
                               const SizedBox(height: 12),
@@ -475,11 +474,6 @@ class _FriendsScreenState extends State<FriendsScreen> {
             ),
           ),
         ],
-      ),
-      bottomNavigationBar: _FriendsBottomNav(
-        userName: widget.userName,
-        companionId: widget.companionId,
-        companionName: widget.companionName,
       ),
     );
   }
@@ -568,6 +562,8 @@ class _FriendsHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final primaryText = context.mdPrimaryText;
+    final secondaryText = context.mdSecondaryText;
     final now = DateTime.now();
     final formatted =
         '${now.year}/${now.month.toString().padLeft(2, '0')}/${now.day.toString().padLeft(2, '0')}';
@@ -582,25 +578,25 @@ class _FriendsHeader extends StatelessWidget {
               children: [
                 GestureDetector(
                   onTap: onOpenSidebar,
-                  child: const Icon(Icons.menu, color: _kDark),
+                  child: Icon(Icons.menu, color: primaryText),
                 ),
                 const Spacer(),
                 Text(
                   formatted,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    color: _kDark,
+                    color: primaryText,
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 16),
             RichText(
-              text: const TextSpan(
+              text: TextSpan(
                 style: TextStyle(
                   fontSize: 34,
                   fontWeight: FontWeight.bold,
-                  color: _kDark,
+                  color: primaryText,
                 ),
                 children: [
                   TextSpan(text: 'Bu'),
@@ -613,9 +609,9 @@ class _FriendsHeader extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 4),
-            const Text(
+            Text(
               'See how your friends are feeling and give them support.',
-              style: TextStyle(color: _kSubtle, fontSize: 13),
+              style: TextStyle(color: secondaryText, fontSize: 13),
             ),
             const SizedBox(height: 16),
             SizedBox(
@@ -623,7 +619,7 @@ class _FriendsHeader extends StatelessWidget {
               child: ElevatedButton.icon(
                 onPressed: onAddFriend,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
+                  backgroundColor: context.mdSurface,
                   foregroundColor: _kPurple,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
@@ -654,13 +650,15 @@ class _FriendCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final primaryText = context.mdPrimaryText;
+    final secondaryText = context.mdSecondaryText;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: const Color(0xFFF7F7FB),
+          color: context.mdSecondarySurface,
           borderRadius: BorderRadius.circular(18),
         ),
         child: Row(
@@ -684,10 +682,10 @@ class _FriendCard extends StatelessWidget {
                 children: [
                   Text(
                     friend.name,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 16,
-                      color: _kDark,
+                      color: primaryText,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -695,7 +693,7 @@ class _FriendCard extends StatelessWidget {
                     friend.lastMessage ?? 'No messages yet',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: _kSubtle, fontSize: 13),
+                    style: TextStyle(color: secondaryText, fontSize: 13),
                   ),
                 ],
               ),
@@ -707,7 +705,7 @@ class _FriendCard extends StatelessWidget {
                 if (friend.lastMessageAt != null)
                   Text(
                     _formatDate(friend.lastMessageAt!),
-                    style: const TextStyle(color: _kSubtle, fontSize: 11),
+                    style: TextStyle(color: secondaryText, fontSize: 11),
                   ),
                 if (friend.lastMessageAt != null && onUnfriend != null)
                   const SizedBox(height: 4),
@@ -758,15 +756,17 @@ class _RequestSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final primaryText = context.mdPrimaryText;
+    final secondaryText = context.mdSecondaryText;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           title,
-          style: const TextStyle(
+          style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 16,
-            color: _kDark,
+            color: primaryText,
           ),
         ),
         const SizedBox(height: 8),
@@ -775,7 +775,7 @@ class _RequestSection extends StatelessWidget {
             margin: const EdgeInsets.only(bottom: 8),
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: const Color(0xFFFFF7ED),
+              color: context.mdSecondarySurface,
               borderRadius: BorderRadius.circular(16),
             ),
             child: Row(
@@ -786,14 +786,14 @@ class _RequestSection extends StatelessWidget {
                     children: [
                       Text(
                         req.name,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          color: _kDark,
+                          color: primaryText,
                         ),
                       ),
                       Text(
                         req.email,
-                        style: const TextStyle(color: _kSubtle, fontSize: 12),
+                        style: TextStyle(color: secondaryText, fontSize: 12),
                       ),
                     ],
                   ),
@@ -861,6 +861,7 @@ class _AddFriendSheetState extends State<_AddFriendSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final primaryText = context.mdPrimaryText;
     return Padding(
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
@@ -871,9 +872,13 @@ class _AddFriendSheetState extends State<_AddFriendSheet> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text(
+          Text(
             'Add a friend',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: primaryText,
+            ),
           ),
           const SizedBox(height: 12),
           TextField(
@@ -882,7 +887,7 @@ class _AddFriendSheetState extends State<_AddFriendSheet> {
             decoration: InputDecoration(
               hintText: 'Friend email',
               filled: true,
-              fillColor: const Color(0xFFF5F5F5),
+              fillColor: context.mdInputFill,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
                 borderSide: BorderSide.none,
@@ -925,143 +930,22 @@ class _EmptyFriends extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final primaryText = context.mdPrimaryText;
+    final secondaryText = context.mdSecondaryText;
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 24),
       decoration: BoxDecoration(
-        color: const Color(0xFFF7F7FB),
+        color: context.mdSecondarySurface,
         borderRadius: BorderRadius.circular(18),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        children: const [
-          Icon(Icons.sentiment_satisfied_alt, color: _kSubtle, size: 48),
-          SizedBox(height: 8),
-          Text('No friends yet - invite someone!'),
-        ],
-      ),
-    );
-  }
-}
-
-class _FriendsBottomNav extends StatelessWidget {
-  final String userName;
-  final int companionId;
-  final String companionName;
-
-  const _FriendsBottomNav({
-    required this.userName,
-    required this.companionId,
-    required this.companionName,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: Color(0xFFF0F0F0), width: 1.5)),
-      ),
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _NavBtn(
-            icon: Icons.calendar_month_outlined,
-            label: 'Calendar',
-            onTap: () => Navigator.of(context).pushAndRemoveUntil(
-              FadeSlideRoute(
-                page: CalendarScreen(
-                  userName: userName,
-                  companionId: companionId,
-                  companionName: companionName,
-                ),
-              ),
-              (_) => false,
-            ),
-          ),
-          _NavBtn(
-            icon: Icons.book_outlined,
-            label: 'Journal',
-            onTap: () => Navigator.of(context).pushAndRemoveUntil(
-              FadeSlideRoute(
-                page: JournalScreen(
-                  userName: userName,
-                  companionId: companionId,
-                  companionName: companionName,
-                ),
-              ),
-              (_) => false,
-            ),
-          ),
-          _NavBtn(
-            icon: Icons.home_rounded,
-            label: 'Home',
-            onTap: () => Navigator.of(context).pushAndRemoveUntil(
-              FadeSlideRoute(
-                page: HomeScreen(
-                  userName: userName,
-                  companionId: companionId,
-                  companionName: companionName,
-                ),
-              ),
-              (_) => false,
-            ),
-          ),
-          const _NavBtn(
-            icon: Icons.people_alt_rounded,
-            label: 'Friends',
-            active: true,
-          ),
-          _NavBtn(
-            icon: Icons.chat_bubble_outline,
-            label: 'Forums',
-            onTap: () => Navigator.of(context).pushAndRemoveUntil(
-              FadeSlideRoute(
-                page: ForumsScreen(
-                  userName: userName,
-                  companionId: companionId,
-                  companionName: companionName,
-                ),
-              ),
-              (_) => false,
-            ),
-          ),
-          const _NavBtn(icon: Icons.folder_outlined, label: 'Resources'),
-        ],
-      ),
-    );
-  }
-}
-
-class _NavBtn extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool active;
-  final VoidCallback? onTap;
-
-  const _NavBtn({
-    required this.icon,
-    required this.label,
-    this.active = false,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: active ? _kPurple : _kSubtle, size: 26),
-          const SizedBox(height: 2),
+          Icon(Icons.sentiment_satisfied_alt, color: secondaryText, size: 48),
+          const SizedBox(height: 8),
           Text(
-            label,
-            style: TextStyle(
-              fontSize: 10,
-              color: active ? _kPurple : _kSubtle,
-              fontWeight: active ? FontWeight.bold : FontWeight.normal,
-            ),
+            'No friends yet - invite someone!',
+            style: TextStyle(color: primaryText),
           ),
         ],
       ),

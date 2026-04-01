@@ -16,11 +16,10 @@ import '../../widgets/app_sidebar.dart';
 import '../../services/local_notifications_service.dart';
 import '../../services/realtime_notifications.dart';
 import '../../services/theme_controller.dart';
+import '../../theme/moodiary_colors.dart';
 
 const _kPurple = Color(0xFFA076F9);
-const _kDark = Color(0xFF3D3B40);
 const _kSubtle = Color(0xFF8A8A8D);
-const _kHeaderBg = Color(0xFFF3E8FF);
 const _kBaseUrl = 'https://moodiary-production.up.railway.app';
 
 // ─── Activity data ────────────────────────────────────────────────────────────
@@ -361,7 +360,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _kHeaderBg,
+      backgroundColor: context.mdScaffold,
       body: Stack(
         children: [
           Column(
@@ -369,8 +368,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
               _buildHeader(),
               Expanded(
                 child: Container(
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
+                  decoration: BoxDecoration(
+                    color: context.mdSurface,
                     borderRadius: BorderRadius.vertical(
                       top: Radius.circular(40),
                     ),
@@ -449,12 +448,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
           ),
         ],
       ),
-      bottomNavigationBar: _buildBottomNav(context),
     );
   }
 
   // ── Header ──────────────────────────────────────────────────────────────────
   Widget _buildHeader() {
+    final primaryText = context.mdPrimaryText;
+    final secondaryText = context.mdSecondaryText;
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(24, 16, 24, 20),
@@ -466,13 +466,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
               children: [
                 GestureDetector(
                   onTap: _openSidebar,
-                  child: const Icon(Icons.menu, color: _kDark, size: 24),
+                  child: Icon(Icons.menu, color: primaryText, size: 24),
                 ),
                 Text(
                   _formattedDate,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    color: _kDark,
+                    color: primaryText,
                     fontSize: 14,
                   ),
                 ),
@@ -481,11 +481,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
             ),
             const SizedBox(height: 12),
             RichText(
-              text: const TextSpan(
+              text: TextSpan(
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
-                  color: _kDark,
+                  color: primaryText,
                 ),
                 children: [
                   TextSpan(text: 'M'),
@@ -505,9 +505,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
               ),
             ),
             const SizedBox(height: 4),
-            const Text(
+            Text(
               'Log your moods and activities daily.',
-              style: TextStyle(color: Color(0xFF888888), fontSize: 14),
+              style: TextStyle(color: secondaryText, fontSize: 14),
             ),
           ],
         ),
@@ -517,6 +517,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   // ── Calendar ─────────────────────────────────────────────────────────────────
   Widget _buildCalendar() {
+    final primaryText = context.mdPrimaryText;
+    final secondaryText = context.mdSecondaryText;
     final year = _displayMonth.year;
     final month = _displayMonth.month;
     final firstDay = DateTime(year, month, 1);
@@ -535,20 +537,20 @@ class _CalendarScreenState extends State<CalendarScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             IconButton(
-              icon: const Icon(Icons.chevron_left, color: _kDark),
+              icon: Icon(Icons.chevron_left, color: primaryText),
               onPressed: () =>
                   setState(() => _displayMonth = DateTime(year, month - 1)),
             ),
             Text(
               '${_monthNames[month - 1]} $year',
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 18,
-                color: _kDark,
+                color: primaryText,
               ),
             ),
             IconButton(
-              icon: const Icon(Icons.chevron_right, color: _kDark),
+              icon: Icon(Icons.chevron_right, color: primaryText),
               onPressed: () =>
                   setState(() => _displayMonth = DateTime(year, month + 1)),
             ),
@@ -618,8 +620,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           color: isToday
                               ? Colors.white
                               : isFuture
-                              ? const Color(0xFFCCCCCC)
-                              : _kDark,
+                              ? secondaryText.withValues(alpha: 0.6)
+                              : primaryText,
                         ),
                       ),
                     ),
@@ -665,6 +667,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   // ── Trend Chart ───────────────────────────────────────────────────────────────
   Widget _buildTrendChart() {
+    final primaryText = context.mdPrimaryText;
     final trendLogs = _trendLogs;
     final maxScore = trendLogs.isEmpty
         ? 50
@@ -683,19 +686,19 @@ class _CalendarScreenState extends State<CalendarScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Mood Trend',
           style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 18,
-            color: _kDark,
+            color: primaryText,
           ),
         ),
         const SizedBox(height: 12),
         Container(
           padding: const EdgeInsets.fromLTRB(12, 16, 16, 8),
           decoration: BoxDecoration(
-            color: const Color(0xFFF9FAFB),
+            color: context.mdSecondarySurface,
             borderRadius: BorderRadius.circular(20),
           ),
           child: trendLogs.isEmpty
@@ -717,8 +720,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         show: true,
                         drawVerticalLine: false,
                         horizontalInterval: 3,
-                        getDrawingHorizontalLine: (_) => const FlLine(
-                          color: Color(0xFFE5E7EB),
+                        getDrawingHorizontalLine: (_) => FlLine(
+                          color: context.mdInputBorder,
                           strokeWidth: 1,
                         ),
                       ),
@@ -803,89 +806,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
       ],
     );
   }
-
-  // ── Bottom Nav ────────────────────────────────────────────────────────────────
-  Widget _buildBottomNav(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: Color(0xFFF0F0F0), width: 1.5)),
-      ),
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _NavBtn(
-            icon: Icons.calendar_month_outlined,
-            label: 'Calendar',
-            active: true,
-            onTap: () {},
-          ),
-          _NavBtn(
-            icon: Icons.book_outlined,
-            label: 'Journal',
-            onTap: () => Navigator.of(context).pushAndRemoveUntil(
-              FadeSlideRoute(
-                page: JournalScreen(
-                  userName: widget.userName,
-                  companionId: widget.companionId,
-                  companionName: widget.companionName,
-                ),
-              ),
-              (_) => false,
-            ),
-          ),
-          _NavBtn(
-            icon: Icons.home_rounded,
-            label: 'Home',
-            onTap: () => Navigator.of(context).pushAndRemoveUntil(
-              FadeSlideRoute(
-                page: HomeScreen(
-                  userName: widget.userName,
-                  companionId: widget.companionId,
-                  companionName: widget.companionName,
-                ),
-              ),
-              (_) => false,
-            ),
-          ),
-          _NavBtn(
-            icon: Icons.people_alt_rounded,
-            label: 'Friends',
-            onTap: () => Navigator.of(context).pushAndRemoveUntil(
-              FadeSlideRoute(
-                page: FriendsScreen(
-                  userName: widget.userName,
-                  companionId: widget.companionId,
-                  companionName: widget.companionName,
-                ),
-              ),
-              (_) => false,
-            ),
-          ),
-          _NavBtn(
-            icon: Icons.chat_bubble_outline,
-            label: 'Forums',
-            onTap: () => Navigator.of(context).pushAndRemoveUntil(
-              FadeSlideRoute(
-                page: ForumsScreen(
-                  userName: widget.userName,
-                  companionId: widget.companionId,
-                  companionName: widget.companionName,
-                ),
-              ),
-              (_) => false,
-            ),
-          ),
-          _NavBtn(
-            icon: Icons.folder_outlined,
-            label: 'Resources',
-            onTap: () {},
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 // ─── Legend dot ───────────────────────────────────────────────────────────────
@@ -907,42 +827,6 @@ class _LegendDot extends StatelessWidget {
         const SizedBox(width: 4),
         Text(label, style: const TextStyle(fontSize: 11, color: _kSubtle)),
       ],
-    );
-  }
-}
-
-// ─── Bottom nav button ────────────────────────────────────────────────────────
-class _NavBtn extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool active;
-  final VoidCallback onTap;
-  const _NavBtn({
-    required this.icon,
-    required this.label,
-    this.active = false,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: active ? _kPurple : _kSubtle, size: 26),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 10,
-              color: active ? _kPurple : _kSubtle,
-              fontWeight: active ? FontWeight.bold : FontWeight.normal,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -1005,9 +889,9 @@ class _LogModalState extends State<_LogModal> {
   Widget build(BuildContext context) {
     return Container(
       height: MediaQuery.of(context).size.height * 0.88,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      decoration: BoxDecoration(
+        color: context.mdSurface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: Column(
         children: [
@@ -1016,7 +900,7 @@ class _LogModalState extends State<_LogModal> {
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: const Color(0xFFDDDDDD),
+              color: context.mdInputBorder,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -1027,6 +911,8 @@ class _LogModalState extends State<_LogModal> {
   }
 
   Widget _buildMainView() {
+    final primaryText = context.mdPrimaryText;
+    final secondaryText = context.mdSecondaryText;
     final monthName = _monthNames[widget.day.month - 1];
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
@@ -1036,20 +922,20 @@ class _LogModalState extends State<_LogModal> {
           Center(
             child: Text(
               'Log for $monthName ${widget.day.day}',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: _kDark,
+                color: primaryText,
               ),
             ),
           ),
           const SizedBox(height: 20),
-          const Text(
+          Text(
             'How are you today?',
             style: TextStyle(
               fontWeight: FontWeight.w600,
               fontSize: 15,
-              color: _kDark,
+              color: primaryText,
             ),
           ),
           const SizedBox(height: 12),
@@ -1107,12 +993,12 @@ class _LogModalState extends State<_LogModal> {
             }),
           ),
           const SizedBox(height: 20),
-          const Text(
+          Text(
             'What did you do today?',
             style: TextStyle(
               fontWeight: FontWeight.w600,
               fontSize: 15,
-              color: _kDark,
+              color: primaryText,
             ),
           ),
           const SizedBox(height: 10),
@@ -1146,12 +1032,12 @@ class _LogModalState extends State<_LogModal> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 "Today's mood score:",
                 style: TextStyle(
                   fontWeight: FontWeight.w600,
                   fontSize: 14,
-                  color: _kDark,
+                  color: primaryText,
                 ),
               ),
               Text(
@@ -1170,7 +1056,7 @@ class _LogModalState extends State<_LogModal> {
             child: LinearProgressIndicator(
               value: (_score / 60).clamp(0.0, 1.0),
               minHeight: 12,
-              backgroundColor: const Color(0xFFE5E7EB),
+              backgroundColor: context.mdSecondarySurface,
               valueColor: AlwaysStoppedAnimation<Color>(_scoreBarColor),
             ),
           ),
@@ -1185,12 +1071,9 @@ class _LogModalState extends State<_LogModal> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(50),
                     ),
-                    side: const BorderSide(color: Color(0xFFDDDDDD)),
+                    side: BorderSide(color: context.mdInputBorder),
                   ),
-                  child: const Text(
-                    'Cancel',
-                    style: TextStyle(color: _kSubtle),
-                  ),
+                  child: Text('Cancel', style: TextStyle(color: secondaryText)),
                 ),
               ),
               const SizedBox(width: 12),
@@ -1229,6 +1112,7 @@ class _LogModalState extends State<_LogModal> {
   }
 
   Widget _buildAllView() {
+    final primaryText = context.mdPrimaryText;
     final Map<String, List<_Activity>> categories = {};
     for (final a in _allActivities) {
       if (a.name.toLowerCase().contains(_searchQuery.toLowerCase())) {
@@ -1241,13 +1125,13 @@ class _LogModalState extends State<_LogModal> {
           padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
           child: Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Text(
                   'All Activities',
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: _kDark,
+                    color: primaryText,
                   ),
                 ),
               ),
@@ -1278,7 +1162,7 @@ class _LogModalState extends State<_LogModal> {
               hintText: 'Search activities...',
               prefixIcon: const Icon(Icons.search, color: _kSubtle),
               filled: true,
-              fillColor: const Color(0xFFF5F5F5),
+              fillColor: context.mdInputFill,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide.none,
@@ -1356,6 +1240,8 @@ class _ActivityChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final primaryText = context.mdPrimaryText;
+    final secondaryText = context.mdSecondaryText;
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -1364,8 +1250,8 @@ class _ActivityChip extends StatelessWidget {
           color: selected
               ? _kPurple
               : isMoreButton
-              ? const Color(0xFFE5E7EB)
-              : const Color(0xFFF3F4F6),
+              ? context.mdInputBorder
+              : context.mdSecondarySurface,
           borderRadius: BorderRadius.circular(50),
         ),
         child: Text(
@@ -1375,8 +1261,8 @@ class _ActivityChip extends StatelessWidget {
             color: selected
                 ? Colors.white
                 : isMoreButton
-                ? const Color(0xFF6B7280)
-                : _kDark,
+                ? secondaryText
+                : primaryText,
             fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
           ),
         ),

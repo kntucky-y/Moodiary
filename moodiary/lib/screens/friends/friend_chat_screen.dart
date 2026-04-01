@@ -4,11 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
+import '../../theme/moodiary_colors.dart';
 
 const _kBaseUrl = 'https://moodiary-production.up.railway.app';
 const _kPurple = Color(0xFFA076F9);
 const _kBubbleMine = Color(0xFF4338CA);
-const _kBubbleFriend = Color(0xFFF1F5F9);
 
 class FriendChatScreen extends StatefulWidget {
   final String friendshipId;
@@ -242,16 +242,18 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF3E8FF),
+      backgroundColor: context.mdScaffold,
       body: SafeArea(
         child: Column(
           children: [
             _ChatHeader(name: widget.friendName, email: widget.friendEmail),
             Expanded(
               child: Container(
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+                decoration: BoxDecoration(
+                  color: context.mdSurface,
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(32),
+                  ),
                 ),
                 child: _loading
                     ? const Center(child: CircularProgressIndicator())
@@ -320,11 +322,14 @@ class _ChatBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final friendBubble = context.mdSecondarySurface;
+    final friendText = context.mdPrimaryText;
+    final secondaryText = context.mdSecondaryText;
     final alignment = message.isMine
         ? Alignment.centerRight
         : Alignment.centerLeft;
-    final bubbleColor = message.isMine ? _kBubbleMine : _kBubbleFriend;
-    final textColor = message.isMine ? Colors.white : const Color(0xFF111827);
+    final bubbleColor = message.isMine ? _kBubbleMine : friendBubble;
+    final textColor = message.isMine ? Colors.white : friendText;
 
     return Align(
       alignment: alignment,
@@ -356,9 +361,12 @@ class _ChatBubble extends StatelessWidget {
               ),
             ),
             if (message.pending)
-              const Text(
+              Text(
                 'sending...',
-                style: TextStyle(color: Colors.white70, fontSize: 10),
+                style: TextStyle(
+                  color: message.isMine ? Colors.white70 : secondaryText,
+                  fontSize: 10,
+                ),
               ),
           ],
         ),
@@ -381,6 +389,7 @@ class _ChatHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final secondaryText = context.mdSecondaryText;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
       child: Row(
@@ -404,10 +413,7 @@ class _ChatHeader extends StatelessWidget {
                   color: _kPurple,
                 ),
               ),
-              Text(
-                email,
-                style: const TextStyle(color: Color(0xFF6B7280), fontSize: 12),
-              ),
+              Text(email, style: TextStyle(color: secondaryText, fontSize: 12)),
             ],
           ),
         ],
@@ -433,7 +439,7 @@ class _MessageComposer extends StatelessWidget {
       top: false,
       child: Container(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-        decoration: const BoxDecoration(color: Colors.white),
+        decoration: BoxDecoration(color: context.mdSurface),
         child: Row(
           children: [
             Expanded(
@@ -441,10 +447,12 @@ class _MessageComposer extends StatelessWidget {
                 controller: controller,
                 minLines: 1,
                 maxLines: 4,
+                style: TextStyle(color: context.mdPrimaryText),
                 decoration: InputDecoration(
                   hintText: 'Send some support...',
+                  hintStyle: TextStyle(color: context.mdSecondaryText),
                   filled: true,
-                  fillColor: const Color(0xFFF5F5F5),
+                  fillColor: context.mdInputFill,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(20),
                     borderSide: BorderSide.none,
@@ -494,6 +502,7 @@ class _EmptyChat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final secondaryText = context.mdSecondaryText;
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -509,9 +518,9 @@ class _EmptyChat extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             'Offer a little encouragement today.',
-            style: TextStyle(color: Color(0xFF888888)),
+            style: TextStyle(color: secondaryText),
           ),
         ],
       ),

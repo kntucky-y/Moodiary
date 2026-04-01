@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../home/home_screen.dart';
+import '../../theme/moodiary_colors.dart';
 import '../../utils/transitions.dart';
 
 const _kPurple = Color(0xFFA076F9);
-const _kDark = Color(0xFF3D3B40);
-const _kBg = Color(0xFFFFFBF5);
 
 const _companions = [
   _Companion(
@@ -104,7 +103,7 @@ class CompanionScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _kBg,
+      backgroundColor: context.mdScaffold,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -112,21 +111,21 @@ class CompanionScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               const SizedBox(height: 32),
-              const Text(
+              Text(
                 'Choose a Companion',
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
-                  color: _kDark,
+                  color: context.mdPrimaryText,
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 'Select a companion to see its story. You can always change your companion later!',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 15,
-                  color: Color(0xFF888888),
+                  color: context.mdSecondaryText,
                   fontStyle: FontStyle.italic,
                   height: 1.4,
                 ),
@@ -218,6 +217,7 @@ class _CompanionModal extends StatelessWidget {
   Widget build(BuildContext context) {
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      backgroundColor: context.mdSurface,
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -244,19 +244,19 @@ class _CompanionModal extends StatelessWidget {
             const SizedBox(height: 16),
             Text(
               companion.name,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
-                color: _kDark,
+                color: context.mdPrimaryText,
               ),
             ),
             const SizedBox(height: 10),
             Text(
               companion.description,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14,
-                color: Color(0xFF666666),
+                color: context.mdSecondaryText,
                 height: 1.5,
               ),
             ),
@@ -271,11 +271,11 @@ class _CompanionModal extends StatelessWidget {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(50),
                       ),
-                      side: const BorderSide(color: Color(0xFFDDDDDD)),
+                      side: BorderSide(color: context.mdInputBorder),
                     ),
-                    child: const Text(
+                    child: Text(
                       'Close',
-                      style: TextStyle(color: Color(0xFF666666)),
+                      style: TextStyle(color: context.mdSecondaryText),
                     ),
                   ),
                 ),

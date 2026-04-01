@@ -18,11 +18,10 @@ import '../../widgets/app_sidebar.dart';
 import '../../services/local_notifications_service.dart';
 import '../../services/realtime_notifications.dart';
 import '../../services/theme_controller.dart';
+import '../../theme/moodiary_colors.dart';
 
 const _kPurple = Color(0xFFA076F9);
-const _kDark = Color(0xFF3D3B40);
 const _kSubtle = Color(0xFF8A8A8D);
-const _kHeaderBg = Color(0xFFF3E8FF);
 const _kBaseUrl = 'https://moodiary-production.up.railway.app';
 
 const _kCardPalette = <Color>[
@@ -266,6 +265,8 @@ class _ForumsScreenState extends State<ForumsScreen> {
     final draft = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (ctx) {
+        final primaryText = Theme.of(ctx).colorScheme.onSurface;
+        final secondaryText = primaryText.withValues(alpha: 0.7);
         return StatefulBuilder(
           builder: (ctx, setDialogState) {
             return Dialog(
@@ -305,33 +306,36 @@ class _ForumsScreenState extends State<ForumsScreen> {
                     TextField(
                       controller: titleController,
                       maxLength: 70,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
-                        color: _kDark,
+                        color: primaryText,
                       ),
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         counterText: '',
                         border: InputBorder.none,
                         hintText: 'Title...',
+                        hintStyle: TextStyle(color: secondaryText),
                       ),
                     ),
                     TextField(
                       controller: contentController,
                       maxLines: 5,
                       maxLength: 300,
-                      decoration: const InputDecoration(
+                      style: TextStyle(color: primaryText),
+                      decoration: InputDecoration(
                         counterText: '',
                         border: InputBorder.none,
                         hintText: 'Start typing...',
+                        hintStyle: TextStyle(color: secondaryText),
                       ),
                     ),
                     Row(
                       children: [
-                        const Text(
+                        Text(
                           'Post anonymously',
                           style: TextStyle(
-                            color: _kDark,
+                            color: primaryText,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -402,75 +406,85 @@ class _ForumsScreenState extends State<ForumsScreen> {
 
     final payload = await showDialog<Map<String, String>>(
       context: context,
-      builder: (ctx) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.warning_amber_rounded, color: Colors.red),
-                  const SizedBox(width: 8),
-                  const Expanded(
-                    child: Text(
-                      'Report Post',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                        color: _kDark,
+      builder: (ctx) {
+        final primaryText = Theme.of(ctx).colorScheme.onSurface;
+        final secondaryText = primaryText.withValues(alpha: 0.7);
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(26),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.warning_amber_rounded, color: Colors.red),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Report Post',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                          color: primaryText,
+                        ),
                       ),
                     ),
-                  ),
-                  IconButton(
-                    onPressed: () => Navigator.of(ctx).pop(),
-                    icon: const Icon(Icons.close_rounded, color: _kSubtle),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              TextField(
-                controller: reasonCtrl,
-                maxLines: 2,
-                decoration: InputDecoration(
-                  hintText: 'Reason for reporting...',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
+                    IconButton(
+                      onPressed: () => Navigator.of(ctx).pop(),
+                      icon: Icon(Icons.close_rounded, color: secondaryText),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: reasonCtrl,
+                  maxLines: 2,
+                  style: TextStyle(color: primaryText),
+                  decoration: InputDecoration(
+                    hintText: 'Reason for reporting...',
+                    hintStyle: TextStyle(color: secondaryText),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: detailsCtrl,
-                maxLines: 3,
-                decoration: InputDecoration(
-                  hintText: 'Additional details...',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: detailsCtrl,
+                  maxLines: 3,
+                  style: TextStyle(color: primaryText),
+                  decoration: InputDecoration(
+                    hintText: 'Additional details...',
+                    hintStyle: TextStyle(color: secondaryText),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 14),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: () {
-                    final reason = reasonCtrl.text.trim();
-                    if (reason.isEmpty) return;
-                    Navigator.of(ctx).pop({
-                      'reason': reason,
-                      'details': detailsCtrl.text.trim(),
-                    });
-                  },
-                  style: FilledButton.styleFrom(backgroundColor: _kPurple),
-                  child: const Text('Submit Report'),
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () {
+                      final reason = reasonCtrl.text.trim();
+                      if (reason.isEmpty) return;
+                      Navigator.of(ctx).pop({
+                        'reason': reason,
+                        'details': detailsCtrl.text.trim(),
+                      });
+                    },
+                    style: FilledButton.styleFrom(backgroundColor: _kPurple),
+                    child: const Text('Submit Report'),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
 
     if (payload == null) return;
@@ -558,6 +572,8 @@ class _ForumsScreenState extends State<ForumsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final primaryText = context.mdPrimaryText;
+    final secondaryText = context.mdSecondaryText;
     final visiblePosts = _visiblePosts;
     _ForumPost? activePost;
     if (_activePostId != null) {
@@ -571,7 +587,7 @@ class _ForumsScreenState extends State<ForumsScreen> {
     final detailPost = activePost;
 
     return Scaffold(
-      backgroundColor: _kHeaderBg,
+      backgroundColor: context.mdScaffold,
       body: Stack(
         children: [
           Column(
@@ -586,9 +602,9 @@ class _ForumsScreenState extends State<ForumsScreen> {
                         children: [
                           IconButton(
                             onPressed: _openSidebar,
-                            icon: const Icon(
+                            icon: Icon(
                               Icons.menu,
-                              color: _kDark,
+                              color: primaryText,
                               size: 26,
                             ),
                             tooltip: 'Open menu',
@@ -596,17 +612,17 @@ class _ForumsScreenState extends State<ForumsScreen> {
                           const Spacer(),
                           Text(
                             _todayStr(),
-                            style: const TextStyle(
-                              color: _kDark,
+                            style: TextStyle(
+                              color: primaryText,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                           const Spacer(),
                           IconButton(
                             onPressed: () => _fetchPosts(silent: false),
-                            icon: const Icon(
+                            icon: Icon(
                               Icons.refresh_rounded,
-                              color: _kDark,
+                              color: primaryText,
                               size: 22,
                             ),
                             tooltip: 'Refresh forums',
@@ -622,7 +638,7 @@ class _ForumsScreenState extends State<ForumsScreen> {
                               style: GoogleFonts.lexend(
                                 fontSize: 52,
                                 fontWeight: FontWeight.bold,
-                                color: _kDark,
+                                color: primaryText,
                               ),
                             ),
                             TextSpan(
@@ -645,9 +661,9 @@ class _ForumsScreenState extends State<ForumsScreen> {
                         ),
                       ),
                       const SizedBox(height: 4),
-                      const Text(
+                      Text(
                         'A safe space to share and connect',
-                        style: TextStyle(color: _kSubtle, fontSize: 15),
+                        style: TextStyle(color: secondaryText, fontSize: 15),
                       ),
                       const SizedBox(height: 8),
                       Row(
@@ -770,11 +786,6 @@ class _ForumsScreenState extends State<ForumsScreen> {
           ),
         ],
       ),
-      bottomNavigationBar: _ForumBottomNav(
-        userName: widget.userName,
-        companionId: widget.companionId,
-        companionName: widget.companionName,
-      ),
     );
   }
 }
@@ -805,28 +816,30 @@ class _ForumListView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final primaryText = context.mdPrimaryText;
+    final secondaryText = context.mdSecondaryText;
     return Stack(
       children: [
         Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(40)),
+          decoration: BoxDecoration(
+            color: context.mdSurface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(40)),
           ),
           child: posts.isEmpty
-              ? const Center(
+              ? Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
                         Icons.forum_outlined,
                         size: 62,
-                        color: Color(0xFFAFAFB4),
+                        color: secondaryText,
                       ),
                       SizedBox(height: 12),
                       Text(
                         'No posts yet',
                         style: TextStyle(
-                          color: _kDark,
+                          color: primaryText,
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                         ),
@@ -834,7 +847,7 @@ class _ForumListView extends StatelessWidget {
                       SizedBox(height: 4),
                       Text(
                         'Tap + to share the first supportive post.',
-                        style: TextStyle(color: _kSubtle, fontSize: 13),
+                        style: TextStyle(color: secondaryText, fontSize: 13),
                       ),
                     ],
                   ),
@@ -886,13 +899,13 @@ class _ForumListView extends StatelessWidget {
                               vertical: 8,
                             ),
                             decoration: BoxDecoration(
-                              color: _kDark,
+                              color: context.mdSecondarySurface,
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: const Text(
+                            child: Text(
                               'Let\'s support someone today!',
                               style: TextStyle(
-                                color: Colors.white,
+                                color: primaryText,
                                 fontWeight: FontWeight.w600,
                                 fontSize: 12,
                               ),
@@ -923,10 +936,10 @@ class _ForumListView extends StatelessWidget {
                                 child: Container(
                                   width: 54,
                                   height: 54,
-                                  decoration: const BoxDecoration(
-                                    color: Colors.white,
+                                  decoration: BoxDecoration(
+                                    color: context.mdSurface,
                                     shape: BoxShape.circle,
-                                    boxShadow: [
+                                    boxShadow: const [
                                       BoxShadow(
                                         color: Color(0x22000000),
                                         blurRadius: 10,
@@ -934,9 +947,9 @@ class _ForumListView extends StatelessWidget {
                                       ),
                                     ],
                                   ),
-                                  child: const Icon(
+                                  child: Icon(
                                     Icons.add,
-                                    color: _kDark,
+                                    color: primaryText,
                                     size: 30,
                                   ),
                                 ),
@@ -1010,9 +1023,11 @@ class _ForumDetailViewState extends State<_ForumDetailView> {
 
   @override
   Widget build(BuildContext context) {
+    final primaryText = context.mdPrimaryText;
+    final secondaryText = context.mdSecondaryText;
     final post = widget.post;
     return Container(
-      color: _kHeaderBg,
+      color: context.mdScaffold,
       child: Column(
         children: [
           Expanded(
@@ -1043,7 +1058,7 @@ class _ForumDetailViewState extends State<_ForumDetailView> {
                     margin: const EdgeInsets.only(bottom: 10),
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: context.mdSurface,
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: Row(
@@ -1062,8 +1077,8 @@ class _ForumDetailViewState extends State<_ForumDetailView> {
                         Expanded(
                           child: Text(
                             c.text,
-                            style: const TextStyle(
-                              color: _kDark,
+                            style: TextStyle(
+                              color: primaryText,
                               fontSize: 17,
                               height: 1.35,
                             ),
@@ -1088,9 +1103,9 @@ class _ForumDetailViewState extends State<_ForumDetailView> {
                       enabled: !_submittingComment,
                       decoration: InputDecoration(
                         hintText: 'Add a supportive comment',
-                        hintStyle: const TextStyle(color: Color(0xFFB3B3B8)),
+                        hintStyle: TextStyle(color: secondaryText),
                         filled: true,
-                        fillColor: Colors.white,
+                        fillColor: context.mdInputFill,
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 18,
                           vertical: 14,
@@ -1166,6 +1181,13 @@ class _PostCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cardBrightness = ThemeData.estimateBrightnessForColor(post.cardColor);
+    final onCardText = cardBrightness == Brightness.dark
+        ? Colors.white
+        : const Color(0xFF1F2937);
+    final onCardSubtle = cardBrightness == Brightness.dark
+        ? Colors.white70
+        : const Color(0xFF6B7280);
     final likeColor = post.likedByMe ? Colors.red : _kSubtle;
     return TapScale(
       onTap: onTap,
@@ -1196,7 +1218,7 @@ class _PostCard extends StatelessWidget {
                     maxLines: compactText ? 2 : 3,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: _kDark,
+                      color: onCardText,
                       fontSize: compactText ? 15.5 : 18,
                       height: compactText ? 1.15 : 1.2,
                       fontWeight: FontWeight.bold,
@@ -1210,7 +1232,7 @@ class _PostCard extends StatelessWidget {
                     maxLines: compactText ? 3 : null,
                     overflow: compactText ? TextOverflow.ellipsis : null,
                     style: TextStyle(
-                      color: _kDark,
+                      color: onCardText,
                       fontSize: compactText ? 11.5 : 13,
                       height: 1.35,
                     ),
@@ -1218,16 +1240,16 @@ class _PostCard extends StatelessWidget {
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.mode_comment_outlined,
-                        color: _kSubtle,
+                        color: onCardSubtle,
                         size: 18,
                       ),
                       const SizedBox(width: 4),
                       Text(
                         '${post.commentCount}',
-                        style: const TextStyle(
-                          color: _kSubtle,
+                        style: TextStyle(
+                          color: onCardSubtle,
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                         ),
@@ -1261,9 +1283,9 @@ class _PostCard extends StatelessWidget {
                       GestureDetector(
                         onTap: onReportTap,
                         behavior: HitTestBehavior.opaque,
-                        child: const Icon(
+                        child: Icon(
                           Icons.warning_amber_rounded,
-                          color: Color(0xFF111111),
+                          color: onCardText,
                           size: 20,
                         ),
                       ),
@@ -1274,125 +1296,6 @@ class _PostCard extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _ForumBottomNav extends StatelessWidget {
-  final String userName;
-  final int companionId;
-  final String companionName;
-
-  const _ForumBottomNav({
-    required this.userName,
-    required this.companionId,
-    required this.companionName,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final items = [
-      _NavItem(
-        icon: Icons.calendar_month_outlined,
-        label: 'Calendar',
-        onTap: () => Navigator.of(context).pushAndRemoveUntil(
-          FadeSlideRoute(
-            page: CalendarScreen(
-              userName: userName,
-              companionId: companionId,
-              companionName: companionName,
-            ),
-          ),
-          (_) => false,
-        ),
-      ),
-      _NavItem(
-        icon: Icons.book_outlined,
-        label: 'Journal',
-        onTap: () => Navigator.of(context).pushAndRemoveUntil(
-          FadeSlideRoute(
-            page: JournalScreen(
-              userName: userName,
-              companionId: companionId,
-              companionName: companionName,
-            ),
-          ),
-          (_) => false,
-        ),
-      ),
-      _NavItem(
-        icon: Icons.home_rounded,
-        label: 'Home',
-        onTap: () => Navigator.of(context).pushAndRemoveUntil(
-          FadeSlideRoute(
-            page: HomeScreen(
-              userName: userName,
-              companionId: companionId,
-              companionName: companionName,
-            ),
-          ),
-          (_) => false,
-        ),
-      ),
-      _NavItem(
-        icon: Icons.people_alt_rounded,
-        label: 'Friends',
-        onTap: () => Navigator.of(context).pushAndRemoveUntil(
-          FadeSlideRoute(
-            page: FriendsScreen(
-              userName: userName,
-              companionId: companionId,
-              companionName: companionName,
-            ),
-          ),
-          (_) => false,
-        ),
-      ),
-      const _NavItem(
-        icon: Icons.chat_bubble_rounded,
-        label: 'Forums',
-        active: true,
-      ),
-      const _NavItem(icon: Icons.folder_outlined, label: 'Resources'),
-    ];
-
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: Color(0xFFF0F0F0), width: 1.5)),
-      ),
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: items
-            .map(
-              (item) => TapScale(
-                onTap: item.onTap,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      item.icon,
-                      color: item.active ? _kPurple : _kSubtle,
-                      size: 26,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      item.label,
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: item.active ? _kPurple : _kSubtle,
-                        fontWeight: item.active
-                            ? FontWeight.bold
-                            : FontWeight.normal,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            )
-            .toList(),
       ),
     );
   }
@@ -1411,21 +1314,23 @@ class _ForumEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final primaryText = context.mdPrimaryText;
+    final secondaryText = context.mdSecondaryText;
     return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(40)),
+      decoration: BoxDecoration(
+        color: context.mdSurface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(40)),
       ),
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 62, color: const Color(0xFFAFAFB4)),
+            Icon(icon, size: 62, color: secondaryText),
             const SizedBox(height: 12),
             Text(
               title,
-              style: const TextStyle(
-                color: _kDark,
+              style: TextStyle(
+                color: primaryText,
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
@@ -1433,27 +1338,13 @@ class _ForumEmptyState extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               subtitle,
-              style: const TextStyle(color: _kSubtle, fontSize: 13),
+              style: TextStyle(color: secondaryText, fontSize: 13),
             ),
           ],
         ),
       ),
     );
   }
-}
-
-class _NavItem {
-  final IconData icon;
-  final String label;
-  final bool active;
-  final VoidCallback? onTap;
-
-  const _NavItem({
-    required this.icon,
-    required this.label,
-    this.active = false,
-    this.onTap,
-  });
 }
 
 class _ForumPost {
