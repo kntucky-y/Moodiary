@@ -20,6 +20,7 @@ import '../../services/realtime_notifications.dart';
 import '../../services/theme_controller.dart';
 import '../../theme/moodiary_colors.dart';
 import '../../utils/avatar_utils.dart';
+import '../../widgets/user_profile_popup.dart';
 import 'friend_chat_screen.dart';
 
 const _kBaseUrl = 'https://moodiary-production.up.railway.app';
@@ -353,6 +354,62 @@ class _FriendsScreenState extends State<FriendsScreen> {
     );
   }
 
+  Future<void> _openFriendProfile(_FriendSummary friend) async {
+    final selectedPostId = await showUserProfilePopup(
+      context,
+      userId: friend.friendUserId,
+    );
+    if (selectedPostId == null || !mounted) return;
+    Navigator.of(context).push(
+      FadeSlideRoute(
+        page: ForumsScreen(
+          userName: widget.userName,
+          companionId: widget.companionId,
+          companionName: widget.companionName,
+          initialPostId: selectedPostId,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showFriendActions(_FriendSummary friend) async {
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: context.mdSurface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.person_outline),
+                title: const Text('View profile'),
+                onTap: () => Navigator.of(ctx).pop('profile'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.chat_bubble_outline),
+                title: const Text('Chat'),
+                onTap: () => Navigator.of(ctx).pop('chat'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (!mounted || action == null) return;
+    if (action == 'profile') {
+      await _openFriendProfile(friend);
+    } else if (action == 'chat') {
+      _openChat(friend);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -411,7 +468,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
                                 ..._friends.map(
                                   (friend) => _FriendCard(
                                     friend: friend,
-                                    onTap: () => _openChat(friend),
+                                    onTap: () => _showFriendActions(friend),
                                     onUnfriend: () => _confirmUnfriend(friend),
                                   ),
                                 ),
@@ -491,6 +548,8 @@ class _FriendSummary {
   final String name;
   final String email;
   final String? avatarUrl;
+  final String? currentMoodLabel;
+  final String? currentMoodAsset;
   final String? lastMessage;
   final DateTime? lastMessageAt;
 
@@ -500,6 +559,8 @@ class _FriendSummary {
     required this.name,
     required this.email,
     this.avatarUrl,
+    this.currentMoodLabel,
+    this.currentMoodAsset,
     this.lastMessage,
     this.lastMessageAt,
   });
@@ -513,6 +574,10 @@ class _FriendSummary {
       name: friend['name'] as String? ?? 'Friend',
       email: friend['email'] as String? ?? '',
       avatarUrl: friend['avatarUrl'] as String?,
+      currentMoodLabel:
+          (json['currentMood'] as Map<String, dynamic>?)?['label'] as String?,
+      currentMoodAsset:
+          (json['currentMood'] as Map<String, dynamic>?)?['asset'] as String?,
       lastMessage: last != null ? last['text'] as String? : null,
       lastMessageAt: last != null && last['createdAt'] != null
           ? DateTime.parse(last['createdAt'] as String).toLocal()
@@ -524,6 +589,8 @@ class _FriendSummary {
     String? name,
     String? email,
     String? avatarUrl,
+    String? currentMoodLabel,
+    String? currentMoodAsset,
     String? lastMessage,
     DateTime? lastMessageAt,
   }) {
@@ -533,6 +600,8 @@ class _FriendSummary {
       name: name ?? this.name,
       email: email ?? this.email,
       avatarUrl: avatarUrl ?? this.avatarUrl,
+      currentMoodLabel: currentMoodLabel ?? this.currentMoodLabel,
+      currentMoodAsset: currentMoodAsset ?? this.currentMoodAsset,
       lastMessage: lastMessage ?? this.lastMessage,
       lastMessageAt: lastMessageAt ?? this.lastMessageAt,
     );
@@ -706,6 +775,44 @@ class _FriendCard extends StatelessWidget {
                       color: primaryText,
                     ),
                   ),
+                  const SizedBox(height: 8),
+                  if (friend.currentMoodLabel != null &&
+                      friend.currentMoodAsset != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _kPurple.withValues(alpha: 0.10),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Image.asset(
+                            friend.currentMoodAsset!,
+                            width: 18,
+                            height: 18,
+                            errorBuilder: (context, error, stackTrace) =>
+                                const Icon(
+                                  Icons.sentiment_satisfied_alt_outlined,
+                                  size: 16,
+                                  color: _kPurple,
+                                ),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            friend.currentMoodLabel!,
+                            style: TextStyle(
+                              color: primaryText,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   const SizedBox(height: 2),
                   Text(
                     friend.lastMessage ?? 'No messages yet',

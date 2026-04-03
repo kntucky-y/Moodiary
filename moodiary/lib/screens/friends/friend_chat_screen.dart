@@ -200,18 +200,8 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
           'friendshipId': widget.friendshipId,
           'text': text,
         });
-
-        // Fallback: if socket echo/ack is delayed, refresh once to clear stale
-        // optimistic states so messages don't remain "sending...".
-        Future<void>.delayed(const Duration(seconds: 2), () async {
-          if (!mounted) return;
-          final hasPending = _messages.any((m) => m.pending);
-          if (hasPending) {
-            await _loadHistory();
-          }
-        });
       } else {
-        await http.post(
+        final resp = await http.post(
           Uri.parse('$_kBaseUrl/api/friends/${widget.friendshipId}/messages'),
           headers: {
             'Authorization': 'Bearer $_token',
@@ -219,7 +209,22 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
           },
           body: jsonEncode({'text': text}),
         );
-        await _loadHistory();
+        if (resp.statusCode == 201) {
+          final created = _FriendMessage.fromJson(
+            jsonDecode(resp.body) as Map<String, dynamic>,
+            _userId,
+          );
+          if (mounted) {
+            setState(() {
+              final pendingIndex = _messages.lastIndexWhere((m) => m.pending);
+              if (pendingIndex != -1) {
+                _messages[pendingIndex] = created;
+              } else {
+                _messages.add(created);
+              }
+            });
+          }
+        }
       }
     } finally {
       if (mounted) setState(() => _sending = false);

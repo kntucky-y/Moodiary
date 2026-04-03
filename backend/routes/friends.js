@@ -5,6 +5,7 @@ const User = require('../models/User');
 const FriendRequest = require('../models/FriendRequest');
 const Friendship = require('../models/Friendship');
 const FriendMessage = require('../models/FriendMessage');
+const MoodLog = require('../models/Mood');
 const {
   buildPairKey,
   ensureFriendshipAccess,
@@ -31,11 +32,39 @@ const activeFriendshipFilter = {
   $or: [{ status: 'active' }, { status: { $exists: false } }],
 };
 
-const formatFriendship = (doc, viewerId) => {
+const MOOD_LABELS = ['Terrible', 'Bad', 'Okay', 'Good', 'Excellent'];
+const MOOD_ASSETS = [
+  'assets/terrible.png',
+  'assets/bad.png',
+  'assets/okay.png',
+  'assets/good.png',
+  'assets/excellent.png',
+];
+
+const formatCurrentMood = (log) => {
+  if (!log) return null;
+  const level = Math.max(1, Math.min(5, Number(log.moodLevel) || 3));
+  const index = level - 1;
+  return {
+    level,
+    label: MOOD_LABELS[index],
+    asset: MOOD_ASSETS[index],
+    dateKey: log.dateKey,
+  };
+};
+
+const formatFriendship = async (doc, viewerId) => {
   const members = doc.members || [];
   const friend = members.find(
     (member) => member && member._id.toString() !== viewerId.toString(),
   );
+
+  const latestMood = friend?._id
+    ? await MoodLog.findOne({ userId: friend._id })
+        .sort({ dateKey: -1, createdAt: -1 })
+        .select('moodLevel dateKey')
+        .lean()
+    : null;
 
   return {
     id: doc._id.toString(),
@@ -45,6 +74,7 @@ const formatFriendship = (doc, viewerId) => {
       email: friend?.email ?? '',
       avatarUrl: friend?.avatarUrl ?? '',
     },
+    currentMood: formatCurrentMood(latestMood),
     lastMessage: doc.lastMessage
       ? {
           text: doc.lastMessage.text ?? '',
@@ -110,7 +140,9 @@ router.get('/', auth, async (req, res) => {
     ]);
 
     res.json({
-      friends: friendships.map((doc) => formatFriendship(doc, userId)),
+      friends: await Promise.all(
+        friendships.map((doc) => formatFriendship(doc, userId)),
+      ),
       pending: {
         incoming: incoming.map((doc) => formatRequest(doc, 'incoming')),
         outgoing: outgoing.map((doc) => formatRequest(doc, 'outgoing')),
@@ -158,7 +190,7 @@ router.post('/request', auth, async (req, res) => {
         .populate('members', 'name email avatarUrl')
         .lean();
       return res.status(201).json({
-        friendship: formatFriendship(populated, requesterId),
+        friendship: await formatFriendship(populated, requesterId),
         autoAccepted: true,
       });
     }
@@ -221,7 +253,7 @@ router.post('/:id/accept', auth, async (req, res) => {
     const populated = await Friendship.findById(friendship._id)
       .populate('members', 'name email avatarUrl')
       .lean();
-    res.json({ friend: formatFriendship(populated, req.userId) });
+    res.json({ friend: await formatFriendship(populated, req.userId) });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
