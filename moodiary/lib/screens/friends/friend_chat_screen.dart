@@ -41,6 +41,9 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
   bool _loading = true;
   String? _token;
   String? _userId;
+  String _userName = '';
+  int _companionId = 1;
+  String _companionName = 'Companion';
   io.Socket? _socket;
   bool _sending = false;
 
@@ -54,6 +57,9 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
     final prefs = await SharedPreferences.getInstance();
     _token = prefs.getString('token');
     _userId = prefs.getString('user_id');
+    _userName = prefs.getString('user_name') ?? '';
+    _companionId = int.tryParse(prefs.getString('companion_id') ?? '') ?? 1;
+    _companionName = prefs.getString('companion_name') ?? 'Companion';
     if (_userId == null && _token != null) {
       final derivedId = _deriveUserIdFromToken(_token!);
       if (derivedId != null) {
@@ -269,6 +275,19 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
               name: widget.friendName,
               email: widget.friendEmail,
               friendAvatarUrl: widget.friendAvatarUrl,
+              onOpenForumPost: (postId) async {
+                if (!context.mounted) return;
+                Navigator.of(context).push(
+                  FadeSlideRoute(
+                    page: ForumsScreen(
+                      userName: _userName,
+                      companionId: _companionId,
+                      companionName: _companionName,
+                      initialPostId: postId,
+                    ),
+                  ),
+                );
+              },
             ),
             Expanded(
               child: Container(
@@ -430,12 +449,14 @@ class _ChatHeader extends StatelessWidget {
   final String name;
   final String email;
   final String? friendAvatarUrl;
+  final Future<void> Function(String postId)? onOpenForumPost;
 
   const _ChatHeader({
     required this.friendUserId,
     required this.name,
     required this.email,
     this.friendAvatarUrl,
+    this.onOpenForumPost,
   });
 
   @override
@@ -454,32 +475,17 @@ class _ChatHeader extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           GestureDetector(
-            onTap: () {
+            onTap: () async {
               if (friendUserId.isEmpty) return;
-              () async {
-                final selectedPostId = await showUserProfilePopup(
-                  context,
-                  userId: friendUserId,
-                );
-                if (selectedPostId == null) return;
-                final prefs = await SharedPreferences.getInstance();
-                final userName = prefs.getString('user_name') ?? '';
-                final companionId =
-                    int.tryParse(prefs.getString('companion_id') ?? '') ?? 1;
-                final companionName =
-                    prefs.getString('companion_name') ?? 'Companion';
-                if (!context.mounted) return;
-                Navigator.of(context).push(
-                  FadeSlideRoute(
-                    page: ForumsScreen(
-                      userName: userName,
-                      companionId: companionId,
-                      companionName: companionName,
-                      initialPostId: selectedPostId,
-                    ),
-                  ),
-                );
-              }();
+              final selectedPostId = await showUserProfilePopup(
+                context,
+                userId: friendUserId,
+              );
+              if (selectedPostId == null) return;
+              final openForumPost = onOpenForumPost;
+              if (openForumPost != null) {
+                await openForumPost(selectedPostId);
+              }
             },
             child: Row(
               children: [
