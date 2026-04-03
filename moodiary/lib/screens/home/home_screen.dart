@@ -9,6 +9,7 @@ import '../calendar/calendar_screen.dart';
 import '../journal/journal_screen.dart';
 import '../forums/forums_screen.dart';
 import '../friends/friends_screen.dart';
+import '../profile/user_profile_screen.dart';
 import '../../services/local_notifications_service.dart';
 import '../../services/theme_controller.dart';
 import '../../theme/moodiary_colors.dart';
@@ -599,6 +600,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 companionAsset: _companionAsset,
                 companionName: widget.companionName,
                 onHamburger: () => setState(() => _sidebarOpen = true),
+                onProfileTap: () {
+                  Navigator.of(
+                    context,
+                  ).push(FadeSlideRoute(page: const UserProfileScreen()));
+                },
                 onCompanionTap: _showCompanionChat,
               ),
               Expanded(
@@ -767,6 +773,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ),
                 );
               },
+              onNavigateUserProfile: () {
+                setState(() => _sidebarOpen = false);
+                Navigator.of(
+                  context,
+                ).push(FadeSlideRoute(page: const UserProfileScreen()));
+              },
               onNavigateJournal: () {
                 setState(() => _sidebarOpen = false);
                 Navigator.of(context).push(
@@ -840,6 +852,7 @@ class _Header extends StatelessWidget {
   final String companionAsset;
   final String companionName;
   final VoidCallback onHamburger;
+  final VoidCallback onProfileTap;
   final VoidCallback onCompanionTap;
 
   const _Header({
@@ -848,6 +861,7 @@ class _Header extends StatelessWidget {
     required this.companionAsset,
     required this.companionName,
     required this.onHamburger,
+    required this.onProfileTap,
     required this.onCompanionTap,
   });
 
@@ -897,7 +911,23 @@ class _Header extends StatelessWidget {
                         fontSize: 16,
                       ),
                     ),
-                    const SizedBox(width: 48),
+                    GestureDetector(
+                      onTap: onProfileTap,
+                      child: Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.25),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 1.2),
+                        ),
+                        child: const Icon(
+                          Icons.person,
+                          color: Colors.white,
+                          size: 22,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 8),

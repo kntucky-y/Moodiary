@@ -28,7 +28,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
   Future<void> _loadProfile() async {
     final prefs = await SharedPreferences.getInstance();
-    _userId = prefs.getString('userId') ?? '';
+    _userId = prefs.getString('user_id') ?? prefs.getString('userId') ?? '';
     _authToken = prefs.getString('token') ?? '';
 
     setState(() {

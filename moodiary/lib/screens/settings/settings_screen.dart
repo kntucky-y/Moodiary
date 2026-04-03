@@ -5,7 +5,6 @@ import '../../services/local_notifications_service.dart';
 import '../../services/theme_controller.dart';
 import '../../utils/transitions.dart';
 import '../companion/companion_screen.dart';
-import '../profile/user_profile_screen.dart';
 import '../account/account_management_screen.dart';
 import '../legal/legal_screens.dart';
 
@@ -206,25 +205,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           const SizedBox(height: 24),
-          _SectionHeader(label: 'Companion & Data'),
           _SectionHeader(label: 'Account'),
           Card(
             child: Column(
               children: [
-                ListTile(
-                  leading: const Icon(Icons.person_outline),
-                  title: const Text('My profile'),
-                  subtitle: const Text(
-                    'View and edit your profile information',
-                  ),
-                  trailing: const Icon(Icons.chevron_right_rounded),
-                  onTap: () {
-                    Navigator.of(
-                      context,
-                    ).push(FadeSlideRoute(page: const UserProfileScreen()));
-                  },
-                ),
-                const Divider(height: 0),
                 ListTile(
                   leading: const Icon(Icons.lock_outline),
                   title: const Text('Account management'),

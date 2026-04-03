@@ -7,6 +7,7 @@ const _kPurple = Color(0xFFA076F9);
 
 enum SidebarSection {
   home,
+  userProfile,
   calendar,
   journal,
   friends,
@@ -20,6 +21,7 @@ class AppSidebar extends StatelessWidget {
   final SidebarSection activeSection;
   final VoidCallback onClose;
   final VoidCallback? onNavigateHome;
+  final VoidCallback? onNavigateUserProfile;
   final VoidCallback? onNavigateCalendar;
   final VoidCallback? onNavigateJournal;
   final VoidCallback? onNavigateFriends;
@@ -34,6 +36,7 @@ class AppSidebar extends StatelessWidget {
     required this.activeSection,
     required this.onClose,
     this.onNavigateHome,
+    this.onNavigateUserProfile,
     this.onNavigateCalendar,
     this.onNavigateJournal,
     this.onNavigateFriends,
@@ -54,6 +57,12 @@ class AppSidebar extends StatelessWidget {
         icon: Icons.home_rounded,
         label: 'Home',
         onTap: onNavigateHome,
+      ),
+      _SidebarEntry(
+        section: SidebarSection.userProfile,
+        icon: Icons.account_circle_outlined,
+        label: 'User Profile',
+        onTap: onNavigateUserProfile,
       ),
       _SidebarEntry(
         section: SidebarSection.calendar,
