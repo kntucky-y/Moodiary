@@ -1,12 +1,10 @@
 import 'dart:convert';
 
-import 'package:file_selector/file_selector.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../services/auth_service.dart';
+import '../../utils/avatar_file_picker.dart';
 import '../../utils/avatar_utils.dart';
 
 class UserProfileScreen extends StatefulWidget {
@@ -43,24 +41,24 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     _authToken = prefs.getString('token') ?? '';
 
     final now = DateTime.now();
-    final key =
-        'mood_score_${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-    _todayMoodScore = prefs.getInt(key) ?? 0;
-
-    final todayKey =
+    final dateKey =
         '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    final scoreKey = 'mood_score_$dateKey';
+    _todayMoodScore = prefs.getInt(scoreKey) ?? 0;
+
     final rawCache = prefs.getString('mood_logs_cache');
     if (rawCache != null) {
       try {
         final decoded = jsonDecode(rawCache) as List<dynamic>;
-        final idx = decoded.indexWhere((e) => e['dateKey'] == todayKey);
-        if (idx >= 0) {
-          final todayLog = decoded[idx] as Map<String, dynamic>;
+        final index = decoded.indexWhere((e) => e['dateKey'] == dateKey);
+        if (index >= 0) {
+          final todayLog = decoded[index] as Map<String, dynamic>;
           final rawScore = todayLog['score'];
           if (rawScore is num) {
             _todayMoodScore = rawScore.round();
           }
-          final moodLevel = decoded[idx]['moodLevel'] as int?;
+
+          final moodLevel = todayLog['moodLevel'] as int?;
           if (moodLevel != null && moodLevel >= 1 && moodLevel <= 5) {
             const moodLabels = ['Terrible', 'Bad', 'Okay', 'Good', 'Excellent'];
             const moodAssets = [
@@ -79,6 +77,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       }
     }
 
+    if (!mounted) return;
     setState(() {
       _profileFuture = _loadProfileBundle();
     });
@@ -127,75 +126,37 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         await prefs.setString('user_avatar_url', _currentAvatarUrl!);
       }
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile updated successfully')),
-        );
-        setState(() {
-          _isEditing = false;
-          _selectedAvatarDataUrl = null;
-          _profileFuture = _loadProfileBundle();
-        });
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profile updated successfully')),
+      );
+      setState(() {
+        _isEditing = false;
+        _selectedAvatarDataUrl = null;
+        _profileFuture = _loadProfileBundle();
+      });
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error: $e')));
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 
   Future<void> _pickAvatarImage() async {
     try {
-      final Uint8List bytes;
-      final String mimeType;
+      final bytes = await pickAvatarBytes();
+      if (bytes == null) return;
 
-      if (!kIsWeb &&
-          (defaultTargetPlatform == TargetPlatform.windows ||
-              defaultTargetPlatform == TargetPlatform.macOS ||
-              defaultTargetPlatform == TargetPlatform.linux)) {
-        const fileTypeGroup = XTypeGroup(
-          label: 'Images',
-          extensions: ['png', 'jpg', 'jpeg', 'webp'],
-        );
-        final picked = await openFile(acceptedTypeGroups: [fileTypeGroup]);
-        if (picked == null) return;
-        bytes = await picked.readAsBytes();
-        final lower = picked.name.toLowerCase();
-        mimeType = lower.endsWith('.png')
-            ? 'image/png'
-            : lower.endsWith('.webp')
-            ? 'image/webp'
-            : 'image/jpeg';
-      } else {
-        final picker = ImagePicker();
-        final picked = await picker.pickImage(
-          source: ImageSource.gallery,
-          imageQuality: 35,
-          maxWidth: 256,
-          maxHeight: 256,
-        );
-        if (picked == null) return;
-        bytes = await picked.readAsBytes();
-        final lower = picked.path.toLowerCase();
-        mimeType = lower.endsWith('.png')
-            ? 'image/png'
-            : lower.endsWith('.webp')
-            ? 'image/webp'
-            : 'image/jpeg';
-      }
-
-      final dataUrl = dataUrlFromImageBytes(bytes, mimeType: mimeType);
-
+      final dataUrl = dataUrlFromImageBytes(bytes, mimeType: 'image/jpeg');
       if (dataUrl == null) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Could not process selected image.')),
-          );
-        }
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not process selected image.')),
+        );
         return;
       }
+
       if (!mounted) return;
       setState(() {
         _selectedAvatarDataUrl = dataUrl;
@@ -228,20 +189,12 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           if (!_isEditing)
             IconButton(
               icon: const Icon(Icons.edit),
-              onPressed: () {
-                setState(() {
-                  _isEditing = true;
-                });
-              },
+              onPressed: () => setState(() => _isEditing = true),
             )
           else
             IconButton(
               icon: const Icon(Icons.close),
-              onPressed: () {
-                setState(() {
-                  _isEditing = false;
-                });
-              },
+              onPressed: () => setState(() => _isEditing = false),
             ),
         ],
       ),
@@ -270,24 +223,24 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
           final bundle = snapshot.data;
           final userData = bundle?['profile']?['user'] as Map<String, dynamic>?;
+          if (userData == null) {
+            return const Center(child: Text('Profile not found'));
+          }
+
           final posts =
               (bundle?['posts'] as List<Map<String, dynamic>>? ?? const [])
                   .where(
                     (p) =>
                         p['isMine'] == true ||
-                        p['authorName'] == userData?['name'],
+                        p['authorName'] == userData['name'],
                   )
                   .take(3)
                   .toList();
-          if (userData == null) {
-            return const Center(child: Text('Profile not found'));
-          }
 
           _currentAvatarUrl = userData['avatarUrl'] as String?;
           final displayedAvatarUrl =
               _selectedAvatarDataUrl ?? _currentAvatarUrl;
 
-          // Initialize form fields on first load
           if (!_isEditing &&
               _nameController.text.isEmpty &&
               userData['name'] != null) {
@@ -296,97 +249,259 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             _bioController.text = userData['bio'] as String? ?? '';
           }
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(14, 14, 14, 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: cs.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Column(
-                    children: [
-                      Stack(
+          return Stack(
+            children: [
+              SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(14, 14, 14, 128),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: cs.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Column(
                         children: [
-                          CircleAvatar(
-                            radius: 48,
-                            backgroundImage: avatarImageProvider(
-                              displayedAvatarUrl,
-                            ),
-                            child:
-                                avatarImageProvider(displayedAvatarUrl) == null
-                                ? const Icon(Icons.person, size: 44)
-                                : null,
-                          ),
-                          if (_isEditing)
-                            Positioned(
-                              right: -2,
-                              bottom: -2,
-                              child: InkWell(
-                                onTap: _pickAvatarImage,
-                                child: Container(
-                                  padding: const EdgeInsets.all(6),
-                                  decoration: BoxDecoration(
-                                    color: cs.primary,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Icon(
-                                    Icons.photo_camera_outlined,
-                                    size: 16,
-                                    color: cs.onPrimary,
+                          Stack(
+                            children: [
+                              CircleAvatar(
+                                radius: 48,
+                                backgroundImage: avatarImageProvider(
+                                  displayedAvatarUrl,
+                                ),
+                                child:
+                                    avatarImageProvider(displayedAvatarUrl) ==
+                                        null
+                                    ? const Icon(Icons.person, size: 44)
+                                    : null,
+                              ),
+                              if (_isEditing)
+                                Positioned(
+                                  right: -2,
+                                  bottom: -2,
+                                  child: InkWell(
+                                    onTap: _pickAvatarImage,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(6),
+                                      decoration: BoxDecoration(
+                                        color: cs.primary,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: Icon(
+                                        Icons.photo_camera_outlined,
+                                        size: 16,
+                                        color: cs.onPrimary,
+                                      ),
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            (userData['name'] as String? ?? 'NAME')
+                                .toUpperCase(),
+                            style: Theme.of(context).textTheme.titleSmall
+                                ?.copyWith(fontWeight: FontWeight.w800),
+                          ),
                         ],
                       ),
-                      const SizedBox(height: 10),
-                      Text(
-                        (userData['name'] as String? ?? 'NAME').toUpperCase(),
-                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w800,
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: cs.surfaceContainer,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'WHAT I\'M FEELING RIGHT NOW...',
+                                  style: Theme.of(context).textTheme.labelSmall
+                                      ?.copyWith(fontWeight: FontWeight.w700),
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    _MoodMini(asset: _currentMoodAsset),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        _currentMoodLabel,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodyMedium
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Container(
+                          width: 120,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: cs.surfaceContainer,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Mood Score',
+                                style: Theme.of(context).textTheme.labelSmall
+                                    ?.copyWith(fontWeight: FontWeight.w700),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                '$_todayMoodScore',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .headlineMedium
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.w900,
+                                      color: cs.primary,
+                                    ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Public Posts (Forums)',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    if (posts.isEmpty)
+                      const _SimpleInfoCard(
+                        title: 'Posts',
+                        subtitle: 'No public forum posts yet.',
+                        leading: Icons.chat_bubble_outline,
+                      )
+                    else
+                      ...posts.map(
+                        (p) => _SimpleInfoCard(
+                          title: (p['title'] as String?) ?? 'Untitled Post',
+                          subtitle: (p['content'] as String?) ?? '',
+                          leading: Icons.forum_outlined,
                         ),
                       ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                Row(
-                  children: [
-                    Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: cs.surfaceContainer,
-                          borderRadius: BorderRadius.circular(12),
+                    const SizedBox(height: 14),
+                    Text('Name', style: Theme.of(context).textTheme.titleSmall),
+                    const SizedBox(height: 8),
+                    if (_isEditing)
+                      TextField(
+                        controller: _nameController,
+                        decoration: InputDecoration(
+                          hintText: 'Your name',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'WHAT I\'M FEELING RIGHT NOW...',
-                              style: Theme.of(context).textTheme.labelSmall
-                                  ?.copyWith(fontWeight: FontWeight.w700),
+                      )
+                    else
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Text(userData['name'] as String? ?? 'N/A'),
+                        ),
+                      ),
+                    const SizedBox(height: 20),
+                    Text(
+                      'Email',
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                    const SizedBox(height: 8),
+                    if (_isEditing)
+                      TextField(
+                        controller: _emailController,
+                        decoration: InputDecoration(
+                          hintText: 'your.email@example.com',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      )
+                    else
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Text(userData['email'] as String? ?? 'N/A'),
+                        ),
+                      ),
+                    const SizedBox(height: 20),
+                    Text('Bio', style: Theme.of(context).textTheme.titleSmall),
+                    const SizedBox(height: 8),
+                    if (_isEditing)
+                      TextField(
+                        controller: _bioController,
+                        maxLines: 4,
+                        maxLength: 500,
+                        keyboardType: TextInputType.multiline,
+                        decoration: InputDecoration(
+                          hintText:
+                              'Tell us about yourself... Emojis are welcome 😊',
+                          helperText: 'You can use emojis in your bio.',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      )
+                    else
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Text(
+                            userData['bio'] as String? ?? 'No bio',
+                            style: TextStyle(
+                              color: Theme.of(
+                                context,
+                              ).textTheme.bodyMedium?.color,
                             ),
-                            const SizedBox(height: 8),
-                            Row(
+                          ),
+                        ),
+                      ),
+                    const SizedBox(height: 20),
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.calendar_today),
+                            const SizedBox(width: 12),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                _MoodMini(asset: _currentMoodAsset),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    _currentMoodLabel,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodyMedium
-                                        ?.copyWith(fontWeight: FontWeight.w700),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
+                                Text(
+                                  'Member Since',
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                                Text(
+                                  userData['createdAt'] != null
+                                      ? DateTime.parse(
+                                          userData['createdAt'] as String,
+                                        ).toString().split(' ')[0]
+                                      : 'N/A',
+                                  style: Theme.of(context).textTheme.titleSmall,
                                 ),
                               ],
                             ),
@@ -394,182 +509,46 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 10),
-                    Container(
-                      width: 120,
-                      padding: const EdgeInsets.all(12),
+                    const SizedBox(height: 24),
+                  ],
+                ),
+              ),
+              if (_isEditing)
+                Positioned(
+                  left: 14,
+                  right: 14,
+                  bottom: 14,
+                  child: SafeArea(
+                    top: false,
+                    child: DecoratedBox(
                       decoration: BoxDecoration(
-                        color: cs.surfaceContainer,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Mood Score',
-                            style: Theme.of(context).textTheme.labelSmall
-                                ?.copyWith(fontWeight: FontWeight.w700),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            '$_todayMoodScore',
-                            style: Theme.of(context).textTheme.headlineMedium
-                                ?.copyWith(
-                                  fontWeight: FontWeight.w900,
-                                  color: cs.primary,
-                                ),
+                        color: cs.surface.withValues(alpha: 0.96),
+                        borderRadius: BorderRadius.circular(18),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x22000000),
+                            blurRadius: 20,
+                            offset: Offset(0, 8),
                           ),
                         ],
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-
-                Text(
-                  'Public Posts (Forums)',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                if (posts.isEmpty)
-                  _SimpleInfoCard(
-                    title: 'Posts',
-                    subtitle: 'No public forum posts yet.',
-                    leading: Icons.chat_bubble_outline,
-                  )
-                else
-                  ...posts.map(
-                    (p) => _SimpleInfoCard(
-                      title: (p['title'] as String?) ?? 'Untitled Post',
-                      subtitle: (p['content'] as String?) ?? '',
-                      leading: Icons.forum_outlined,
-                    ),
-                  ),
-                const SizedBox(height: 14),
-
-                // Name
-                Text('Name', style: Theme.of(context).textTheme.titleSmall),
-                const SizedBox(height: 8),
-                if (_isEditing)
-                  TextField(
-                    controller: _nameController,
-                    decoration: InputDecoration(
-                      hintText: 'Your name',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                  )
-                else
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Text(userData['name'] as String? ?? 'N/A'),
-                    ),
-                  ),
-                const SizedBox(height: 20),
-
-                // Email
-                Text('Email', style: Theme.of(context).textTheme.titleSmall),
-                const SizedBox(height: 8),
-                if (_isEditing)
-                  TextField(
-                    controller: _emailController,
-                    decoration: InputDecoration(
-                      hintText: 'your.email@example.com',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                  )
-                else
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Text(userData['email'] as String? ?? 'N/A'),
-                    ),
-                  ),
-                const SizedBox(height: 20),
-
-                // Bio
-                Text('Bio', style: Theme.of(context).textTheme.titleSmall),
-                const SizedBox(height: 8),
-                if (_isEditing)
-                  TextField(
-                    controller: _bioController,
-                    maxLines: 4,
-                    maxLength: 500,
-                    keyboardType: TextInputType.multiline,
-                    decoration: InputDecoration(
-                      hintText:
-                          'Tell us about yourself... Emojis are welcome 😊',
-                      helperText: 'You can use emojis in your bio.',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                  )
-                else
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Text(
-                        userData['bio'] as String? ?? 'No bio',
-                        style: TextStyle(
-                          color: Theme.of(context).textTheme.bodyMedium?.color,
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: _saveProfile,
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                            child: const Text('Save Changes'),
+                          ),
                         ),
                       ),
                     ),
                   ),
-                const SizedBox(height: 20),
-
-                // Member since
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.calendar_today),
-                        const SizedBox(width: 12),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Member Since',
-                              style: Theme.of(context).textTheme.bodySmall,
-                            ),
-                            Text(
-                              userData['createdAt'] != null
-                                  ? DateTime.parse(
-                                      userData['createdAt'] as String,
-                                    ).toString().split(' ')[0]
-                                  : 'N/A',
-                              style: Theme.of(context).textTheme.titleSmall,
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
                 ),
-                const SizedBox(height: 24),
-
-                // Save button (only when editing)
-                if (_isEditing)
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _saveProfile,
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      child: const Text('Save Changes'),
-                    ),
-                  ),
-              ],
-            ),
+            ],
           );
         },
       ),
@@ -636,6 +615,7 @@ class _SimpleInfoCard extends StatelessWidget {
 
 class _MoodMini extends StatelessWidget {
   final String asset;
+
   const _MoodMini({required this.asset});
 
   @override
