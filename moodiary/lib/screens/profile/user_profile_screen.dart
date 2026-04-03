@@ -16,7 +16,7 @@ class UserProfileScreen extends StatefulWidget {
 }
 
 class _UserProfileScreenState extends State<UserProfileScreen> {
-  late Future<Map<String, dynamic>> _profileFuture;
+  Future<Map<String, dynamic>> _profileFuture = Future.value(const {});
   late String _userId;
   late String _authToken;
   bool _isEditing = false;
@@ -83,7 +83,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     final userName = prefs.getString('user_name');
     final results = await Future.wait<dynamic>([
       AuthService.instance.getUserProfile(userId: _userId),
-      AuthService.instance.getMyJournalEntries(authToken: _authToken),
       AuthService.instance.getMyForumPosts(
         authToken: _authToken,
         userName: userName,
@@ -92,8 +91,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
     return {
       'profile': results[0] as Map<String, dynamic>,
-      'journals': results[1] as List<Map<String, dynamic>>,
-      'posts': results[2] as List<Map<String, dynamic>>,
+      'posts': results[1] as List<Map<String, dynamic>>,
     };
   }
 
@@ -233,11 +231,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
           final bundle = snapshot.data;
           final userData = bundle?['profile']?['user'] as Map<String, dynamic>?;
-          final journals =
-              (bundle?['journals'] as List<Map<String, dynamic>>? ?? const [])
-                  .where((j) => j['isArchived'] != true)
-                  .take(3)
-                  .toList();
           final posts =
               (bundle?['posts'] as List<Map<String, dynamic>>? ?? const [])
                   .where(
@@ -395,26 +388,12 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                 const SizedBox(height: 16),
 
                 Text(
-                  'Public Journals & Posts',
+                  'Public Posts (Forums)',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w800,
                   ),
                 ),
                 const SizedBox(height: 8),
-                if (journals.isEmpty)
-                  _SimpleInfoCard(
-                    title: 'Public Journals',
-                    subtitle: 'No journal entries yet.',
-                  )
-                else
-                  ...journals.map(
-                    (j) => _SimpleInfoCard(
-                      title: (j['title'] as String?) ?? 'Untitled Journal',
-                      subtitle: (j['content'] as String?) ?? '',
-                      leading: Icons.book_outlined,
-                    ),
-                  ),
-                const SizedBox(height: 6),
                 if (posts.isEmpty)
                   _SimpleInfoCard(
                     title: 'Posts',

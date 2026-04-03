@@ -23,6 +23,7 @@ function serializePost(post, currentUserId) {
     title: post.title,
     content: post.content,
     isAnonymous: post.isAnonymous,
+    authorId: post.isAnonymous ? null : String(post.userId),
     authorName: post.isAnonymous ? 'Anonymous' : post.authorName,
     authorAvatarUrl:
       post.isAnonymous || !post.authorAvatarUrl ? null : post.authorAvatarUrl,
@@ -36,6 +37,7 @@ function serializePost(post, currentUserId) {
       text: comment.text,
       moodAsset: comment.moodAsset || DEFAULT_COMMENT_ASSET,
       isAnonymous: comment.isAnonymous,
+      authorId: comment.isAnonymous ? null : String(comment.userId),
       authorName: comment.isAnonymous ? 'Anonymous' : comment.authorName,
       authorAvatarUrl:
         comment.isAnonymous || !comment.authorAvatarUrl

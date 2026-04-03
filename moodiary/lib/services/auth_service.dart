@@ -243,12 +243,7 @@ class AuthService {
         final decoded = jsonDecode(response.body) as List<dynamic>;
         return decoded
             .cast<Map<String, dynamic>>()
-            .where(
-              (post) =>
-                  post['isMine'] == true ||
-                  (userName != null &&
-                      post['authorName']?.toString() == userName),
-            )
+            .where((post) => post['isMine'] == true)
             .toList();
       }
       final decoded = jsonDecode(response.body) as Map<String, dynamic>;

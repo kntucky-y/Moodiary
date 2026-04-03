@@ -21,6 +21,7 @@ import '../../services/realtime_notifications.dart';
 import '../../services/theme_controller.dart';
 import '../../theme/moodiary_colors.dart';
 import '../../utils/avatar_utils.dart';
+import '../../widgets/user_profile_popup.dart';
 
 const _kPurple = Color(0xFFA076F9);
 const _kSubtle = Color(0xFF8A8A8D);
@@ -865,6 +866,11 @@ class _ForumListView extends StatelessWidget {
                       onTap: () => onPostTap(i),
                       onLikeTap: () => onLikeTap(i),
                       onReportTap: () => onReportTap(i),
+                      onAuthorTap: () {
+                        final authorId = posts[i].authorId;
+                        if (authorId == null || authorId.isEmpty) return;
+                        showUserProfilePopup(context, userId: authorId);
+                      },
                     );
                   },
                 ),
@@ -1048,6 +1054,11 @@ class _ForumDetailViewState extends State<_ForumDetailView> {
                         onTap: () {},
                         onLikeTap: widget.onLikeTap,
                         onReportTap: widget.onReportTap,
+                        onAuthorTap: () {
+                          final authorId = post.authorId;
+                          if (authorId == null || authorId.isEmpty) return;
+                          showUserProfilePopup(context, userId: authorId);
+                        },
                       ),
                     ),
                     IconButton(
@@ -1182,12 +1193,14 @@ class _PostCard extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onLikeTap;
   final VoidCallback onReportTap;
+  final VoidCallback? onAuthorTap;
 
   const _PostCard({
     required this.post,
     required this.onTap,
     required this.onLikeTap,
     required this.onReportTap,
+    this.onAuthorTap,
     this.compactText = true,
   });
 
@@ -1213,24 +1226,29 @@ class _PostCard extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            post.isAnonymous
-                ? Image.asset(
-                    post.doodleAsset,
-                    width: compactText ? 62 : 74,
-                    height: compactText ? 62 : 74,
-                    errorBuilder: (context, error, stackTrace) => const Icon(
-                      Icons.face_outlined,
-                      size: 56,
-                      color: _kSubtle,
+            GestureDetector(
+              onTap: post.isAnonymous ? null : onAuthorTap,
+              child: post.isAnonymous
+                  ? Image.asset(
+                      post.doodleAsset,
+                      width: compactText ? 62 : 74,
+                      height: compactText ? 62 : 74,
+                      errorBuilder: (context, error, stackTrace) => const Icon(
+                        Icons.face_outlined,
+                        size: 56,
+                        color: _kSubtle,
+                      ),
+                    )
+                  : CircleAvatar(
+                      radius: compactText ? 31 : 37,
+                      backgroundImage: avatarImageProvider(
+                        post.authorAvatarUrl,
+                      ),
+                      child: avatarImageProvider(post.authorAvatarUrl) == null
+                          ? const Icon(Icons.person_outline, color: _kSubtle)
+                          : null,
                     ),
-                  )
-                : CircleAvatar(
-                    radius: compactText ? 31 : 37,
-                    backgroundImage: avatarImageProvider(post.authorAvatarUrl),
-                    child: avatarImageProvider(post.authorAvatarUrl) == null
-                        ? const Icon(Icons.person_outline, color: _kSubtle)
-                        : null,
-                  ),
+            ),
             const SizedBox(width: 10),
             Expanded(
               child: Column(
@@ -1248,10 +1266,22 @@ class _PostCard extends StatelessWidget {
                     ),
                   ),
                   SizedBox(height: compactText ? 4 : 6),
+                  if (!compactText && !post.isAnonymous)
+                    GestureDetector(
+                      onTap: onAuthorTap,
+                      child: Text(
+                        'Posted by ${post.author}',
+                        style: TextStyle(
+                          color: onCardSubtle,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  if (!compactText && !post.isAnonymous)
+                    const SizedBox(height: 4),
                   Text(
-                    compactText
-                        ? post.content
-                        : '${post.content}\nPosted by ${post.author}',
+                    post.content,
                     maxLines: compactText ? 3 : null,
                     overflow: compactText ? TextOverflow.ellipsis : null,
                     style: TextStyle(
@@ -1375,6 +1405,7 @@ class _ForumPost {
   final String title;
   final String content;
   final bool isAnonymous;
+  final String? authorId;
   final String author;
   final String? authorAvatarUrl;
   final int companionId;
@@ -1388,6 +1419,7 @@ class _ForumPost {
     required this.title,
     required this.content,
     required this.isAnonymous,
+    this.authorId,
     required this.author,
     this.authorAvatarUrl,
     required this.companionId,
@@ -1404,6 +1436,7 @@ class _ForumPost {
       title: json['title'] as String? ?? '',
       content: json['content'] as String? ?? '',
       isAnonymous: (json['isAnonymous'] as bool?) ?? true,
+      authorId: json['authorId'] as String?,
       author: json['authorName'] as String? ?? 'Anonymous',
       authorAvatarUrl: json['authorAvatarUrl'] as String?,
       companionId: (json['companionId'] as int?) ?? 1,

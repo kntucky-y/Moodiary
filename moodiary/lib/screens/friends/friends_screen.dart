@@ -344,6 +344,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
       FadeSlideRoute(
         page: FriendChatScreen(
           friendshipId: friend.id,
+          friendUserId: friend.friendUserId,
           friendName: friend.name,
           friendEmail: friend.email,
           friendAvatarUrl: friend.avatarUrl,
@@ -486,6 +487,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
 
 class _FriendSummary {
   final String id;
+  final String friendUserId;
   final String name;
   final String email;
   final String? avatarUrl;
@@ -494,6 +496,7 @@ class _FriendSummary {
 
   _FriendSummary({
     required this.id,
+    required this.friendUserId,
     required this.name,
     required this.email,
     this.avatarUrl,
@@ -506,6 +509,7 @@ class _FriendSummary {
     final friend = json['friend'] as Map<String, dynamic>? ?? {};
     return _FriendSummary(
       id: json['id'].toString(),
+      friendUserId: friend['id']?.toString() ?? '',
       name: friend['name'] as String? ?? 'Friend',
       email: friend['email'] as String? ?? '',
       avatarUrl: friend['avatarUrl'] as String?,
@@ -525,6 +529,7 @@ class _FriendSummary {
   }) {
     return _FriendSummary(
       id: id,
+      friendUserId: friendUserId,
       name: name ?? this.name,
       email: email ?? this.email,
       avatarUrl: avatarUrl ?? this.avatarUrl,

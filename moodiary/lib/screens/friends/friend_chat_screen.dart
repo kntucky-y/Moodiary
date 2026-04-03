@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 import '../../theme/moodiary_colors.dart';
 import '../../utils/avatar_utils.dart';
+import '../../widgets/user_profile_popup.dart';
 
 const _kBaseUrl = 'https://moodiary-production.up.railway.app';
 const _kPurple = Color(0xFFA076F9);
@@ -13,6 +14,7 @@ const _kBubbleMine = Color(0xFF4338CA);
 
 class FriendChatScreen extends StatefulWidget {
   final String friendshipId;
+  final String friendUserId;
   final String friendName;
   final String friendEmail;
   final String? friendAvatarUrl;
@@ -20,6 +22,7 @@ class FriendChatScreen extends StatefulWidget {
   const FriendChatScreen({
     super.key,
     required this.friendshipId,
+    required this.friendUserId,
     required this.friendName,
     required this.friendEmail,
     this.friendAvatarUrl,
@@ -260,6 +263,7 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
         child: Column(
           children: [
             _ChatHeader(
+              friendUserId: widget.friendUserId,
               name: widget.friendName,
               email: widget.friendEmail,
               friendAvatarUrl: widget.friendAvatarUrl,
@@ -420,11 +424,13 @@ class _ChatBubble extends StatelessWidget {
 }
 
 class _ChatHeader extends StatelessWidget {
+  final String friendUserId;
   final String name;
   final String email;
   final String? friendAvatarUrl;
 
   const _ChatHeader({
+    required this.friendUserId,
     required this.name,
     required this.email,
     this.friendAvatarUrl,
@@ -445,27 +451,40 @@ class _ChatHeader extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-          CircleAvatar(
-            radius: 18,
-            backgroundImage: avatarImageProvider(friendAvatarUrl),
-            child: avatarImageProvider(friendAvatarUrl) == null
-                ? const Icon(Icons.person, size: 18)
-                : null,
-          ),
-          const SizedBox(width: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                name,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 20,
-                  color: _kPurple,
+          GestureDetector(
+            onTap: () {
+              if (friendUserId.isEmpty) return;
+              showUserProfilePopup(context, userId: friendUserId);
+            },
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 18,
+                  backgroundImage: avatarImageProvider(friendAvatarUrl),
+                  child: avatarImageProvider(friendAvatarUrl) == null
+                      ? const Icon(Icons.person, size: 18)
+                      : null,
                 ),
-              ),
-              Text(email, style: TextStyle(color: secondaryText, fontSize: 12)),
-            ],
+                const SizedBox(width: 10),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 20,
+                        color: _kPurple,
+                      ),
+                    ),
+                    Text(
+                      email,
+                      style: TextStyle(color: secondaryText, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ],
       ),
