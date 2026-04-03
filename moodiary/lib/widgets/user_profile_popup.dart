@@ -96,6 +96,45 @@ class _UserProfilePopup extends StatelessWidget {
     }
   }
 
+  Future<void> _reportUser(BuildContext context, String displayName) async {
+    final prefs = await SharedPreferences.getInstance();
+    final selfUserId =
+        prefs.getString('user_id') ?? prefs.getString('userId') ?? '';
+    final token = prefs.getString('token') ?? '';
+    if (selfUserId.isEmpty || token.isEmpty || selfUserId == userId) {
+      return;
+    }
+
+    if (!context.mounted) return;
+    final report = await showModalBottomSheet<_ReportDraft>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      builder: (sheetContext) => _ReportUserSheet(userName: displayName),
+    );
+
+    if (!context.mounted || report == null) return;
+
+    try {
+      await AuthService.instance.reportUser(
+        authToken: token,
+        targetUserId: userId,
+        reason: report.reason,
+        details: report.details,
+      );
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Report submitted')));
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not submit report: $e')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -574,6 +613,19 @@ class _UserProfilePopup extends StatelessWidget {
                                 ),
                               ],
                             ),
+                            const SizedBox(height: 8),
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: () => _reportUser(context, name),
+                                icon: const Icon(Icons.flag_outlined),
+                                label: const Text('Report user'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: colorScheme.error,
+                                  side: BorderSide(color: colorScheme.error),
+                                ),
+                              ),
+                            ),
                             Align(
                               alignment: Alignment.centerRight,
                               child: TextButton(
@@ -590,6 +642,117 @@ class _UserProfilePopup extends StatelessWidget {
               );
             },
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ReportDraft {
+  final String reason;
+  final String details;
+
+  const _ReportDraft({required this.reason, required this.details});
+}
+
+class _ReportUserSheet extends StatefulWidget {
+  final String userName;
+
+  const _ReportUserSheet({required this.userName});
+
+  @override
+  State<_ReportUserSheet> createState() => _ReportUserSheetState();
+}
+
+class _ReportUserSheetState extends State<_ReportUserSheet> {
+  static const _reasons = <String>[
+    'Harassment or bullying',
+    'Spam or scam',
+    'Hate or abuse',
+    'Impersonation',
+    'Privacy violation',
+    'Other',
+  ];
+
+  final _detailsController = TextEditingController();
+  String _selectedReason = _reasons.first;
+
+  @override
+  void dispose() {
+    _detailsController.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    Navigator.of(context).pop(
+      _ReportDraft(
+        reason: _selectedReason,
+        details: _detailsController.text.trim(),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(16, 8, 16, 16 + bottomInset),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Report ${widget.userName}',
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Tell us what happened so we can review it.',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<String>(
+              value: _selectedReason,
+              decoration: const InputDecoration(
+                labelText: 'Reason',
+                border: OutlineInputBorder(),
+              ),
+              items: _reasons
+                  .map(
+                    (reason) =>
+                        DropdownMenuItem(value: reason, child: Text(reason)),
+                  )
+                  .toList(),
+              onChanged: (value) {
+                if (value == null) return;
+                setState(() => _selectedReason = value);
+              },
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _detailsController,
+              minLines: 3,
+              maxLines: 5,
+              maxLength: 1000,
+              decoration: const InputDecoration(
+                labelText: 'Additional details (optional)',
+                border: OutlineInputBorder(),
+                alignLabelWithHint: true,
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: _submit,
+                child: const Text('Submit report'),
+              ),
+            ),
+          ],
         ),
       ),
     );

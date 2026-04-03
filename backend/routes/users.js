@@ -6,6 +6,7 @@ const mongoose = require('mongoose');
 const User = require('../models/User');
 const MoodLog = require('../models/Mood');
 const ForumPost = require('../models/ForumPost');
+const UserReport = require('../models/UserReport');
 const auth = require('../middleware/auth');
 
 const sanitizeUser = (user) => ({
@@ -148,6 +149,43 @@ router.get('/search/query', auth, async (req, res) => {
   } catch (err) {
     console.error('Search users error', err);
     res.status(500).json({ error: 'Unable to search users' });
+  }
+});
+
+// POST /api/users/:id/report - Report a user for moderation review
+router.post('/:id/report', auth, async (req, res) => {
+  try {
+    const { reason, details } = req.body;
+    const targetUserId = req.params.id;
+
+    if (!mongoose.Types.ObjectId.isValid(targetUserId)) {
+      return res.status(400).json({ error: 'Invalid user ID' });
+    }
+
+    if (!reason || typeof reason !== 'string' || !reason.trim()) {
+      return res.status(400).json({ error: 'Reason is required' });
+    }
+
+    if (req.userId === targetUserId) {
+      return res.status(400).json({ error: 'Cannot report yourself' });
+    }
+
+    const targetUser = await User.findById(targetUserId).select('_id');
+    if (!targetUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    await UserReport.create({
+      reporterId: req.userId,
+      targetUserId,
+      reason: reason.trim().substring(0, 100),
+      details: typeof details === 'string' ? details.trim().substring(0, 1000) : '',
+    });
+
+    res.json({ message: 'Report submitted successfully' });
+  } catch (err) {
+    console.error('Report user error', err);
+    res.status(500).json({ error: 'Unable to submit report' });
   }
 });
 

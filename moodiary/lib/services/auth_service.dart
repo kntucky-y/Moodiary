@@ -200,6 +200,23 @@ class AuthService {
     );
   }
 
+  Future<void> reportUser({
+    required String authToken,
+    required String targetUserId,
+    required String reason,
+    String details = '',
+  }) async {
+    await _sendAuthedJson(
+      '/api/users/$targetUserId/report',
+      authToken: authToken,
+      method: 'POST',
+      body: {
+        'reason': reason,
+        if (details.trim().isNotEmpty) 'details': details.trim(),
+      },
+    );
+  }
+
   Future<void> unblockUser({
     required String userId,
     required String authToken,
