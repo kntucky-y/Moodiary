@@ -7,6 +7,8 @@ import '../../services/auth_service.dart';
 import '../../utils/avatar_file_picker.dart';
 import '../../utils/avatar_utils.dart';
 
+const _profileCacheKey = 'user_profile_bundle_cache';
+
 class UserProfileScreen extends StatefulWidget {
   const UserProfileScreen({super.key});
 
@@ -77,10 +79,19 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       }
     }
 
+    final cachedBundle = await _loadCachedProfileBundle();
+
     if (!mounted) return;
-    setState(() {
-      _profileFuture = _loadProfileBundle();
-    });
+    if (cachedBundle != null) {
+      setState(() {
+        _profileFuture = Future.value(cachedBundle);
+      });
+      _refreshProfileBundleInBackground();
+    } else {
+      setState(() {
+        _profileFuture = _loadProfileBundle();
+      });
+    }
   }
 
   Future<Map<String, dynamic>> _loadProfileBundle() async {
@@ -98,6 +109,44 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       'profile': results[0] as Map<String, dynamic>,
       'posts': results[1] as List<Map<String, dynamic>>,
     };
+  }
+
+  Future<Map<String, dynamic>?> _loadCachedProfileBundle() async {
+    final prefs = await SharedPreferences.getInstance();
+    final rawCache = prefs.getString(_profileCacheKey);
+    if (rawCache == null || rawCache.isEmpty) return null;
+
+    try {
+      final decoded = jsonDecode(rawCache);
+      if (decoded is Map<String, dynamic>) {
+        final profile = decoded['profile'];
+        final posts = decoded['posts'];
+        if (profile is Map<String, dynamic> && posts is List) {
+          return {
+            'profile': profile,
+            'posts': posts.cast<Map<String, dynamic>>(),
+          };
+        }
+      }
+    } catch (_) {
+      // Ignore malformed cache.
+    }
+
+    return null;
+  }
+
+  Future<void> _refreshProfileBundleInBackground() async {
+    try {
+      final bundle = await _loadProfileBundle();
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_profileCacheKey, jsonEncode(bundle));
+      if (!mounted) return;
+      setState(() {
+        _profileFuture = Future.value(bundle);
+      });
+    } catch (_) {
+      // Keep the cached view if the refresh fails.
+    }
   }
 
   Future<void> _saveProfile() async {
@@ -124,6 +173,27 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         await prefs.setString('user_avatar_url', _selectedAvatarDataUrl!);
       } else if (_currentAvatarUrl != null && _currentAvatarUrl!.isNotEmpty) {
         await prefs.setString('user_avatar_url', _currentAvatarUrl!);
+      }
+
+      final existingCache = await _loadCachedProfileBundle();
+      if (existingCache != null) {
+        final profile = existingCache['profile'] as Map<String, dynamic>;
+        final user = Map<String, dynamic>.from(
+          profile['user'] as Map<String, dynamic>? ?? const {},
+        );
+        user['name'] = _nameController.text.trim();
+        user['email'] = _emailController.text.trim();
+        user['bio'] = _bioController.text.trim();
+        if (updatedAvatarUrl != null && updatedAvatarUrl.isNotEmpty) {
+          user['avatarUrl'] = updatedAvatarUrl;
+        } else if (_selectedAvatarDataUrl != null &&
+            _selectedAvatarDataUrl!.isNotEmpty) {
+          user['avatarUrl'] = _selectedAvatarDataUrl;
+        } else if (_currentAvatarUrl != null && _currentAvatarUrl!.isNotEmpty) {
+          user['avatarUrl'] = _currentAvatarUrl;
+        }
+        profile['user'] = user;
+        await prefs.setString(_profileCacheKey, jsonEncode(existingCache));
       }
 
       if (!mounted) return;
