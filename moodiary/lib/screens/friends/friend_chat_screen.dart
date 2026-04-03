@@ -66,8 +66,8 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
     _companionId = widget.companionId;
     _companionName = widget.companionName;
     _userId = _deriveUserIdFromToken(_token ?? '');
-    await _loadHistory();
     _connectSocket();
+    await _loadHistory();
   }
 
   Future<void> _loadHistory() async {
@@ -76,10 +76,12 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
       return;
     }
     try {
-      final resp = await http.get(
-        Uri.parse('$_kBaseUrl/api/friends/${widget.friendshipId}/messages'),
-        headers: {'Authorization': 'Bearer $_token'},
-      );
+      final resp = await http
+          .get(
+            Uri.parse('$_kBaseUrl/api/friends/${widget.friendshipId}/messages'),
+            headers: {'Authorization': 'Bearer $_token'},
+          )
+          .timeout(const Duration(seconds: 8));
       if (resp.statusCode == 200) {
         final List<dynamic> data = jsonDecode(resp.body);
         setState(() {

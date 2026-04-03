@@ -1,5 +1,9 @@
 # Project-level configuration.
 cmake_minimum_required(VERSION 3.14)
+# Suppress warning noise from third-party CMake projects generated in build/
+# (for example Firebase C++ SDK).
+set(CMAKE_WARN_DEPRECATED OFF CACHE BOOL "" FORCE)
+set(CMAKE_SUPPRESS_DEVELOPER_WARNINGS 1 CACHE BOOL "" FORCE)
 # Required by Firebase C++ SDK CMake scripts when running on newer CMake.
 set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 project(moodiary LANGUAGES CXX)

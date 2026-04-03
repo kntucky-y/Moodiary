@@ -47,6 +47,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
   bool _loading = true;
   bool _sidebarOpen = false;
   String? _token;
+  late String _currentUserName;
   List<_FriendSummary> _friends = [];
   List<_FriendRequest> _incoming = [];
   List<_FriendRequest> _outgoing = [];
@@ -55,6 +56,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
   @override
   void initState() {
     super.initState();
+    _currentUserName = widget.userName;
     _notificationSub = RealtimeNotifications.instance.stream.listen(
       _handleNotification,
     );
@@ -70,8 +72,22 @@ class _FriendsScreenState extends State<FriendsScreen> {
   Future<void> _init() async {
     final prefs = await SharedPreferences.getInstance();
     _token = prefs.getString('token');
+    final latestName = prefs.getString('user_name')?.trim();
+    if (latestName != null && latestName.isNotEmpty) {
+      _currentUserName = latestName;
+    }
     await RealtimeNotifications.instance.ensureConnected(token: _token);
     await _loadFriends();
+  }
+
+  Future<void> _refreshUserNameFromPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    final latestName = prefs.getString('user_name')?.trim();
+    if (!mounted || latestName == null || latestName.isEmpty) return;
+    if (latestName == _currentUserName) return;
+    setState(() {
+      _currentUserName = latestName;
+    });
   }
 
   void _handleNotification(Map<String, dynamic> payload) {
@@ -357,7 +373,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
           friendEmail: friend.email,
           friendAvatarUrl: friend.avatarUrl,
           authToken: token,
-          userName: widget.userName,
+          userName: _currentUserName,
           companionId: widget.companionId,
           companionName: widget.companionName,
         ),
@@ -374,7 +390,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
     Navigator.of(context).push(
       FadeSlideRoute(
         page: ForumsScreen(
-          userName: widget.userName,
+          userName: _currentUserName,
           companionId: widget.companionId,
           companionName: widget.companionName,
           initialPostId: selectedPostId,
@@ -503,28 +519,33 @@ class _FriendsScreenState extends State<FriendsScreen> {
             bottom: 0,
             width: 260,
             child: AppSidebar(
-              userName: widget.userName,
+              userName: _currentUserName,
               activeSection: SidebarSection.friends,
               onClose: _closeSidebar,
               onNavigateHome: () => _openScreen(
                 HomeScreen(
-                  userName: widget.userName,
+                  userName: _currentUserName,
                   companionId: widget.companionId,
                   companionName: widget.companionName,
                 ),
               ),
-              onNavigateUserProfile: () =>
-                  _openScreen(const UserProfileScreen()),
+              onNavigateUserProfile: () async {
+                _closeSidebar();
+                await Navigator.of(
+                  context,
+                ).push(FadeSlideRoute(page: const UserProfileScreen()));
+                await _refreshUserNameFromPrefs();
+              },
               onNavigateCalendar: () => _openScreen(
                 CalendarScreen(
-                  userName: widget.userName,
+                  userName: _currentUserName,
                   companionId: widget.companionId,
                   companionName: widget.companionName,
                 ),
               ),
               onNavigateJournal: () => _openScreen(
                 JournalScreen(
-                  userName: widget.userName,
+                  userName: _currentUserName,
                   companionId: widget.companionId,
                   companionName: widget.companionName,
                 ),
@@ -532,15 +553,15 @@ class _FriendsScreenState extends State<FriendsScreen> {
               onNavigateFriends: _closeSidebar,
               onNavigateForums: () => _openScreen(
                 ForumsScreen(
-                  userName: widget.userName,
+                  userName: _currentUserName,
                   companionId: widget.companionId,
                   companionName: widget.companionName,
                 ),
               ),
               onNavigateSettings: () =>
-                  _openScreen(SettingsScreen(userName: widget.userName)),
+                  _openScreen(SettingsScreen(userName: _currentUserName)),
               onChangeCompanion: () =>
-                  _openScreen(CompanionScreen(userName: widget.userName)),
+                  _openScreen(CompanionScreen(userName: _currentUserName)),
               onLogout: () {
                 _closeSidebar();
                 _logout();
