@@ -411,13 +411,19 @@ class _CalendarScreenState extends State<CalendarScreen> {
               userName: widget.userName,
               activeSection: SidebarSection.calendar,
               onClose: _closeSidebar,
-              onNavigateHome: () => _openScreen(
-                HomeScreen(
-                  userName: widget.userName,
-                  companionId: widget.companionId,
-                  companionName: widget.companionName,
-                ),
-              ),
+              onNavigateHome: () async {
+                final prefs = await SharedPreferences.getInstance();
+                final avatarUrl = prefs.getString('user_avatar_url');
+                if (!mounted) return;
+                _openScreen(
+                  HomeScreen(
+                    userName: widget.userName,
+                    companionId: widget.companionId,
+                    companionName: widget.companionName,
+                    initialProfileAvatarUrl: avatarUrl,
+                  ),
+                );
+              },
               onNavigateUserProfile: () =>
                   _openScreen(const UserProfileScreen()),
               onNavigateCalendar: _closeSidebar,

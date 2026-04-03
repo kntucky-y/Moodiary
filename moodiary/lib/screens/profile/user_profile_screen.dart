@@ -748,6 +748,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   userName: _currentUserName,
                   companionId: _companionId,
                   companionName: _companionName,
+                  initialProfileAvatarUrl:
+                      _selectedAvatarDataUrl ?? _currentAvatarUrl,
                 ),
               ),
               onNavigateUserProfile: () => setState(() => _sidebarOpen = false),

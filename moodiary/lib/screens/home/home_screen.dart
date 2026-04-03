@@ -185,12 +185,14 @@ class HomeScreen extends StatefulWidget {
   final String userName;
   final int companionId;
   final String companionName;
+  final String? initialProfileAvatarUrl;
 
   const HomeScreen({
     super.key,
     required this.userName,
     required this.companionId,
     required this.companionName,
+    this.initialProfileAvatarUrl,
   });
 
   @override
@@ -219,6 +221,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       vsync: this,
       duration: const Duration(milliseconds: 900),
     );
+    final initialAvatar = widget.initialProfileAvatarUrl?.trim();
+    if (initialAvatar != null && initialAvatar.isNotEmpty) {
+      _profileAvatarUrl = initialAvatar;
+      _profileAvatarImage = avatarImageProvider(initialAvatar);
+    }
     _loadProfileAvatar();
     _loadTodayTasks();
   }
@@ -227,6 +234,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
     final avatarUrl = prefs.getString('user_avatar_url');
+    if (avatarUrl == _profileAvatarUrl) return;
     setState(() {
       _profileAvatarUrl = avatarUrl;
       _profileAvatarImage = avatarImageProvider(avatarUrl);
@@ -318,13 +326,35 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     }
   }
 
-  Future<void> _refreshStreak() async {
+  Future<void> _refreshStreak({bool showFeedback = false}) async {
+    final previous = _streakCount;
     final prefs = await SharedPreferences.getInstance();
     final streak = await StreakUtils.refreshFromMoodCache(prefs);
     if (!mounted) return;
     setState(() {
       _streakCount = streak;
     });
+
+    if (!showFeedback || !mounted) return;
+    if (previous > 0 && streak == 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Streak reset. Log your mood daily to keep it going.'),
+        ),
+      );
+      return;
+    }
+    if (streak > previous && streak == 1) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Streak started: Day 1!')));
+      return;
+    }
+    if (streak > previous) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Streak updated: $streak days!')));
+    }
   }
 
   Future<void> _upsertTaskProgressInMoodCache(
@@ -422,7 +452,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       });
     }
     await prefs.setString('mood_logs_cache', jsonEncode(cacheData));
-    await _refreshStreak();
+    await _refreshStreak(showFeedback: true);
     // Sync to DB — server auto-computes moodLevelScore and merges with existing data
     final token = prefs.getString('token');
     if (token == null) return;
@@ -454,7 +484,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
     await prefs.setInt('mood_score_$today', newTaskPoints);
     await _upsertTaskProgressInMoodCache(today, newTaskPoints);
-    await _refreshStreak();
+    await _refreshStreak(showFeedback: true);
     _syncScoreToDb(today, newTaskPoints);
   }
 
@@ -481,7 +511,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
     await prefs.setInt('mood_score_$today', newTaskPoints);
     await _upsertTaskProgressInMoodCache(today, newTaskPoints);
-    await _refreshStreak();
+    await _refreshStreak(showFeedback: true);
     _syncScoreToDb(today, newTaskPoints);
   }
 

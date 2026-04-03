@@ -522,13 +522,19 @@ class _FriendsScreenState extends State<FriendsScreen> {
               userName: _currentUserName,
               activeSection: SidebarSection.friends,
               onClose: _closeSidebar,
-              onNavigateHome: () => _openScreen(
-                HomeScreen(
-                  userName: _currentUserName,
-                  companionId: widget.companionId,
-                  companionName: widget.companionName,
-                ),
-              ),
+              onNavigateHome: () async {
+                final prefs = await SharedPreferences.getInstance();
+                final avatarUrl = prefs.getString('user_avatar_url');
+                if (!mounted) return;
+                _openScreen(
+                  HomeScreen(
+                    userName: _currentUserName,
+                    companionId: widget.companionId,
+                    companionName: widget.companionName,
+                    initialProfileAvatarUrl: avatarUrl,
+                  ),
+                );
+              },
               onNavigateUserProfile: () async {
                 _closeSidebar();
                 await Navigator.of(
