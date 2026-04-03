@@ -341,6 +341,13 @@ class _FriendsScreenState extends State<FriendsScreen> {
   }
 
   void _openChat(_FriendSummary friend) {
+    final token = _token;
+    if (token == null || token.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Chat is not available right now.')),
+      );
+      return;
+    }
     Navigator.of(context).push(
       FadeSlideRoute(
         page: FriendChatScreen(
@@ -349,6 +356,10 @@ class _FriendsScreenState extends State<FriendsScreen> {
           friendName: friend.name,
           friendEmail: friend.email,
           friendAvatarUrl: friend.avatarUrl,
+          authToken: token,
+          userName: widget.userName,
+          companionId: widget.companionId,
+          companionName: widget.companionName,
         ),
       ),
     );

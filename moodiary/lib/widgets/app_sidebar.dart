@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../theme/moodiary_colors.dart';
 import '../utils/transitions.dart';
@@ -105,62 +106,71 @@ class AppSidebar extends StatelessWidget {
     return Material(
       elevation: 16,
       child: SafeArea(
-        child: Container(
-          color: surface,
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+        child: FutureBuilder<SharedPreferences>(
+          future: SharedPreferences.getInstance(),
+          builder: (context, snapshot) {
+            final storedName = snapshot.data?.getString('user_name')?.trim();
+            final currentName = storedName != null && storedName.isNotEmpty
+                ? storedName
+                : userName;
+            return Container(
+              color: surface,
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'moodiary',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: _kPurple,
-                    ),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    icon: Icon(Icons.close, color: subtleText),
-                    onPressed: onClose,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Hi, $userName!',
-                style: TextStyle(color: subtleText, fontSize: 13),
-              ),
-              const SizedBox(height: 24),
-              ...items.map(_buildItem),
-              const SizedBox(height: 12),
-              if (onChangeCompanion != null)
-                TapScale(
-                  onTap: onChangeCompanion!,
-                  child: const _SidebarItem(
-                    icon: Icons.swap_horiz_rounded,
-                    label: 'Change Companion',
-                  ),
-                ),
-              const Spacer(),
-              if (onLogout != null)
-                TapScale(
-                  onTap: onLogout!,
-                  child: Row(
+                  Row(
                     children: [
-                      Icon(Icons.logout, color: subtleText, size: 22),
-                      const SizedBox(width: 12),
-                      Text(
-                        'Logout',
-                        style: TextStyle(color: subtleText, fontSize: 16),
+                      const Text(
+                        'moodiary',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: _kPurple,
+                        ),
+                      ),
+                      const Spacer(),
+                      IconButton(
+                        icon: Icon(Icons.close, color: subtleText),
+                        onPressed: onClose,
                       ),
                     ],
                   ),
-                ),
-            ],
-          ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Hi, $currentName!',
+                    style: TextStyle(color: subtleText, fontSize: 13),
+                  ),
+                  const SizedBox(height: 24),
+                  ...items.map(_buildItem),
+                  const SizedBox(height: 12),
+                  if (onChangeCompanion != null)
+                    TapScale(
+                      onTap: onChangeCompanion!,
+                      child: const _SidebarItem(
+                        icon: Icons.swap_horiz_rounded,
+                        label: 'Change Companion',
+                      ),
+                    ),
+                  const Spacer(),
+                  if (onLogout != null)
+                    TapScale(
+                      onTap: onLogout!,
+                      child: Row(
+                        children: [
+                          Icon(Icons.logout, color: subtleText, size: 22),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Logout',
+                            style: TextStyle(color: subtleText, fontSize: 16),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            );
+          },
         ),
       ),
     );

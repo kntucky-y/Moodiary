@@ -2,7 +2,6 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 import '../forums/forums_screen.dart';
 import '../../utils/transitions.dart';
@@ -20,6 +19,10 @@ class FriendChatScreen extends StatefulWidget {
   final String friendName;
   final String friendEmail;
   final String? friendAvatarUrl;
+  final String authToken;
+  final String userName;
+  final int companionId;
+  final String companionName;
 
   const FriendChatScreen({
     super.key,
@@ -28,6 +31,10 @@ class FriendChatScreen extends StatefulWidget {
     required this.friendName,
     required this.friendEmail,
     this.friendAvatarUrl,
+    required this.authToken,
+    required this.userName,
+    required this.companionId,
+    required this.companionName,
   });
 
   @override
@@ -54,19 +61,11 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
   }
 
   Future<void> _init() async {
-    final prefs = await SharedPreferences.getInstance();
-    _token = prefs.getString('token');
-    _userId = prefs.getString('user_id');
-    _userName = prefs.getString('user_name') ?? '';
-    _companionId = int.tryParse(prefs.getString('companion_id') ?? '') ?? 1;
-    _companionName = prefs.getString('companion_name') ?? 'Companion';
-    if (_userId == null && _token != null) {
-      final derivedId = _deriveUserIdFromToken(_token!);
-      if (derivedId != null) {
-        _userId = derivedId;
-        await prefs.setString('user_id', derivedId);
-      }
-    }
+    _token = widget.authToken.trim().isEmpty ? null : widget.authToken;
+    _userName = widget.userName;
+    _companionId = widget.companionId;
+    _companionName = widget.companionName;
+    _userId = _deriveUserIdFromToken(_token ?? '');
     await _loadHistory();
     _connectSocket();
   }
