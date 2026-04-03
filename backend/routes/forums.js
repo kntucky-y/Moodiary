@@ -24,6 +24,8 @@ function serializePost(post, currentUserId) {
     content: post.content,
     isAnonymous: post.isAnonymous,
     authorName: post.isAnonymous ? 'Anonymous' : post.authorName,
+    authorAvatarUrl:
+      post.isAnonymous || !post.authorAvatarUrl ? null : post.authorAvatarUrl,
     companionId: post.companionId || 1,
     likes: post.likedBy.length,
     isMine,
@@ -35,6 +37,10 @@ function serializePost(post, currentUserId) {
       moodAsset: comment.moodAsset || DEFAULT_COMMENT_ASSET,
       isAnonymous: comment.isAnonymous,
       authorName: comment.isAnonymous ? 'Anonymous' : comment.authorName,
+      authorAvatarUrl:
+        comment.isAnonymous || !comment.authorAvatarUrl
+          ? null
+          : comment.authorAvatarUrl,
       createdAt: comment.createdAt,
     })),
   };
@@ -57,12 +63,13 @@ router.post('/', auth, async (req, res) => {
     return res.status(400).json({ error: 'title and content are required' });
   }
   try {
-    const user = await User.findById(req.userId).select('name');
+    const user = await User.findById(req.userId).select('name avatarUrl');
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     const post = await ForumPost.create({
       userId: toObjectId(req.userId),
       authorName: user.name,
+      authorAvatarUrl: user.avatarUrl || '',
       companionId:
         Number.isInteger(companionId) && companionId > 0 ? companionId : 1,
       title: String(title).trim(),
@@ -115,12 +122,13 @@ router.post('/:id/comments', auth, async (req, res) => {
     const post = await ForumPost.findById(req.params.id);
     if (!post) return res.status(404).json({ error: 'Post not found' });
 
-    const user = await User.findById(req.userId).select('name');
+    const user = await User.findById(req.userId).select('name avatarUrl');
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     post.comments.push({
       userId: toObjectId(req.userId),
       authorName: user.name,
+      authorAvatarUrl: user.avatarUrl || '',
       isAnonymous: isAnonymous !== false,
       text: String(text).trim(),
       moodAsset:

@@ -1,7 +1,11 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../services/auth_service.dart';
+import '../../utils/avatar_utils.dart';
 
 class UserProfileScreen extends StatefulWidget {
   const UserProfileScreen({super.key});
@@ -15,6 +19,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   late String _userId;
   late String _authToken;
   bool _isEditing = false;
+  String? _selectedAvatarDataUrl;
+  String? _currentAvatarUrl;
 
   final _nameController = TextEditingController();
   final _bioController = TextEditingController();
@@ -44,7 +50,15 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         name: _nameController.text,
         email: _emailController.text,
         bio: _bioController.text,
+        avatarUrl: _selectedAvatarDataUrl,
       );
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user_name', _nameController.text.trim());
+      if (_selectedAvatarDataUrl != null &&
+          _selectedAvatarDataUrl!.isNotEmpty) {
+        await prefs.setString('user_avatar_url', _selectedAvatarDataUrl!);
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -52,6 +66,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         );
         setState(() {
           _isEditing = false;
+          _selectedAvatarDataUrl = null;
           _profileFuture = AuthService.instance.getUserProfile(userId: _userId);
         });
       }
@@ -62,6 +77,28 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     }
+  }
+
+  Future<void> _pickAvatarImage() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 75,
+      maxWidth: 768,
+      maxHeight: 768,
+    );
+    if (picked == null) return;
+
+    final Uint8List bytes = await picked.readAsBytes();
+    final lower = picked.path.toLowerCase();
+    final mimeType = lower.endsWith('.png') ? 'image/png' : 'image/jpeg';
+    final dataUrl = dataUrlFromImageBytes(bytes, mimeType: mimeType);
+
+    if (dataUrl == null) return;
+    if (!mounted) return;
+    setState(() {
+      _selectedAvatarDataUrl = dataUrl;
+    });
   }
 
   @override
@@ -78,7 +115,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       appBar: AppBar(
         title: const Text('My Profile'),
         elevation: 0,
-        backgroundColor: Theme.of(context).colorScheme.primary,
         actions: [
           if (!_isEditing)
             IconButton(
@@ -128,6 +164,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             return const Center(child: Text('Profile not found'));
           }
 
+          _currentAvatarUrl = userData['avatarUrl'] as String?;
+          final displayedAvatarUrl =
+              _selectedAvatarDataUrl ?? _currentAvatarUrl;
+
           // Initialize form fields on first load
           if (!_isEditing &&
               _nameController.text.isEmpty &&
@@ -144,14 +184,26 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               children: [
                 // Avatar section
                 Center(
-                  child: CircleAvatar(
-                    radius: 50,
-                    backgroundImage: userData['avatarUrl'] != null
-                        ? NetworkImage(userData['avatarUrl'] as String)
-                        : null,
-                    child: userData['avatarUrl'] == null
-                        ? const Icon(Icons.person, size: 50)
-                        : null,
+                  child: Column(
+                    children: [
+                      CircleAvatar(
+                        radius: 50,
+                        backgroundImage: avatarImageProvider(
+                          displayedAvatarUrl,
+                        ),
+                        child: avatarImageProvider(displayedAvatarUrl) == null
+                            ? const Icon(Icons.person, size: 50)
+                            : null,
+                      ),
+                      if (_isEditing) ...[
+                        const SizedBox(height: 12),
+                        OutlinedButton.icon(
+                          onPressed: _pickAvatarImage,
+                          icon: const Icon(Icons.photo_library_outlined),
+                          label: const Text('Upload profile photo'),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -208,8 +260,11 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                     controller: _bioController,
                     maxLines: 4,
                     maxLength: 500,
+                    keyboardType: TextInputType.multiline,
                     decoration: InputDecoration(
-                      hintText: 'Tell us about yourself...',
+                      hintText:
+                          'Tell us about yourself... Emojis are welcome 😊',
+                      helperText: 'You can use emojis in your bio.',
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -221,7 +276,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                       padding: const EdgeInsets.all(12),
                       child: Text(
                         userData['bio'] as String? ?? 'No bio',
-                        style: TextStyle(color: Colors.grey[600]),
+                        style: TextStyle(
+                          color: Theme.of(context).textTheme.bodyMedium?.color,
+                        ),
                       ),
                     ),
                   ),

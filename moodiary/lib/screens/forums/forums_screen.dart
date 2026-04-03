@@ -10,6 +10,7 @@ import '../calendar/calendar_screen.dart';
 import '../home/home_screen.dart';
 import '../journal/journal_screen.dart';
 import '../friends/friends_screen.dart';
+import '../profile/user_profile_screen.dart';
 import '../companion/companion_screen.dart';
 import '../onboarding/onboarding_screen.dart';
 import '../settings/settings_screen.dart';
@@ -19,6 +20,7 @@ import '../../services/local_notifications_service.dart';
 import '../../services/realtime_notifications.dart';
 import '../../services/theme_controller.dart';
 import '../../theme/moodiary_colors.dart';
+import '../../utils/avatar_utils.dart';
 
 const _kPurple = Color(0xFFA076F9);
 const _kSubtle = Color(0xFF8A8A8D);
@@ -755,6 +757,8 @@ class _ForumsScreenState extends State<ForumsScreen> {
                   companionName: widget.companionName,
                 ),
               ),
+              onNavigateUserProfile: () =>
+                  _openScreen(const UserProfileScreen()),
               onNavigateCalendar: () => _openScreen(
                 CalendarScreen(
                   userName: widget.userName,
@@ -1063,15 +1067,23 @@ class _ForumDetailViewState extends State<_ForumDetailView> {
                     ),
                     child: Row(
                       children: [
-                        Image.asset(
-                          c.moodAsset,
-                          width: 32,
-                          height: 32,
-                          errorBuilder: (context, error, stackTrace) =>
-                              const Icon(
-                                Icons.sentiment_satisfied_alt_rounded,
-                                color: _kSubtle,
-                              ),
+                        CircleAvatar(
+                          radius: 16,
+                          backgroundImage: avatarImageProvider(
+                            c.authorAvatarUrl,
+                          ),
+                          child: avatarImageProvider(c.authorAvatarUrl) == null
+                              ? Image.asset(
+                                  c.moodAsset,
+                                  width: 24,
+                                  height: 24,
+                                  errorBuilder: (context, error, stackTrace) =>
+                                      const Icon(
+                                        Icons.sentiment_satisfied_alt_rounded,
+                                        color: _kSubtle,
+                                      ),
+                                )
+                              : null,
                         ),
                         const SizedBox(width: 10),
                         Expanded(
@@ -1201,13 +1213,24 @@ class _PostCard extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Image.asset(
-              post.doodleAsset,
-              width: compactText ? 62 : 74,
-              height: compactText ? 62 : 74,
-              errorBuilder: (context, error, stackTrace) =>
-                  const Icon(Icons.face_outlined, size: 56, color: _kSubtle),
-            ),
+            post.isAnonymous
+                ? Image.asset(
+                    post.doodleAsset,
+                    width: compactText ? 62 : 74,
+                    height: compactText ? 62 : 74,
+                    errorBuilder: (context, error, stackTrace) => const Icon(
+                      Icons.face_outlined,
+                      size: 56,
+                      color: _kSubtle,
+                    ),
+                  )
+                : CircleAvatar(
+                    radius: compactText ? 31 : 37,
+                    backgroundImage: avatarImageProvider(post.authorAvatarUrl),
+                    child: avatarImageProvider(post.authorAvatarUrl) == null
+                        ? const Icon(Icons.person_outline, color: _kSubtle)
+                        : null,
+                  ),
             const SizedBox(width: 10),
             Expanded(
               child: Column(
@@ -1353,6 +1376,7 @@ class _ForumPost {
   final String content;
   final bool isAnonymous;
   final String author;
+  final String? authorAvatarUrl;
   final int companionId;
   final bool isMine;
   final List<_ForumComment> comments;
@@ -1365,6 +1389,7 @@ class _ForumPost {
     required this.content,
     required this.isAnonymous,
     required this.author,
+    this.authorAvatarUrl,
     required this.companionId,
     required this.isMine,
     required this.comments,
@@ -1380,6 +1405,7 @@ class _ForumPost {
       content: json['content'] as String? ?? '',
       isAnonymous: (json['isAnonymous'] as bool?) ?? true,
       author: json['authorName'] as String? ?? 'Anonymous',
+      authorAvatarUrl: json['authorAvatarUrl'] as String?,
       companionId: (json['companionId'] as int?) ?? 1,
       isMine: (json['isMine'] as bool?) ?? false,
       comments: rawComments
@@ -1406,6 +1432,7 @@ class _ForumComment {
   final String text;
   final bool isAnonymous;
   final String authorName;
+  final String? authorAvatarUrl;
 
   const _ForumComment({
     required this.id,
@@ -1413,6 +1440,7 @@ class _ForumComment {
     required this.text,
     required this.isAnonymous,
     required this.authorName,
+    this.authorAvatarUrl,
   });
 
   factory _ForumComment.fromJson(Map<String, dynamic> json) => _ForumComment(
@@ -1421,5 +1449,6 @@ class _ForumComment {
     text: json['text'] as String? ?? '',
     isAnonymous: (json['isAnonymous'] as bool?) ?? true,
     authorName: json['authorName'] as String? ?? 'Anonymous',
+    authorAvatarUrl: json['authorAvatarUrl'] as String?,
   );
 }

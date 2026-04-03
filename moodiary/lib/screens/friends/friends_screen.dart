@@ -9,6 +9,7 @@ import '../calendar/calendar_screen.dart';
 import '../journal/journal_screen.dart';
 import '../forums/forums_screen.dart';
 import '../home/home_screen.dart';
+import '../profile/user_profile_screen.dart';
 import '../companion/companion_screen.dart';
 import '../onboarding/onboarding_screen.dart';
 import '../settings/settings_screen.dart';
@@ -18,6 +19,7 @@ import '../../widgets/app_sidebar.dart';
 import '../../services/realtime_notifications.dart';
 import '../../services/theme_controller.dart';
 import '../../theme/moodiary_colors.dart';
+import '../../utils/avatar_utils.dart';
 import 'friend_chat_screen.dart';
 
 const _kBaseUrl = 'https://moodiary-production.up.railway.app';
@@ -344,6 +346,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
           friendshipId: friend.id,
           friendName: friend.name,
           friendEmail: friend.email,
+          friendAvatarUrl: friend.avatarUrl,
         ),
       ),
     );
@@ -441,6 +444,8 @@ class _FriendsScreenState extends State<FriendsScreen> {
                   companionName: widget.companionName,
                 ),
               ),
+              onNavigateUserProfile: () =>
+                  _openScreen(const UserProfileScreen()),
               onNavigateCalendar: () => _openScreen(
                 CalendarScreen(
                   userName: widget.userName,
@@ -483,6 +488,7 @@ class _FriendSummary {
   final String id;
   final String name;
   final String email;
+  final String? avatarUrl;
   final String? lastMessage;
   final DateTime? lastMessageAt;
 
@@ -490,6 +496,7 @@ class _FriendSummary {
     required this.id,
     required this.name,
     required this.email,
+    this.avatarUrl,
     this.lastMessage,
     this.lastMessageAt,
   });
@@ -501,6 +508,7 @@ class _FriendSummary {
       id: json['id'].toString(),
       name: friend['name'] as String? ?? 'Friend',
       email: friend['email'] as String? ?? '',
+      avatarUrl: friend['avatarUrl'] as String?,
       lastMessage: last != null ? last['text'] as String? : null,
       lastMessageAt: last != null && last['createdAt'] != null
           ? DateTime.parse(last['createdAt'] as String).toLocal()
@@ -511,6 +519,7 @@ class _FriendSummary {
   _FriendSummary copyWith({
     String? name,
     String? email,
+    String? avatarUrl,
     String? lastMessage,
     DateTime? lastMessageAt,
   }) {
@@ -518,6 +527,7 @@ class _FriendSummary {
       id: id,
       name: name ?? this.name,
       email: email ?? this.email,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
       lastMessage: lastMessage ?? this.lastMessage,
       lastMessageAt: lastMessageAt ?? this.lastMessageAt,
     );
@@ -667,13 +677,16 @@ class _FriendCard extends StatelessWidget {
             CircleAvatar(
               radius: 26,
               backgroundColor: _kPurple.withValues(alpha: 0.15),
-              child: Text(
-                friend.name.isEmpty ? '?' : friend.name[0].toUpperCase(),
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: _kPurple,
-                ),
-              ),
+              backgroundImage: avatarImageProvider(friend.avatarUrl),
+              child: avatarImageProvider(friend.avatarUrl) == null
+                  ? Text(
+                      friend.name.isEmpty ? '?' : friend.name[0].toUpperCase(),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: _kPurple,
+                      ),
+                    )
+                  : null,
             ),
             const SizedBox(width: 14),
             Expanded(

@@ -12,6 +12,11 @@ const forumCommentSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    authorAvatarUrl: {
+      type: String,
+      default: '',
+      trim: true,
+    },
     isAnonymous: {
       type: Boolean,
       default: true,
@@ -64,6 +69,11 @@ const forumPostSchema = new mongoose.Schema(
     authorName: {
       type: String,
       required: true,
+      trim: true,
+    },
+    authorAvatarUrl: {
+      type: String,
+      default: '',
       trim: true,
     },
     companionId: {

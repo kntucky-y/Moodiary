@@ -43,6 +43,7 @@ const formatFriendship = (doc, viewerId) => {
       id: friend?._id?.toString() ?? '',
       name: friend?.name ?? 'Friend',
       email: friend?.email ?? '',
+      avatarUrl: friend?.avatarUrl ?? '',
     },
     lastMessage: doc.lastMessage
       ? {
@@ -62,6 +63,7 @@ const formatRequest = (doc, type) => {
       id: counterpart?._id?.toString() ?? '',
       name: counterpart?.name ?? 'Friend',
       email: counterpart?.email ?? '',
+      avatarUrl: counterpart?.avatarUrl ?? '',
     },
   };
 };
@@ -96,14 +98,14 @@ router.get('/', auth, async (req, res) => {
 
     const [friendships, incoming, outgoing] = await Promise.all([
       Friendship.find({ members: userId, ...activeFriendshipFilter })
-        .populate('members', 'name email')
+        .populate('members', 'name email avatarUrl')
         .sort({ updatedAt: -1 })
         .lean(),
       FriendRequest.find({ recipient: userId, status: 'pending' })
-        .populate('requester', 'name email')
+        .populate('requester', 'name email avatarUrl')
         .lean(),
       FriendRequest.find({ requester: userId, status: 'pending' })
-        .populate('recipient', 'name email')
+        .populate('recipient', 'name email avatarUrl')
         .lean(),
     ]);
 
@@ -153,7 +155,7 @@ router.post('/request', auth, async (req, res) => {
       await incoming.save();
       const friendship = await upsertFriendship(requesterId, recipient._id);
       const populated = await Friendship.findById(friendship._id)
-        .populate('members', 'name email')
+        .populate('members', 'name email avatarUrl')
         .lean();
       return res.status(201).json({
         friendship: formatFriendship(populated, requesterId),
@@ -165,7 +167,7 @@ router.post('/request', auth, async (req, res) => {
       requester: requesterId,
       recipient: recipient._id,
       status: 'pending',
-    }).populate('recipient', 'name email');
+    }).populate('recipient', 'name email avatarUrl');
 
     if (existingOutgoing) {
       return res.status(200).json({
@@ -178,7 +180,7 @@ router.post('/request', auth, async (req, res) => {
       recipient: recipient._id,
     });
 
-    await requestDoc.populate('recipient', 'name email');
+    await requestDoc.populate('recipient', 'name email avatarUrl');
     res.status(201).json({
       request: formatRequest(requestDoc.toObject(), 'outgoing'),
     });
@@ -217,7 +219,7 @@ router.post('/:id/accept', auth, async (req, res) => {
     });
 
     const populated = await Friendship.findById(friendship._id)
-      .populate('members', 'name email')
+      .populate('members', 'name email avatarUrl')
       .lean();
     res.json({ friend: formatFriendship(populated, req.userId) });
   } catch (err) {

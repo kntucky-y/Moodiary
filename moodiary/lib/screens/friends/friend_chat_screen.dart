@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 import '../../theme/moodiary_colors.dart';
+import '../../utils/avatar_utils.dart';
 
 const _kBaseUrl = 'https://moodiary-production.up.railway.app';
 const _kPurple = Color(0xFFA076F9);
@@ -14,12 +15,14 @@ class FriendChatScreen extends StatefulWidget {
   final String friendshipId;
   final String friendName;
   final String friendEmail;
+  final String? friendAvatarUrl;
 
   const FriendChatScreen({
     super.key,
     required this.friendshipId,
     required this.friendName,
     required this.friendEmail,
+    this.friendAvatarUrl,
   });
 
   @override
@@ -256,7 +259,11 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            _ChatHeader(name: widget.friendName, email: widget.friendEmail),
+            _ChatHeader(
+              name: widget.friendName,
+              email: widget.friendEmail,
+              friendAvatarUrl: widget.friendAvatarUrl,
+            ),
             Expanded(
               child: Container(
                 decoration: BoxDecoration(
@@ -275,7 +282,10 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
                         itemCount: _messages.length,
                         itemBuilder: (context, index) {
                           final message = _messages[index];
-                          return _ChatBubble(message: message);
+                          return _ChatBubble(
+                            message: message,
+                            friendAvatarUrl: widget.friendAvatarUrl,
+                          );
                         },
                       ),
               ),
@@ -327,8 +337,9 @@ class _FriendMessage {
 
 class _ChatBubble extends StatelessWidget {
   final _FriendMessage message;
+  final String? friendAvatarUrl;
 
-  const _ChatBubble({required this.message});
+  const _ChatBubble({required this.message, this.friendAvatarUrl});
 
   @override
   Widget build(BuildContext context) {
@@ -343,43 +354,60 @@ class _ChatBubble extends StatelessWidget {
 
     return Align(
       alignment: alignment,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: bubbleColor,
-          borderRadius: BorderRadius.circular(18).copyWith(
-            bottomRight: message.isMine ? const Radius.circular(4) : null,
-            bottomLeft: message.isMine ? null : const Radius.circular(4),
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: message.isMine
-              ? CrossAxisAlignment.end
-              : CrossAxisAlignment.start,
-          children: [
-            Text(
-              message.text,
-              style: TextStyle(color: textColor, fontSize: 14, height: 1.4),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              _formatTime(message.createdAt),
-              style: TextStyle(
-                color: textColor.withValues(alpha: 0.7),
-                fontSize: 10,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          if (!message.isMine)
+            Padding(
+              padding: const EdgeInsets.only(right: 8, bottom: 2),
+              child: CircleAvatar(
+                radius: 12,
+                backgroundImage: avatarImageProvider(friendAvatarUrl),
+                child: avatarImageProvider(friendAvatarUrl) == null
+                    ? const Icon(Icons.person, size: 12)
+                    : null,
               ),
             ),
-            if (message.pending)
-              Text(
-                'sending...',
-                style: TextStyle(
-                  color: message.isMine ? Colors.white70 : secondaryText,
-                  fontSize: 10,
+          Container(
+            margin: const EdgeInsets.symmetric(vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: bubbleColor,
+              borderRadius: BorderRadius.circular(18).copyWith(
+                bottomRight: message.isMine ? const Radius.circular(4) : null,
+                bottomLeft: message.isMine ? null : const Radius.circular(4),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: message.isMine
+                  ? CrossAxisAlignment.end
+                  : CrossAxisAlignment.start,
+              children: [
+                Text(
+                  message.text,
+                  style: TextStyle(color: textColor, fontSize: 14, height: 1.4),
                 ),
-              ),
-          ],
-        ),
+                const SizedBox(height: 4),
+                Text(
+                  _formatTime(message.createdAt),
+                  style: TextStyle(
+                    color: textColor.withValues(alpha: 0.7),
+                    fontSize: 10,
+                  ),
+                ),
+                if (message.pending)
+                  Text(
+                    'sending...',
+                    style: TextStyle(
+                      color: message.isMine ? Colors.white70 : secondaryText,
+                      fontSize: 10,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -394,8 +422,13 @@ class _ChatBubble extends StatelessWidget {
 class _ChatHeader extends StatelessWidget {
   final String name;
   final String email;
+  final String? friendAvatarUrl;
 
-  const _ChatHeader({required this.name, required this.email});
+  const _ChatHeader({
+    required this.name,
+    required this.email,
+    this.friendAvatarUrl,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -412,6 +445,14 @@ class _ChatHeader extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
+          CircleAvatar(
+            radius: 18,
+            backgroundImage: avatarImageProvider(friendAvatarUrl),
+            child: avatarImageProvider(friendAvatarUrl) == null
+                ? const Icon(Icons.person, size: 18)
+                : null,
+          ),
+          const SizedBox(width: 10),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

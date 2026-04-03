@@ -7,6 +7,7 @@ import '../calendar/calendar_screen.dart';
 import '../home/home_screen.dart';
 import '../friends/friends_screen.dart';
 import '../forums/forums_screen.dart';
+import '../profile/user_profile_screen.dart';
 import '../companion/companion_screen.dart';
 import '../onboarding/onboarding_screen.dart';
 import '../settings/settings_screen.dart';
@@ -574,6 +575,8 @@ class _JournalScreenState extends State<JournalScreen> {
                   companionName: widget.companionName,
                 ),
               ),
+              onNavigateUserProfile: () =>
+                  _openScreen(const UserProfileScreen()),
               onNavigateCalendar: () => _openScreen(
                 CalendarScreen(
                   userName: widget.userName,

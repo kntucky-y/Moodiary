@@ -170,11 +170,7 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Account Management'),
-        elevation: 0,
-        backgroundColor: Theme.of(context).colorScheme.primary,
-      ),
+      appBar: AppBar(title: const Text('Account Management'), elevation: 0),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -295,15 +291,15 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
             // Danger Zone
             Text(
               'Danger Zone',
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(color: Colors.red),
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                color: Theme.of(context).colorScheme.error,
+              ),
             ),
             const SizedBox(height: 16),
 
             // Delete Account
             Card(
-              color: Colors.red[50],
+              color: Theme.of(context).colorScheme.errorContainer,
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
@@ -312,7 +308,7 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
                     Text(
                       'Delete Account',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: Colors.red,
+                        color: Theme.of(context).colorScheme.error,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -327,7 +323,7 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
                       child: ElevatedButton(
                         onPressed: _deleteAccount,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
+                          backgroundColor: Theme.of(context).colorScheme.error,
                         ),
                         child: const Text('Delete My Account'),
                       ),

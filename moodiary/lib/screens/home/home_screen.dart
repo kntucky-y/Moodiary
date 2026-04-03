@@ -18,6 +18,7 @@ import '../../widgets/app_sidebar.dart';
 import '../../services/realtime_notifications.dart';
 import '../settings/settings_screen.dart';
 import '../resources/resources_screen.dart';
+import '../../utils/avatar_utils.dart';
 
 const _kPurple = Color(0xFFA076F9);
 const _kLightPurple = Color(0xFFD8B4F8);
@@ -198,6 +199,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   int? _selectedMood;
   bool _sidebarOpen = false;
+  String? _profileAvatarUrl;
 
   List<_MoodTask> _todayTasks = [];
   List<bool> _completedStates = [false, false, false];
@@ -214,7 +216,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       vsync: this,
       duration: const Duration(milliseconds: 900),
     );
+    _loadProfileAvatar();
     _loadTodayTasks();
+  }
+
+  Future<void> _loadProfileAvatar() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _profileAvatarUrl = prefs.getString('user_avatar_url');
+    });
   }
 
   @override
@@ -600,11 +611,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 companionAsset: _companionAsset,
                 companionName: widget.companionName,
                 onHamburger: () => setState(() => _sidebarOpen = true),
-                onProfileTap: () {
-                  Navigator.of(
+                onProfileTap: () async {
+                  await Navigator.of(
                     context,
                   ).push(FadeSlideRoute(page: const UserProfileScreen()));
+                  await _loadProfileAvatar();
                 },
+                profileAvatarUrl: _profileAvatarUrl,
                 onCompanionTap: _showCompanionChat,
               ),
               Expanded(
@@ -851,6 +864,7 @@ class _Header extends StatelessWidget {
   final String greeting;
   final String companionAsset;
   final String companionName;
+  final String? profileAvatarUrl;
   final VoidCallback onHamburger;
   final VoidCallback onProfileTap;
   final VoidCallback onCompanionTap;
@@ -860,6 +874,7 @@ class _Header extends StatelessWidget {
     required this.greeting,
     required this.companionAsset,
     required this.companionName,
+    required this.profileAvatarUrl,
     required this.onHamburger,
     required this.onProfileTap,
     required this.onCompanionTap,
@@ -921,10 +936,19 @@ class _Header extends StatelessWidget {
                           shape: BoxShape.circle,
                           border: Border.all(color: Colors.white, width: 1.2),
                         ),
-                        child: const Icon(
-                          Icons.person,
-                          color: Colors.white,
-                          size: 22,
+                        child: CircleAvatar(
+                          radius: 17,
+                          backgroundColor: Colors.transparent,
+                          backgroundImage: avatarImageProvider(
+                            profileAvatarUrl,
+                          ),
+                          child: avatarImageProvider(profileAvatarUrl) == null
+                              ? const Icon(
+                                  Icons.person,
+                                  color: Colors.white,
+                                  size: 22,
+                                )
+                              : null,
                         ),
                       ),
                     ),
