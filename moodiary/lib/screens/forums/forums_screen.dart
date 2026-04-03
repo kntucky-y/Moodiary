@@ -47,12 +47,14 @@ class ForumsScreen extends StatefulWidget {
   final String userName;
   final int companionId;
   final String companionName;
+  final String? initialPostId;
 
   const ForumsScreen({
     super.key,
     required this.userName,
     required this.companionId,
     required this.companionName,
+    this.initialPostId,
   });
 
   @override
@@ -119,6 +121,10 @@ class _ForumsScreenState extends State<ForumsScreen> {
             .toList();
         setState(() {
           _posts = parsed;
+          if (widget.initialPostId != null &&
+              _posts.any((p) => p.id == widget.initialPostId)) {
+            _activePostId = widget.initialPostId;
+          }
           if (_activePostId != null &&
               !_posts.any((p) => p.id == _activePostId)) {
             _activePostId = null;
@@ -911,6 +917,7 @@ class _ForumsScreenState extends State<ForumsScreen> {
                                 key: const ValueKey('forum-detail'),
                                 post: detailPost,
                                 showArchivedActions: _showArchived,
+                                onOpenPost: _openPostDetail,
                                 onClose: _closePostDetail,
                                 onLikeTap: () => _toggleLike(detailPost.id),
                                 onReportTap: () =>
@@ -933,6 +940,7 @@ class _ForumsScreenState extends State<ForumsScreen> {
                                 companionId: widget.companionId,
                                 fabExpanded: _fabExpanded,
                                 showArchivedActions: _showArchived,
+                                onOpenPost: _openPostDetail,
                                 onPostTap: (i) =>
                                     _openPostDetail(visiblePosts[i].id),
                                 onLikeTap: (i) =>
@@ -1022,6 +1030,7 @@ class _ForumListView extends StatelessWidget {
   final int companionId;
   final bool fabExpanded;
   final bool showArchivedActions;
+  final ValueChanged<String> onOpenPost;
   final ValueChanged<int> onPostTap;
   final ValueChanged<int> onLikeTap;
   final ValueChanged<int> onReportTap;
@@ -1038,6 +1047,7 @@ class _ForumListView extends StatelessWidget {
     required this.companionId,
     required this.fabExpanded,
     required this.showArchivedActions,
+    required this.onOpenPost,
     required this.onPostTap,
     required this.onLikeTap,
     required this.onReportTap,
@@ -1103,7 +1113,11 @@ class _ForumListView extends StatelessWidget {
                       onAuthorTap: () {
                         final authorId = posts[i].authorId;
                         if (authorId == null || authorId.isEmpty) return;
-                        showUserProfilePopup(context, userId: authorId);
+                        showUserProfilePopup(
+                          context,
+                          userId: authorId,
+                          onOpenForumPost: (postId) async => onOpenPost(postId),
+                        );
                       },
                     );
                   },
@@ -1239,6 +1253,7 @@ class _ForumListView extends StatelessWidget {
 class _ForumDetailView extends StatefulWidget {
   final _ForumPost post;
   final bool showArchivedActions;
+  final ValueChanged<String> onOpenPost;
   final VoidCallback onClose;
   final VoidCallback onLikeTap;
   final VoidCallback onReportTap;
@@ -1251,6 +1266,7 @@ class _ForumDetailView extends StatefulWidget {
     super.key,
     required this.post,
     required this.showArchivedActions,
+    required this.onOpenPost,
     required this.onClose,
     required this.onLikeTap,
     required this.onReportTap,
@@ -1304,7 +1320,12 @@ class _ForumDetailViewState extends State<_ForumDetailView> {
                         onAuthorTap: () {
                           final authorId = post.authorId;
                           if (authorId == null || authorId.isEmpty) return;
-                          showUserProfilePopup(context, userId: authorId);
+                          showUserProfilePopup(
+                            context,
+                            userId: authorId,
+                            onOpenForumPost: (postId) async =>
+                                widget.onOpenPost(postId),
+                          );
                         },
                       ),
                     ),

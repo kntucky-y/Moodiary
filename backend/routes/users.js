@@ -4,6 +4,8 @@ const bcrypt = require('bcryptjs');
 const mongoose = require('mongoose');
 
 const User = require('../models/User');
+const MoodLog = require('../models/Mood');
+const ForumPost = require('../models/ForumPost');
 const auth = require('../middleware/auth');
 
 const sanitizeUser = (user) => ({
@@ -16,6 +18,26 @@ const sanitizeUser = (user) => ({
   createdAt: user.createdAt,
 });
 
+const MOOD_LABELS = ['Terrible', 'Bad', 'Okay', 'Good', 'Excellent'];
+const MOOD_ASSETS = [
+  'assets/terrible.png',
+  'assets/bad.png',
+  'assets/okay.png',
+  'assets/good.png',
+  'assets/excellent.png',
+];
+
+function serializePublicPost(post) {
+  return {
+    id: String(post._id),
+    title: post.title,
+    content: post.content,
+    isAnonymous: post.isAnonymous,
+    createdAt: post.createdAt,
+    companionId: post.companionId || 1,
+  };
+}
+
 // GET /api/users/profile/:id - Get user profile
 router.get('/profile/:id', async (req, res) => {
   try {
@@ -24,15 +46,33 @@ router.get('/profile/:id', async (req, res) => {
       return res.status(400).json({ error: 'Invalid user ID' });
     }
 
-    const user = await User.findById(id).select(
-      'name email avatarUrl bio createdAt'
-    );
+    const [user, latestMood, publicPosts] = await Promise.all([
+      User.findById(id).select('name email avatarUrl bio createdAt'),
+      MoodLog.findOne({ userId: id }).sort({ dateKey: -1, createdAt: -1 }),
+      ForumPost.find({ userId: id, isArchived: { $ne: true } })
+        .sort({ createdAt: -1 })
+        .limit(6),
+    ]);
 
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    res.json({ user: sanitizeUser(user) });
+    const currentMood = latestMood
+      ? {
+          level: latestMood.moodLevel,
+          label: MOOD_LABELS[(latestMood.moodLevel || 3) - 1] || 'Okay',
+          asset:
+            MOOD_ASSETS[(latestMood.moodLevel || 3) - 1] || 'assets/okay.png',
+          dateKey: latestMood.dateKey,
+        }
+      : null;
+
+    res.json({
+      user: sanitizeUser(user),
+      currentMood,
+      publicPosts: publicPosts.map(serializePublicPost),
+    });
   } catch (err) {
     console.error('Get user error', err);
     res.status(500).json({ error: 'Unable to fetch user profile' });

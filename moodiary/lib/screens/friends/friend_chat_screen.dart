@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
+import '../forums/forums_screen.dart';
+import '../../utils/transitions.dart';
 import '../../theme/moodiary_colors.dart';
 import '../../utils/avatar_utils.dart';
 import '../../widgets/user_profile_popup.dart';
@@ -454,7 +456,29 @@ class _ChatHeader extends StatelessWidget {
           GestureDetector(
             onTap: () {
               if (friendUserId.isEmpty) return;
-              showUserProfilePopup(context, userId: friendUserId);
+              showUserProfilePopup(
+                context,
+                userId: friendUserId,
+                onOpenForumPost: (postId) async {
+                  final prefs = await SharedPreferences.getInstance();
+                  final userName = prefs.getString('user_name') ?? '';
+                  final companionId =
+                      int.tryParse(prefs.getString('companion_id') ?? '') ?? 1;
+                  final companionName =
+                      prefs.getString('companion_name') ?? 'Companion';
+                  if (!context.mounted) return;
+                  Navigator.of(context).push(
+                    FadeSlideRoute(
+                      page: ForumsScreen(
+                        userName: userName,
+                        companionId: companionId,
+                        companionName: companionName,
+                        initialPostId: postId,
+                      ),
+                    ),
+                  );
+                },
+              );
             },
             child: Row(
               children: [
