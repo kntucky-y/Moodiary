@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -71,6 +74,8 @@ class _LoginScreenState extends State<LoginScreen> {
     await RealtimeNotifications.instance.ensureConnected(token: token);
     await PushNotificationsService.instance.syncWithAuthToken(token);
 
+    unawaited(_warmProfileCache(userId: userId, authToken: token));
+
     final companionId = prefs.getInt('companion_id');
     final companionName = prefs.getString('companion_name');
 
@@ -88,6 +93,32 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
       (_) => false,
     );
+  }
+
+  Future<void> _warmProfileCache({
+    required String? userId,
+    required String authToken,
+  }) async {
+    if (userId == null || userId.isEmpty) return;
+
+    try {
+      final results = await Future.wait<dynamic>([
+        AuthService.instance.getUserProfile(userId: userId),
+        AuthService.instance.getMyForumPosts(authToken: authToken),
+      ]);
+      final bundle = {
+        'profile': results[0] as Map<String, dynamic>,
+        'posts': results[1] as List<Map<String, dynamic>>,
+      };
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        UserCache.profileBundleCacheKey,
+        jsonEncode(bundle),
+      );
+    } catch (_) {
+      // Cache warm-up is best-effort only.
+    }
   }
 
   Future<void> _submit() async {

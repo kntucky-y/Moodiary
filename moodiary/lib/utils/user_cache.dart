@@ -3,6 +3,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Centralized helpers for clearing state that should be scoped to a
 /// particular authenticated user.
 class UserCache {
+  static const profileBundleCacheKey = 'user_profile_bundle_cache';
+
   static const _scopedKeys = <String>{
     'tasks_date',
     'tasks_indices',
@@ -10,6 +12,7 @@ class UserCache {
     'mood_logs_cache',
     'companion_id',
     'companion_name',
+    profileBundleCacheKey,
   };
 
   static Future<void> clear([SharedPreferences? prefs]) async {

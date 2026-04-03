@@ -6,8 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/auth_service.dart';
 import '../../utils/avatar_file_picker.dart';
 import '../../utils/avatar_utils.dart';
-
-const _profileCacheKey = 'user_profile_bundle_cache';
+import '../../utils/user_cache.dart';
 
 class UserProfileScreen extends StatefulWidget {
   const UserProfileScreen({super.key});
@@ -113,7 +112,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
   Future<Map<String, dynamic>?> _loadCachedProfileBundle() async {
     final prefs = await SharedPreferences.getInstance();
-    final rawCache = prefs.getString(_profileCacheKey);
+    final rawCache = prefs.getString(UserCache.profileBundleCacheKey);
     if (rawCache == null || rawCache.isEmpty) return null;
 
     try {
@@ -139,7 +138,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     try {
       final bundle = await _loadProfileBundle();
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_profileCacheKey, jsonEncode(bundle));
+      await prefs.setString(
+        UserCache.profileBundleCacheKey,
+        jsonEncode(bundle),
+      );
       if (!mounted) return;
       setState(() {
         _profileFuture = Future.value(bundle);
@@ -193,7 +195,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           user['avatarUrl'] = _currentAvatarUrl;
         }
         profile['user'] = user;
-        await prefs.setString(_profileCacheKey, jsonEncode(existingCache));
+        await prefs.setString(
+          UserCache.profileBundleCacheKey,
+          jsonEncode(existingCache),
+        );
       }
 
       if (!mounted) return;
