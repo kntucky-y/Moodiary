@@ -5,6 +5,9 @@ import '../../services/local_notifications_service.dart';
 import '../../services/theme_controller.dart';
 import '../../utils/transitions.dart';
 import '../companion/companion_screen.dart';
+import '../profile/user_profile_screen.dart';
+import '../account/account_management_screen.dart';
+import '../legal/legal_screens.dart';
 
 class SettingsScreen extends StatefulWidget {
   final String userName;
@@ -204,6 +207,40 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 24),
           _SectionHeader(label: 'Companion & Data'),
+          _SectionHeader(label: 'Account'),
+          Card(
+            child: Column(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.person_outline),
+                  title: const Text('My profile'),
+                  subtitle: const Text(
+                    'View and edit your profile information',
+                  ),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () {
+                    Navigator.of(
+                      context,
+                    ).push(FadeSlideRoute(page: const UserProfileScreen()));
+                  },
+                ),
+                const Divider(height: 0),
+                ListTile(
+                  leading: const Icon(Icons.lock_outline),
+                  title: const Text('Account management'),
+                  subtitle: const Text('Change password and account settings'),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () {
+                    Navigator.of(context).push(
+                      FadeSlideRoute(page: const AccountManagementScreen()),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          _SectionHeader(label: 'Companion & Data'),
           Card(
             child: Column(
               children: [
@@ -247,34 +284,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   leading: const Icon(Icons.privacy_tip_outlined),
                   title: const Text('Privacy policy'),
                   trailing: const Icon(Icons.open_in_new),
-                  onTap: () => _showPlaceholderDialog(
-                    context,
-                    'Privacy policy',
-                    'The privacy policy will be published soon. Reach out to the team if you need the draft copy.',
-                  ),
+                  onTap: () {
+                    Navigator.of(
+                      context,
+                    ).push(FadeSlideRoute(page: const PrivacyPolicyScreen()));
+                  },
+                ),
+                const Divider(height: 0),
+                ListTile(
+                  leading: const Icon(Icons.description_outlined),
+                  title: const Text('Terms of service'),
+                  trailing: const Icon(Icons.open_in_new),
+                  onTap: () {
+                    Navigator.of(
+                      context,
+                    ).push(FadeSlideRoute(page: const TermsOfServiceScreen()));
+                  },
                 ),
               ],
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showPlaceholderDialog(
-    BuildContext context,
-    String title,
-    String message,
-  ) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text(title),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Close'),
           ),
         ],
       ),

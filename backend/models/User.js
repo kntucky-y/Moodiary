@@ -31,6 +31,16 @@ const userSchema = new mongoose.Schema(
       sparse: true,
     },
     avatarUrl: String,
+    bio: {
+      type: String,
+      default: '',
+      maxlength: 500,
+    },
+    blockedUsers: {
+      type: [mongoose.Schema.Types.ObjectId],
+      ref: 'User',
+      default: [],
+    },
     pushTokens: {
       type: [String],
       default: [],

@@ -16,6 +16,7 @@ import '../../utils/transitions.dart';
 import '../../widgets/app_sidebar.dart';
 import '../../services/realtime_notifications.dart';
 import '../settings/settings_screen.dart';
+import '../resources/resources_screen.dart';
 
 const _kPurple = Color(0xFFA076F9);
 const _kLightPurple = Color(0xFFD8B4F8);
@@ -1378,7 +1379,15 @@ class _BottomNav extends StatelessWidget {
           );
         },
       ),
-      _NavItem(Icons.folder_outlined, 'Resources', onTap: () {}),
+      _NavItem(
+        Icons.folder_outlined,
+        'Resources',
+        onTap: () {
+          Navigator.of(
+            context,
+          ).push(FadeSlideRoute(page: const ResourcesScreen()));
+        },
+      ),
     ];
     final navBg = context.mdSurface;
     final borderColor = context.isDarkMode

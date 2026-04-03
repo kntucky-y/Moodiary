@@ -10,6 +10,8 @@ const chatRoutes = require('./routes/chat');
 const journalRoutes = require('./routes/journal');
 const forumRoutes = require('./routes/forums');
 const friendRoutes = require('./routes/friends');
+const userRoutes = require('./routes/users');
+const resourceRoutes = require('./routes/resources');
 
 const { initSocket } = require('./socket');
 
@@ -26,6 +28,8 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/journal', journalRoutes);
 app.use('/api/forums', forumRoutes);
 app.use('/api/friends', friendRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/resources', resourceRoutes);
 
 // Health-check — visit /api/health to confirm env vars are loaded on Railway
 app.get('/api/health', (req, res) => {

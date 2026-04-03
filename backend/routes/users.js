@@ -1,0 +1,271 @@
+const express = require('express');
+const router = express.Router();
+const bcrypt = require('bcryptjs');
+const mongoose = require('mongoose');
+
+const User = require('../models/User');
+const auth = require('../middleware/auth');
+
+const sanitizeUser = (user) => ({
+  id: user._id,
+  name: user.name,
+  email: user.email,
+  avatarUrl: user.avatarUrl,
+  bio: user.bio,
+  provider: user.provider,
+  createdAt: user.createdAt,
+});
+
+// GET /api/users/profile/:id - Get user profile
+router.get('/profile/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: 'Invalid user ID' });
+    }
+
+    const user = await User.findById(id).select(
+      'name email avatarUrl bio createdAt'
+    );
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({ user: sanitizeUser(user) });
+  } catch (err) {
+    console.error('Get user error', err);
+    res.status(500).json({ error: 'Unable to fetch user profile' });
+  }
+});
+
+// GET /api/users/search?query=... - Search users
+router.get('/search/query', async (req, res) => {
+  try {
+    const { query } = req.query;
+
+    if (!query || query.trim().length < 2) {
+      return res.status(400).json({ error: 'Query must be at least 2 characters' });
+    }
+
+    const results = await User.find({
+      $or: [
+        { name: { $regex: query, $options: 'i' } },
+        { email: { $regex: query, $options: 'i' } },
+      ],
+    })
+      .select('name email avatarUrl bio')
+      .limit(20);
+
+    res.json({ results });
+  } catch (err) {
+    console.error('Search users error', err);
+    res.status(500).json({ error: 'Unable to search users' });
+  }
+});
+
+// PATCH /api/users/:id - Update user profile (authenticated)
+router.patch('/:id', auth, async (req, res) => {
+  try {
+    // Only allow users to update their own profile
+    if (req.userId !== req.params.id) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    const { name, bio, avatarUrl, email, currentPassword, newPassword } = req.body;
+
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Check current password if trying to change email
+    if (email && email !== user.email) {
+      if (!currentPassword) {
+        return res
+          .status(400)
+          .json({ error: 'Current password required to change email' });
+      }
+
+      const match = await bcrypt.compare(currentPassword, user.password);
+      if (!match) {
+        return res.status(401).json({ error: 'Incorrect current password' });
+      }
+
+      // Check if new email is already in use
+      const existing = await User.findOne({ email });
+      if (existing) {
+        return res.status(409).json({ error: 'Email already in use' });
+      }
+
+      user.email = email;
+    }
+
+    // Update name
+    if (name && typeof name === 'string' && name.trim().length > 0) {
+      user.name = name.trim();
+    }
+
+    // Update bio
+    if (bio !== undefined) {
+      user.bio = typeof bio === 'string' ? bio.trim().substring(0, 500) : '';
+    }
+
+    // Update avatar
+    if (avatarUrl && typeof avatarUrl === 'string') {
+      user.avatarUrl = avatarUrl.trim();
+    }
+
+    // Change password if requested
+    if (newPassword) {
+      if (!currentPassword) {
+        return res
+          .status(400)
+          .json({ error: 'Current password required to change password' });
+      }
+
+      const match = await bcrypt.compare(currentPassword, user.password);
+      if (!match) {
+        return res.status(401).json({ error: 'Incorrect current password' });
+      }
+
+      if (typeof newPassword !== 'string' || newPassword.trim().length < 8) {
+        return res
+          .status(400)
+          .json({ error: 'Password must be at least 8 characters long' });
+      }
+
+      user.password = await bcrypt.hash(newPassword, 12);
+    }
+
+    await user.save();
+    res.json({ user: sanitizeUser(user) });
+  } catch (err) {
+    console.error('Update profile error', err);
+    res.status(500).json({ error: 'Unable to update profile' });
+  }
+});
+
+// DELETE /api/users/:id - Delete account (authenticated)
+router.delete('/:id', auth, async (req, res) => {
+  try {
+    // Only allow users to delete their own account
+    if (req.userId !== req.params.id) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    const { password } = req.body;
+    if (!password) {
+      return res
+        .status(400)
+        .json({ error: 'Password required to delete account' });
+    }
+
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Verify password
+    const match = await bcrypt.compare(password, user.password);
+    if (!match) {
+      return res.status(401).json({ error: 'Incorrect password' });
+    }
+
+    // Delete user
+    await User.findByIdAndDelete(req.params.id);
+
+    res.json({ message: 'Account deleted successfully' });
+  } catch (err) {
+    console.error('Delete account error', err);
+    res.status(500).json({ error: 'Unable to delete account' });
+  }
+});
+
+// POST /api/users/:id/block - Block user
+router.post('/:id/block', auth, async (req, res) => {
+  try {
+    const { targetUserId } = req.body;
+
+    if (!targetUserId) {
+      return res.status(400).json({ error: 'Target user ID is required' });
+    }
+
+    if (req.userId === targetUserId) {
+      return res.status(400).json({ error: 'Cannot block yourself' });
+    }
+
+    // Validate ObjectId
+    if (!mongoose.Types.ObjectId.isValid(targetUserId)) {
+      return res.status(400).json({ error: 'Invalid user ID' });
+    }
+
+    const user = await User.findById(req.userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Check if already blocked
+    if (user.blockedUsers.some((id) => id.toString() === targetUserId)) {
+      return res.status(400).json({ error: 'User already blocked' });
+    }
+
+    user.blockedUsers.push(targetUserId);
+    await user.save();
+
+    res.json({ message: 'User blocked successfully' });
+  } catch (err) {
+    console.error('Block user error', err);
+    res.status(500).json({ error: 'Unable to block user' });
+  }
+});
+
+// POST /api/users/:id/unblock - Unblock user
+router.post('/:id/unblock', auth, async (req, res) => {
+  try {
+    const { targetUserId } = req.body;
+
+    if (!targetUserId) {
+      return res.status(400).json({ error: 'Target user ID is required' });
+    }
+
+    const user = await User.findById(req.userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    user.blockedUsers = user.blockedUsers.filter(
+      (id) => id.toString() !== targetUserId
+    );
+    await user.save();
+
+    res.json({ message: 'User unblocked successfully' });
+  } catch (err) {
+    console.error('Unblock user error', err);
+    res.status(500).json({ error: 'Unable to unblock user' });
+  }
+});
+
+// GET /api/users/:id/blocked - Get list of blocked users
+router.get('/:id/blocked', auth, async (req, res) => {
+  try {
+    if (req.userId !== req.params.id) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    const user = await User.findById(req.params.id)
+      .populate('blockedUsers', 'name email avatarUrl')
+      .select('blockedUsers');
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({ blockedUsers: user.blockedUsers });
+  } catch (err) {
+    console.error('Get blocked users error', err);
+    res.status(500).json({ error: 'Unable to fetch blocked users' });
+  }
+});
+
+module.exports = router;
