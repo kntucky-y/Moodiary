@@ -64,11 +64,13 @@ class _ForumsScreenState extends State<ForumsScreen> {
   bool _sidebarOpen = false;
   bool _fabExpanded = false;
   bool _showMineOnly = false;
+  bool _showArchived = false;
 
   String? _token;
   String? _activePostId;
   List<_ForumPost> _posts = [];
   final Set<String> _likeBusyPostIds = <String>{};
+  final Set<String> _workingPostIds = <String>{};
   final Random _random = Random();
 
   @override
@@ -106,7 +108,7 @@ class _ForumsScreenState extends State<ForumsScreen> {
     }
     try {
       final resp = await http.get(
-        Uri.parse('$_kBaseUrl/api/forums'),
+        Uri.parse('$_kBaseUrl/api/forums?archived=$_showArchived'),
         headers: _authHeaders,
       );
       if (!mounted) return;
@@ -193,7 +195,9 @@ class _ForumsScreenState extends State<ForumsScreen> {
           jsonDecode(resp.body) as Map<String, dynamic>,
         );
         setState(() {
-          _posts.insert(0, created);
+          if (!_showArchived) {
+            _posts.insert(0, created);
+          }
           _fabExpanded = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
@@ -209,6 +213,163 @@ class _ForumsScreenState extends State<ForumsScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Failed to publish post: $e')));
+    }
+  }
+
+  Future<bool> _confirmAction({
+    required String title,
+    required String message,
+    required String confirmText,
+    Color confirmColor = _kPurple,
+  }) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(confirmText, style: TextStyle(color: confirmColor)),
+          ),
+        ],
+      ),
+    );
+    return result == true;
+  }
+
+  Future<void> _toggleArchived() async {
+    setState(() {
+      _showArchived = !_showArchived;
+      _showMineOnly = false;
+      _activePostId = null;
+      _fabExpanded = false;
+    });
+    await _fetchPosts(silent: false);
+  }
+
+  Future<void> _archivePost(String postId) async {
+    if (_token == null) return;
+    final shouldArchive = await _confirmAction(
+      title: 'Archive post?',
+      message: 'This will move it to Archive and you can recover it later.',
+      confirmText: 'Archive',
+    );
+    if (!shouldArchive) return;
+
+    setState(() => _workingPostIds.add(postId));
+    try {
+      final resp = await http.delete(
+        Uri.parse('$_kBaseUrl/api/forums/$postId'),
+        headers: _authHeaders,
+      );
+      if (!mounted) return;
+      if (resp.statusCode == 200) {
+        setState(() {
+          _posts.removeWhere((p) => p.id == postId);
+          if (_activePostId == postId) _activePostId = null;
+        });
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Post archived.')));
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to archive post: ${resp.body}')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Archive failed: $e')));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _workingPostIds.remove(postId));
+      }
+    }
+  }
+
+  Future<void> _recoverPost(String postId) async {
+    if (_token == null) return;
+    setState(() => _workingPostIds.add(postId));
+    try {
+      final resp = await http.post(
+        Uri.parse('$_kBaseUrl/api/forums/$postId/recover'),
+        headers: _authHeaders,
+      );
+      if (!mounted) return;
+      if (resp.statusCode == 200) {
+        setState(() {
+          _posts.removeWhere((p) => p.id == postId);
+          if (_activePostId == postId) _activePostId = null;
+        });
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Post restored.')));
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to restore post: ${resp.body}')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Restore failed: $e')));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _workingPostIds.remove(postId));
+      }
+    }
+  }
+
+  Future<void> _deletePostPermanently(String postId) async {
+    if (_token == null) return;
+    final shouldDelete = await _confirmAction(
+      title: 'Delete permanently?',
+      message:
+          'This permanently deletes the archived post and cannot be undone.',
+      confirmText: 'Delete',
+      confirmColor: Colors.red,
+    );
+    if (!shouldDelete) return;
+
+    setState(() => _workingPostIds.add(postId));
+    try {
+      final resp = await http.delete(
+        Uri.parse('$_kBaseUrl/api/forums/$postId/permanent'),
+        headers: _authHeaders,
+      );
+      if (!mounted) return;
+      if (resp.statusCode == 200) {
+        setState(() {
+          _posts.removeWhere((p) => p.id == postId);
+          if (_activePostId == postId) _activePostId = null;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Post permanently deleted.')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to delete post: ${resp.body}')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Delete failed: $e')));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _workingPostIds.remove(postId));
+      }
     }
   }
 
@@ -622,6 +783,19 @@ class _ForumsScreenState extends State<ForumsScreen> {
                           ),
                           const Spacer(),
                           IconButton(
+                            onPressed: _toggleArchived,
+                            icon: Icon(
+                              _showArchived
+                                  ? Icons.unarchive_outlined
+                                  : Icons.archive_outlined,
+                              color: _showArchived ? _kPurple : primaryText,
+                              size: 22,
+                            ),
+                            tooltip: _showArchived
+                                ? 'Show active posts'
+                                : 'Show archived posts',
+                          ),
+                          IconButton(
                             onPressed: () => _fetchPosts(silent: false),
                             icon: Icon(
                               Icons.refresh_rounded,
@@ -665,7 +839,9 @@ class _ForumsScreenState extends State<ForumsScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'A safe space to share and connect',
+                        _showArchived
+                            ? 'Archived forum posts'
+                            : 'A safe space to share and connect',
                         style: TextStyle(color: secondaryText, fontSize: 15),
                       ),
                       const SizedBox(height: 8),
@@ -673,20 +849,46 @@ class _ForumsScreenState extends State<ForumsScreen> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           ChoiceChip(
-                            label: const Text('All posts'),
-                            selected: !_showMineOnly,
-                            onSelected: (_) =>
-                                setState(() => _showMineOnly = false),
+                            label: const Text('Active'),
+                            selected: !_showArchived,
+                            onSelected: (_) {
+                              if (_showArchived) {
+                                _toggleArchived();
+                              }
+                            },
                           ),
                           const SizedBox(width: 8),
                           ChoiceChip(
-                            label: const Text('My posts'),
-                            selected: _showMineOnly,
-                            onSelected: (_) =>
-                                setState(() => _showMineOnly = true),
+                            label: const Text('Archive'),
+                            selected: _showArchived,
+                            onSelected: (_) {
+                              if (!_showArchived) {
+                                _toggleArchived();
+                              }
+                            },
                           ),
                         ],
                       ),
+                      const SizedBox(height: 8),
+                      if (!_showArchived)
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            ChoiceChip(
+                              label: const Text('All posts'),
+                              selected: !_showMineOnly,
+                              onSelected: (_) =>
+                                  setState(() => _showMineOnly = false),
+                            ),
+                            const SizedBox(width: 8),
+                            ChoiceChip(
+                              label: const Text('My posts'),
+                              selected: _showMineOnly,
+                              onSelected: (_) =>
+                                  setState(() => _showMineOnly = true),
+                            ),
+                          ],
+                        ),
                     ],
                   ),
                 ),
@@ -708,10 +910,21 @@ class _ForumsScreenState extends State<ForumsScreen> {
                             ? _ForumDetailView(
                                 key: const ValueKey('forum-detail'),
                                 post: detailPost,
+                                showArchivedActions: _showArchived,
                                 onClose: _closePostDetail,
                                 onLikeTap: () => _toggleLike(detailPost.id),
                                 onReportTap: () =>
                                     _showReportDialog(detailPost.id),
+                                onArchiveTap: detailPost.isMine
+                                    ? () => _archivePost(detailPost.id)
+                                    : null,
+                                onRecoverTap: detailPost.isMine
+                                    ? () => _recoverPost(detailPost.id)
+                                    : null,
+                                onDeletePermanentlyTap: detailPost.isMine
+                                    ? () =>
+                                          _deletePostPermanently(detailPost.id)
+                                    : null,
                                 onAddComment: _addComment,
                               )
                             : _ForumListView(
@@ -719,17 +932,26 @@ class _ForumsScreenState extends State<ForumsScreen> {
                                 posts: visiblePosts,
                                 companionId: widget.companionId,
                                 fabExpanded: _fabExpanded,
+                                showArchivedActions: _showArchived,
                                 onPostTap: (i) =>
                                     _openPostDetail(visiblePosts[i].id),
                                 onLikeTap: (i) =>
                                     _toggleLike(visiblePosts[i].id),
                                 onReportTap: (i) =>
                                     _showReportDialog(visiblePosts[i].id),
+                                onArchiveTap: (i) =>
+                                    _archivePost(visiblePosts[i].id),
+                                onRecoverTap: (i) =>
+                                    _recoverPost(visiblePosts[i].id),
+                                onDeletePermanentlyTap: (i) =>
+                                    _deletePostPermanently(visiblePosts[i].id),
                                 onExpandFab: () =>
                                     setState(() => _fabExpanded = true),
                                 onCollapseFab: () =>
                                     setState(() => _fabExpanded = false),
-                                onCreatePost: _showComposerDialog,
+                                onCreatePost: _showArchived
+                                    ? null
+                                    : _showComposerDialog,
                               ),
                       ),
               ),
@@ -799,21 +1021,29 @@ class _ForumListView extends StatelessWidget {
   final List<_ForumPost> posts;
   final int companionId;
   final bool fabExpanded;
+  final bool showArchivedActions;
   final ValueChanged<int> onPostTap;
   final ValueChanged<int> onLikeTap;
   final ValueChanged<int> onReportTap;
+  final ValueChanged<int> onArchiveTap;
+  final ValueChanged<int> onRecoverTap;
+  final ValueChanged<int> onDeletePermanentlyTap;
   final VoidCallback onExpandFab;
   final VoidCallback onCollapseFab;
-  final VoidCallback onCreatePost;
+  final VoidCallback? onCreatePost;
 
   const _ForumListView({
     super.key,
     required this.posts,
     required this.companionId,
     required this.fabExpanded,
+    required this.showArchivedActions,
     required this.onPostTap,
     required this.onLikeTap,
     required this.onReportTap,
+    required this.onArchiveTap,
+    required this.onRecoverTap,
+    required this.onDeletePermanentlyTap,
     required this.onExpandFab,
     required this.onCollapseFab,
     required this.onCreatePost,
@@ -863,9 +1093,13 @@ class _ForumListView extends StatelessWidget {
                   itemBuilder: (ctx, i) {
                     return _PostCard(
                       post: posts[i],
+                      showArchivedActions: showArchivedActions,
                       onTap: () => onPostTap(i),
                       onLikeTap: () => onLikeTap(i),
                       onReportTap: () => onReportTap(i),
+                      onArchiveTap: () => onArchiveTap(i),
+                      onRecoverTap: () => onRecoverTap(i),
+                      onDeletePermanentlyTap: () => onDeletePermanentlyTap(i),
                       onAuthorTap: () {
                         final authorId = posts[i].authorId;
                         if (authorId == null || authorId.isEmpty) return;
@@ -875,127 +1109,128 @@ class _ForumListView extends StatelessWidget {
                   },
                 ),
         ),
-        if (fabExpanded)
+        if (fabExpanded && onCreatePost != null)
           Positioned.fill(
             child: GestureDetector(
               onTap: onCollapseFab,
               child: Container(color: Colors.transparent),
             ),
           ),
-        Positioned(
-          bottom: 24,
-          right: 18,
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 250),
-            child: fabExpanded
-                ? Row(
-                    key: const ValueKey('fab-expanded'),
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Image.asset(
-                        'assets/doodle$companionId.png',
-                        width: 72,
-                        height: 72,
-                        errorBuilder: (context, error, stackTrace) =>
-                            const SizedBox(),
-                      ),
-                      const SizedBox(width: 8),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: context.mdSecondarySurface,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              'Let\'s support someone today!',
-                              style: TextStyle(
-                                color: primaryText,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 12,
+        if (onCreatePost != null)
+          Positioned(
+            bottom: 24,
+            right: 18,
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 250),
+              child: fabExpanded
+                  ? Row(
+                      key: const ValueKey('fab-expanded'),
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Image.asset(
+                          'assets/doodle$companionId.png',
+                          width: 72,
+                          height: 72,
+                          errorBuilder: (context, error, stackTrace) =>
+                              const SizedBox(),
+                        ),
+                        const SizedBox(width: 8),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
                               ),
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          Row(
-                            children: [
-                              GestureDetector(
-                                onTap: onCollapseFab,
-                                child: Container(
-                                  width: 32,
-                                  height: 32,
-                                  decoration: const BoxDecoration(
-                                    color: Color(0xFFEF4444),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(
-                                    Icons.close,
-                                    color: Colors.white,
-                                    size: 18,
-                                  ),
+                              decoration: BoxDecoration(
+                                color: context.mdSecondarySurface,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                'Let\'s support someone today!',
+                                style: TextStyle(
+                                  color: primaryText,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12,
                                 ),
                               ),
-                              const SizedBox(width: 10),
-                              GestureDetector(
-                                onTap: onCreatePost,
-                                child: Container(
-                                  width: 54,
-                                  height: 54,
-                                  decoration: BoxDecoration(
-                                    color: context.mdSurface,
-                                    shape: BoxShape.circle,
-                                    boxShadow: const [
-                                      BoxShadow(
-                                        color: Color(0x22000000),
-                                        blurRadius: 10,
-                                        offset: Offset(0, 2),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Icon(
-                                    Icons.add,
-                                    color: primaryText,
-                                    size: 30,
+                            ),
+                            const SizedBox(height: 10),
+                            Row(
+                              children: [
+                                GestureDetector(
+                                  onTap: onCollapseFab,
+                                  child: Container(
+                                    width: 32,
+                                    height: 32,
+                                    decoration: const BoxDecoration(
+                                      color: Color(0xFFEF4444),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.close,
+                                      color: Colors.white,
+                                      size: 18,
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ],
-                  )
-                : GestureDetector(
-                    key: const ValueKey('fab-main'),
-                    onTap: onExpandFab,
-                    child: Container(
-                      width: 64,
-                      height: 64,
-                      decoration: const BoxDecoration(
-                        color: _kPurple,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Color(0x44A076F9),
-                            blurRadius: 12,
-                            offset: Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.add,
-                        color: Colors.white,
-                        size: 34,
+                                const SizedBox(width: 10),
+                                GestureDetector(
+                                  onTap: onCreatePost,
+                                  child: Container(
+                                    width: 54,
+                                    height: 54,
+                                    decoration: BoxDecoration(
+                                      color: context.mdSurface,
+                                      shape: BoxShape.circle,
+                                      boxShadow: const [
+                                        BoxShadow(
+                                          color: Color(0x22000000),
+                                          blurRadius: 10,
+                                          offset: Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Icon(
+                                      Icons.add,
+                                      color: primaryText,
+                                      size: 30,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ],
+                    )
+                  : GestureDetector(
+                      key: const ValueKey('fab-main'),
+                      onTap: onExpandFab,
+                      child: Container(
+                        width: 64,
+                        height: 64,
+                        decoration: const BoxDecoration(
+                          color: _kPurple,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Color(0x44A076F9),
+                              blurRadius: 12,
+                              offset: Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.add,
+                          color: Colors.white,
+                          size: 34,
+                        ),
                       ),
                     ),
-                  ),
+            ),
           ),
-        ),
       ],
     );
   }
@@ -1003,17 +1238,25 @@ class _ForumListView extends StatelessWidget {
 
 class _ForumDetailView extends StatefulWidget {
   final _ForumPost post;
+  final bool showArchivedActions;
   final VoidCallback onClose;
   final VoidCallback onLikeTap;
   final VoidCallback onReportTap;
+  final VoidCallback? onArchiveTap;
+  final VoidCallback? onRecoverTap;
+  final VoidCallback? onDeletePermanentlyTap;
   final Future<void> Function(String) onAddComment;
 
   const _ForumDetailView({
     super.key,
     required this.post,
+    required this.showArchivedActions,
     required this.onClose,
     required this.onLikeTap,
     required this.onReportTap,
+    this.onArchiveTap,
+    this.onRecoverTap,
+    this.onDeletePermanentlyTap,
     required this.onAddComment,
   });
 
@@ -1051,9 +1294,13 @@ class _ForumDetailViewState extends State<_ForumDetailView> {
                       child: _PostCard(
                         post: post,
                         compactText: false,
+                        showArchivedActions: widget.showArchivedActions,
                         onTap: () {},
                         onLikeTap: widget.onLikeTap,
                         onReportTap: widget.onReportTap,
+                        onArchiveTap: widget.onArchiveTap,
+                        onRecoverTap: widget.onRecoverTap,
+                        onDeletePermanentlyTap: widget.onDeletePermanentlyTap,
                         onAuthorTap: () {
                           final authorId = post.authorId;
                           if (authorId == null || authorId.isEmpty) return;
@@ -1190,9 +1437,13 @@ class _ForumDetailViewState extends State<_ForumDetailView> {
 class _PostCard extends StatelessWidget {
   final _ForumPost post;
   final bool compactText;
+  final bool showArchivedActions;
   final VoidCallback onTap;
   final VoidCallback onLikeTap;
   final VoidCallback onReportTap;
+  final VoidCallback? onArchiveTap;
+  final VoidCallback? onRecoverTap;
+  final VoidCallback? onDeletePermanentlyTap;
   final VoidCallback? onAuthorTap;
 
   const _PostCard({
@@ -1200,6 +1451,10 @@ class _PostCard extends StatelessWidget {
     required this.onTap,
     required this.onLikeTap,
     required this.onReportTap,
+    this.showArchivedActions = false,
+    this.onArchiveTap,
+    this.onRecoverTap,
+    this.onDeletePermanentlyTap,
     this.onAuthorTap,
     this.compactText = true,
   });
@@ -1333,15 +1588,56 @@ class _PostCard extends StatelessWidget {
                         ),
                       ),
                       const Spacer(),
-                      GestureDetector(
-                        onTap: onReportTap,
-                        behavior: HitTestBehavior.opaque,
-                        child: Icon(
-                          Icons.warning_amber_rounded,
-                          color: onCardText,
-                          size: 20,
+                      if (showArchivedActions && post.isMine) ...[
+                        GestureDetector(
+                          onTap: onRecoverTap,
+                          behavior: HitTestBehavior.opaque,
+                          child: Icon(
+                            Icons.restore_rounded,
+                            color: onCardText,
+                            size: 20,
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: 12),
+                        GestureDetector(
+                          onTap: onDeletePermanentlyTap,
+                          behavior: HitTestBehavior.opaque,
+                          child: const Icon(
+                            Icons.delete_forever_rounded,
+                            color: Colors.red,
+                            size: 20,
+                          ),
+                        ),
+                      ] else if (post.isMine) ...[
+                        GestureDetector(
+                          onTap: onArchiveTap,
+                          behavior: HitTestBehavior.opaque,
+                          child: Icon(
+                            Icons.archive_outlined,
+                            color: onCardText,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        GestureDetector(
+                          onTap: onReportTap,
+                          behavior: HitTestBehavior.opaque,
+                          child: Icon(
+                            Icons.warning_amber_rounded,
+                            color: onCardText,
+                            size: 20,
+                          ),
+                        ),
+                      ] else
+                        GestureDetector(
+                          onTap: onReportTap,
+                          behavior: HitTestBehavior.opaque,
+                          child: Icon(
+                            Icons.warning_amber_rounded,
+                            color: onCardText,
+                            size: 20,
+                          ),
+                        ),
                     ],
                   ),
                 ],

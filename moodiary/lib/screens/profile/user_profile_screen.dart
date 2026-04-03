@@ -54,6 +54,11 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         final decoded = jsonDecode(rawCache) as List<dynamic>;
         final idx = decoded.indexWhere((e) => e['dateKey'] == todayKey);
         if (idx >= 0) {
+          final todayLog = decoded[idx] as Map<String, dynamic>;
+          final rawScore = todayLog['score'];
+          if (rawScore is num) {
+            _todayMoodScore = rawScore.round();
+          }
           final moodLevel = decoded[idx]['moodLevel'] as int?;
           if (moodLevel != null && moodLevel >= 1 && moodLevel <= 5) {
             const moodLabels = ['Terrible', 'Bad', 'Okay', 'Good', 'Excellent'];
@@ -141,32 +146,39 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   }
 
   Future<void> _pickAvatarImage() async {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 35,
-      maxWidth: 256,
-      maxHeight: 256,
-    );
-    if (picked == null) return;
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 35,
+        maxWidth: 256,
+        maxHeight: 256,
+      );
+      if (picked == null) return;
 
-    final Uint8List bytes = await picked.readAsBytes();
-    final lower = picked.path.toLowerCase();
-    final mimeType = lower.endsWith('.png') ? 'image/png' : 'image/jpeg';
-    final dataUrl = dataUrlFromImageBytes(bytes, mimeType: mimeType);
+      final Uint8List bytes = await picked.readAsBytes();
+      final lower = picked.path.toLowerCase();
+      final mimeType = lower.endsWith('.png') ? 'image/png' : 'image/jpeg';
+      final dataUrl = dataUrlFromImageBytes(bytes, mimeType: mimeType);
 
-    if (dataUrl == null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not process selected image.')),
-        );
+      if (dataUrl == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not process selected image.')),
+          );
+        }
+        return;
       }
-      return;
+      if (!mounted) return;
+      setState(() {
+        _selectedAvatarDataUrl = dataUrl;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not select image: $e')));
     }
-    if (!mounted) return;
-    setState(() {
-      _selectedAvatarDataUrl = dataUrl;
-    });
   }
 
   @override

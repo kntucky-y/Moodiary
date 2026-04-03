@@ -51,7 +51,13 @@ function serializePost(post, currentUserId) {
 // GET /api/forums — forum posts for authenticated users
 router.get('/', auth, async (req, res) => {
   try {
-    const posts = await ForumPost.find().sort({ createdAt: -1 }).limit(200);
+    const archived = req.query.archived === 'true';
+    const query = archived
+      ? { isArchived: true, userId: req.userId }
+      : { isArchived: { $ne: true } };
+    const posts = await ForumPost.find(query)
+      .sort({ createdAt: -1 })
+      .limit(200);
     res.json(posts.map((post) => serializePost(post, req.userId)));
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -80,6 +86,8 @@ router.post('/', auth, async (req, res) => {
       likedBy: [],
       comments: [],
       reports: [],
+      isArchived: false,
+      archivedAt: null,
     });
 
     res.status(201).json(serializePost(post, req.userId));
@@ -93,6 +101,9 @@ router.post('/:id/like', auth, async (req, res) => {
   try {
     const post = await ForumPost.findById(req.params.id);
     if (!post) return res.status(404).json({ error: 'Post not found' });
+    if (post.isArchived) {
+      return res.status(400).json({ error: 'Cannot like an archived post' });
+    }
 
     const existingIndex = post.likedBy.findIndex((id) =>
       sameObjectId(id, req.userId)
@@ -123,6 +134,9 @@ router.post('/:id/comments', auth, async (req, res) => {
   try {
     const post = await ForumPost.findById(req.params.id);
     if (!post) return res.status(404).json({ error: 'Post not found' });
+    if (post.isArchived) {
+      return res.status(400).json({ error: 'Cannot comment on an archived post' });
+    }
 
     const user = await User.findById(req.userId).select('name avatarUrl');
     if (!user) return res.status(404).json({ error: 'User not found' });
@@ -155,6 +169,9 @@ router.post('/:id/report', auth, async (req, res) => {
   try {
     const post = await ForumPost.findById(req.params.id);
     if (!post) return res.status(404).json({ error: 'Post not found' });
+    if (post.isArchived) {
+      return res.status(400).json({ error: 'Cannot report an archived post' });
+    }
 
     const existing = post.reports.find((r) => sameObjectId(r.reporterId, req.userId));
     if (existing) {
@@ -170,6 +187,67 @@ router.post('/:id/report', auth, async (req, res) => {
     }
 
     await post.save();
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/forums/:id — soft delete (archive) own active post
+router.delete('/:id', auth, async (req, res) => {
+  try {
+    const post = await ForumPost.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        userId: req.userId,
+        isArchived: { $ne: true },
+      },
+      {
+        isArchived: true,
+        archivedAt: new Date(),
+      },
+      { new: true }
+    );
+
+    if (!post) return res.status(404).json({ error: 'Post not found' });
+    res.json({ success: true, post: serializePost(post, req.userId) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/forums/:id/recover — restore own archived post (likes/comments kept)
+router.post('/:id/recover', auth, async (req, res) => {
+  try {
+    const post = await ForumPost.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        userId: req.userId,
+        isArchived: true,
+      },
+      {
+        isArchived: false,
+        archivedAt: null,
+      },
+      { new: true }
+    );
+
+    if (!post) return res.status(404).json({ error: 'Post not found' });
+    res.json({ success: true, post: serializePost(post, req.userId) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/forums/:id/permanent — hard delete own archived post
+router.delete('/:id/permanent', auth, async (req, res) => {
+  try {
+    const post = await ForumPost.findOneAndDelete({
+      _id: req.params.id,
+      userId: req.userId,
+      isArchived: true,
+    });
+    if (!post) return res.status(404).json({ error: 'Post not found' });
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

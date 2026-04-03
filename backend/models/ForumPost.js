@@ -104,6 +104,15 @@ const forumPostSchema = new mongoose.Schema(
     ],
     comments: [forumCommentSchema],
     reports: [forumReportSchema],
+    isArchived: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    archivedAt: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true }
 );
