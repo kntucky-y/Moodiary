@@ -315,7 +315,9 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
                     const SizedBox(height: 8),
                     Text(
                       'Permanently delete your account and all associated data. This action cannot be undone.',
-                      style: Theme.of(context).textTheme.bodySmall,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onErrorContainer,
+                      ),
                     ),
                     const SizedBox(height: 16),
                     SizedBox(

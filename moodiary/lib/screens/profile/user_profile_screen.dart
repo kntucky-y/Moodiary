@@ -21,6 +21,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   bool _isEditing = false;
   String? _selectedAvatarDataUrl;
   String? _currentAvatarUrl;
+  int _todayMoodScore = 0;
 
   final _nameController = TextEditingController();
   final _bioController = TextEditingController();
@@ -36,6 +37,11 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     final prefs = await SharedPreferences.getInstance();
     _userId = prefs.getString('user_id') ?? prefs.getString('userId') ?? '';
     _authToken = prefs.getString('token') ?? '';
+
+    final now = DateTime.now();
+    final key =
+        'mood_score_${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    _todayMoodScore = prefs.getInt(key) ?? 0;
 
     setState(() {
       _profileFuture = AuthService.instance.getUserProfile(userId: _userId);
@@ -58,6 +64,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       if (_selectedAvatarDataUrl != null &&
           _selectedAvatarDataUrl!.isNotEmpty) {
         await prefs.setString('user_avatar_url', _selectedAvatarDataUrl!);
+      } else if (_currentAvatarUrl != null && _currentAvatarUrl!.isNotEmpty) {
+        await prefs.setString('user_avatar_url', _currentAvatarUrl!);
       }
 
       if (mounted) {
@@ -83,9 +91,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     final picker = ImagePicker();
     final picked = await picker.pickImage(
       source: ImageSource.gallery,
-      imageQuality: 75,
-      maxWidth: 768,
-      maxHeight: 768,
+      imageQuality: 60,
+      maxWidth: 512,
+      maxHeight: 512,
     );
     if (picked == null) return;
 
@@ -94,7 +102,14 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     final mimeType = lower.endsWith('.png') ? 'image/png' : 'image/jpeg';
     final dataUrl = dataUrlFromImageBytes(bytes, mimeType: mimeType);
 
-    if (dataUrl == null) return;
+    if (dataUrl == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not process selected image.')),
+        );
+      }
+      return;
+    }
     if (!mounted) return;
     setState(() {
       _selectedAvatarDataUrl = dataUrl;
@@ -111,9 +126,11 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Scaffold(
+      backgroundColor: cs.surface,
       appBar: AppBar(
-        title: const Text('My Profile'),
+        title: const Text('User Profile'),
         elevation: 0,
         actions: [
           if (!_isEditing)
@@ -178,35 +195,137 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           }
 
           return SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Avatar section
-                Center(
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: cs.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                   child: Column(
                     children: [
-                      CircleAvatar(
-                        radius: 50,
-                        backgroundImage: avatarImageProvider(
-                          displayedAvatarUrl,
-                        ),
-                        child: avatarImageProvider(displayedAvatarUrl) == null
-                            ? const Icon(Icons.person, size: 50)
-                            : null,
+                      Stack(
+                        children: [
+                          CircleAvatar(
+                            radius: 48,
+                            backgroundImage: avatarImageProvider(
+                              displayedAvatarUrl,
+                            ),
+                            child:
+                                avatarImageProvider(displayedAvatarUrl) == null
+                                ? const Icon(Icons.person, size: 44)
+                                : null,
+                          ),
+                          if (_isEditing)
+                            Positioned(
+                              right: -2,
+                              bottom: -2,
+                              child: InkWell(
+                                onTap: _pickAvatarImage,
+                                child: Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: cs.primary,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    Icons.photo_camera_outlined,
+                                    size: 16,
+                                    color: cs.onPrimary,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
-                      if (_isEditing) ...[
-                        const SizedBox(height: 12),
-                        OutlinedButton.icon(
-                          onPressed: _pickAvatarImage,
-                          icon: const Icon(Icons.photo_library_outlined),
-                          label: const Text('Upload profile photo'),
+                      const SizedBox(height: 10),
+                      Text(
+                        (_nameController.text.isNotEmpty
+                                ? _nameController.text
+                                : (userData['name'] as String? ?? 'NAME'))
+                            .toUpperCase(),
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w800,
                         ),
-                      ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '[ABOUT ME] ${_bioController.text.isNotEmpty ? _bioController.text : (userData['bio'] as String? ?? '')}',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 12),
+
+                Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: cs.surfaceContainer,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'WHAT I\'M FEELING RIGHT NOW...',
+                              style: Theme.of(context).textTheme.labelSmall
+                                  ?.copyWith(fontWeight: FontWeight.w700),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: const [
+                                _MoodMini(asset: 'assets/bad.png'),
+                                SizedBox(width: 6),
+                                _MoodMini(asset: 'assets/okay.png'),
+                                SizedBox(width: 6),
+                                _MoodMini(asset: 'assets/good.png'),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Container(
+                      width: 120,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: cs.surfaceContainer,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Mood Score',
+                            style: Theme.of(context).textTheme.labelSmall
+                                ?.copyWith(fontWeight: FontWeight.w700),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            '$_todayMoodScore',
+                            style: Theme.of(context).textTheme.headlineMedium
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w900,
+                                  color: cs.primary,
+                                ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
 
                 // Name
                 Text('Name', style: Theme.of(context).textTheme.titleSmall),
@@ -331,6 +450,31 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+class _MoodMini extends StatelessWidget {
+  final String asset;
+  const _MoodMini({required this.asset});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 30,
+      height: 30,
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        shape: BoxShape.circle,
+      ),
+      child: ClipOval(
+        child: Image.asset(
+          asset,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) =>
+              const Icon(Icons.sentiment_satisfied_alt, size: 16),
+        ),
       ),
     );
   }
