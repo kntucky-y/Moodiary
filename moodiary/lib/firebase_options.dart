@@ -26,10 +26,7 @@ class DefaultFirebaseOptions {
       case TargetPlatform.android:
         return android;
       case TargetPlatform.iOS:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for ios - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return ios;
       case TargetPlatform.macOS:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for macos - '
@@ -59,4 +56,14 @@ class DefaultFirebaseOptions {
     projectId: 'moodiary-notifs-2026-92842',
     storageBucket: 'moodiary-notifs-2026-92842.firebasestorage.app',
   );
+
+  static const FirebaseOptions ios = FirebaseOptions(
+    apiKey: 'AIzaSyAteXvHafDS1gIGY5idb6m07Fj6JWcDBAw',
+    appId: '1:194025800391:ios:4f8ebc8452033f655db4e2',
+    messagingSenderId: '194025800391',
+    projectId: 'moodiary-notifs-2026-92842',
+    storageBucket: 'moodiary-notifs-2026-92842.firebasestorage.app',
+    iosBundleId: 'com.example.moodiary',
+  );
+
 }
