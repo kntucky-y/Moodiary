@@ -456,29 +456,30 @@ class _ChatHeader extends StatelessWidget {
           GestureDetector(
             onTap: () {
               if (friendUserId.isEmpty) return;
-              showUserProfilePopup(
-                context,
-                userId: friendUserId,
-                onOpenForumPost: (postId) async {
-                  final prefs = await SharedPreferences.getInstance();
-                  final userName = prefs.getString('user_name') ?? '';
-                  final companionId =
-                      int.tryParse(prefs.getString('companion_id') ?? '') ?? 1;
-                  final companionName =
-                      prefs.getString('companion_name') ?? 'Companion';
-                  if (!context.mounted) return;
-                  Navigator.of(context).push(
-                    FadeSlideRoute(
-                      page: ForumsScreen(
-                        userName: userName,
-                        companionId: companionId,
-                        companionName: companionName,
-                        initialPostId: postId,
-                      ),
+              () async {
+                final selectedPostId = await showUserProfilePopup(
+                  context,
+                  userId: friendUserId,
+                );
+                if (selectedPostId == null) return;
+                final prefs = await SharedPreferences.getInstance();
+                final userName = prefs.getString('user_name') ?? '';
+                final companionId =
+                    int.tryParse(prefs.getString('companion_id') ?? '') ?? 1;
+                final companionName =
+                    prefs.getString('companion_name') ?? 'Companion';
+                if (!context.mounted) return;
+                Navigator.of(context).push(
+                  FadeSlideRoute(
+                    page: ForumsScreen(
+                      userName: userName,
+                      companionId: companionId,
+                      companionName: companionName,
+                      initialPostId: selectedPostId,
                     ),
-                  );
-                },
-              );
+                  ),
+                );
+              }();
             },
             child: Row(
               children: [

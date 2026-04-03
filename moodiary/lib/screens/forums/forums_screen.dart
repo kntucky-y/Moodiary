@@ -1113,11 +1113,15 @@ class _ForumListView extends StatelessWidget {
                       onAuthorTap: () {
                         final authorId = posts[i].authorId;
                         if (authorId == null || authorId.isEmpty) return;
-                        showUserProfilePopup(
-                          context,
-                          userId: authorId,
-                          onOpenForumPost: (postId) async => onOpenPost(postId),
-                        );
+                        () async {
+                          final selectedPostId = await showUserProfilePopup(
+                            context,
+                            userId: authorId,
+                          );
+                          if (selectedPostId != null) {
+                            onOpenPost(selectedPostId);
+                          }
+                        }();
                       },
                     );
                   },
@@ -1320,12 +1324,15 @@ class _ForumDetailViewState extends State<_ForumDetailView> {
                         onAuthorTap: () {
                           final authorId = post.authorId;
                           if (authorId == null || authorId.isEmpty) return;
-                          showUserProfilePopup(
-                            context,
-                            userId: authorId,
-                            onOpenForumPost: (postId) async =>
-                                widget.onOpenPost(postId),
-                          );
+                          () async {
+                            final selectedPostId = await showUserProfilePopup(
+                              context,
+                              userId: authorId,
+                            );
+                            if (selectedPostId != null) {
+                              widget.onOpenPost(selectedPostId);
+                            }
+                          }();
                         },
                       ),
                     ),

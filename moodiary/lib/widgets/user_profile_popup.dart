@@ -3,27 +3,21 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../utils/avatar_utils.dart';
 
-Future<void> showUserProfilePopup(
+Future<String?> showUserProfilePopup(
   BuildContext context, {
   required String userId,
-  Future<void> Function(String postId)? onOpenForumPost,
 }) async {
-  await showDialog<void>(
+  return showDialog<String>(
     context: context,
     barrierDismissible: true,
-    builder: (context) =>
-        _UserProfilePopup(userId: userId, onOpenForumPost: onOpenForumPost),
+    builder: (context) => _UserProfilePopup(userId: userId),
   );
 }
 
 class _UserProfilePopup extends StatelessWidget {
   final String userId;
-  final Future<void> Function(String postId)? onOpenForumPost;
 
-  const _UserProfilePopup({
-    required this.userId,
-    required this.onOpenForumPost,
-  });
+  const _UserProfilePopup({required this.userId});
 
   String _formatDate(DateTime dateTime) {
     const months = [
@@ -405,11 +399,10 @@ class _UserProfilePopup extends StatelessWidget {
                                     borderRadius: BorderRadius.circular(18),
                                     child: InkWell(
                                       borderRadius: BorderRadius.circular(18),
-                                      onTap: () async {
-                                        final openPost = onOpenForumPost;
-                                        if (openPost == null) return;
-                                        Navigator.of(context).pop();
-                                        await openPost(post['id'] as String);
+                                      onTap: () {
+                                        Navigator.of(
+                                          context,
+                                        ).pop(post['id'] as String);
                                       },
                                       child: Container(
                                         width: double.infinity,
