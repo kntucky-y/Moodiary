@@ -79,10 +79,15 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   }
 
   Future<Map<String, dynamic>> _loadProfileBundle() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userName = prefs.getString('user_name');
     final results = await Future.wait<dynamic>([
       AuthService.instance.getUserProfile(userId: _userId),
       AuthService.instance.getMyJournalEntries(authToken: _authToken),
-      AuthService.instance.getMyForumPosts(authToken: _authToken),
+      AuthService.instance.getMyForumPosts(
+        authToken: _authToken,
+        userName: userName,
+      ),
     ]);
 
     return {
@@ -94,7 +99,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
   Future<void> _saveProfile() async {
     try {
-      await AuthService.instance.updateUserProfile(
+      final updated = await AuthService.instance.updateUserProfile(
         userId: _userId,
         authToken: _authToken,
         name: _nameController.text,
@@ -103,9 +108,15 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         avatarUrl: _selectedAvatarDataUrl,
       );
 
+      final updatedUser = updated['user'] as Map<String, dynamic>?;
+      final updatedAvatarUrl = updatedUser?['avatarUrl'] as String?;
+
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('user_name', _nameController.text.trim());
-      if (_selectedAvatarDataUrl != null &&
+      if (updatedAvatarUrl != null && updatedAvatarUrl.isNotEmpty) {
+        _currentAvatarUrl = updatedAvatarUrl;
+        await prefs.setString('user_avatar_url', updatedAvatarUrl);
+      } else if (_selectedAvatarDataUrl != null &&
           _selectedAvatarDataUrl!.isNotEmpty) {
         await prefs.setString('user_avatar_url', _selectedAvatarDataUrl!);
       } else if (_currentAvatarUrl != null && _currentAvatarUrl!.isNotEmpty) {
@@ -135,9 +146,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     final picker = ImagePicker();
     final picked = await picker.pickImage(
       source: ImageSource.gallery,
-      imageQuality: 60,
-      maxWidth: 512,
-      maxHeight: 512,
+      imageQuality: 35,
+      maxWidth: 256,
+      maxHeight: 256,
     );
     if (picked == null) return;
 
@@ -224,10 +235,16 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           final userData = bundle?['profile']?['user'] as Map<String, dynamic>?;
           final journals =
               (bundle?['journals'] as List<Map<String, dynamic>>? ?? const [])
+                  .where((j) => j['isArchived'] != true)
                   .take(3)
                   .toList();
           final posts =
               (bundle?['posts'] as List<Map<String, dynamic>>? ?? const [])
+                  .where(
+                    (p) =>
+                        p['isMine'] == true ||
+                        p['authorName'] == userData?['name'],
+                  )
                   .take(3)
                   .toList();
           if (userData == null) {
@@ -297,20 +314,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        (_nameController.text.isNotEmpty
-                                ? _nameController.text
-                                : (userData['name'] as String? ?? 'NAME'))
-                            .toUpperCase(),
+                        (userData['name'] as String? ?? 'NAME').toUpperCase(),
                         style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.w800,
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        '[ABOUT ME] ${_bioController.text.isNotEmpty ? _bioController.text : (userData['bio'] as String? ?? '')}',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.bodyMedium,
                       ),
                     ],
                   ),

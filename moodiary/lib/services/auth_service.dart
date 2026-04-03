@@ -231,6 +231,7 @@ class AuthService {
 
   Future<List<Map<String, dynamic>>> getMyForumPosts({
     required String authToken,
+    String? userName,
   }) async {
     final uri = Uri.parse('$kBackendBaseUrl/api/forums');
     try {
@@ -242,7 +243,12 @@ class AuthService {
         final decoded = jsonDecode(response.body) as List<dynamic>;
         return decoded
             .cast<Map<String, dynamic>>()
-            .where((post) => post['isMine'] == true)
+            .where(
+              (post) =>
+                  post['isMine'] == true ||
+                  (userName != null &&
+                      post['authorName']?.toString() == userName),
+            )
             .toList();
       }
       final decoded = jsonDecode(response.body) as Map<String, dynamic>;
