@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -22,6 +23,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   String? _selectedAvatarDataUrl;
   String? _currentAvatarUrl;
   int _todayMoodScore = 0;
+  String _currentMoodLabel = 'No mood logged';
+  String _currentMoodAsset = 'assets/okay.png';
 
   final _nameController = TextEditingController();
   final _bioController = TextEditingController();
@@ -43,9 +46,50 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         'mood_score_${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
     _todayMoodScore = prefs.getInt(key) ?? 0;
 
+    final todayKey =
+        '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    final rawCache = prefs.getString('mood_logs_cache');
+    if (rawCache != null) {
+      try {
+        final decoded = jsonDecode(rawCache) as List<dynamic>;
+        final idx = decoded.indexWhere((e) => e['dateKey'] == todayKey);
+        if (idx >= 0) {
+          final moodLevel = decoded[idx]['moodLevel'] as int?;
+          if (moodLevel != null && moodLevel >= 1 && moodLevel <= 5) {
+            const moodLabels = ['Terrible', 'Bad', 'Okay', 'Good', 'Excellent'];
+            const moodAssets = [
+              'assets/terrible.png',
+              'assets/bad.png',
+              'assets/okay.png',
+              'assets/good.png',
+              'assets/excellent.png',
+            ];
+            _currentMoodLabel = moodLabels[moodLevel - 1];
+            _currentMoodAsset = moodAssets[moodLevel - 1];
+          }
+        }
+      } catch (_) {
+        // Ignore malformed cache and keep defaults.
+      }
+    }
+
     setState(() {
-      _profileFuture = AuthService.instance.getUserProfile(userId: _userId);
+      _profileFuture = _loadProfileBundle();
     });
+  }
+
+  Future<Map<String, dynamic>> _loadProfileBundle() async {
+    final results = await Future.wait<dynamic>([
+      AuthService.instance.getUserProfile(userId: _userId),
+      AuthService.instance.getMyJournalEntries(authToken: _authToken),
+      AuthService.instance.getMyForumPosts(authToken: _authToken),
+    ]);
+
+    return {
+      'profile': results[0] as Map<String, dynamic>,
+      'journals': results[1] as List<Map<String, dynamic>>,
+      'posts': results[2] as List<Map<String, dynamic>>,
+    };
   }
 
   Future<void> _saveProfile() async {
@@ -75,7 +119,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         setState(() {
           _isEditing = false;
           _selectedAvatarDataUrl = null;
-          _profileFuture = AuthService.instance.getUserProfile(userId: _userId);
+          _profileFuture = _loadProfileBundle();
         });
       }
     } catch (e) {
@@ -176,7 +220,16 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             );
           }
 
-          final userData = snapshot.data?['user'] as Map<String, dynamic>?;
+          final bundle = snapshot.data;
+          final userData = bundle?['profile']?['user'] as Map<String, dynamic>?;
+          final journals =
+              (bundle?['journals'] as List<Map<String, dynamic>>? ?? const [])
+                  .take(3)
+                  .toList();
+          final posts =
+              (bundle?['posts'] as List<Map<String, dynamic>>? ?? const [])
+                  .take(3)
+                  .toList();
           if (userData == null) {
             return const Center(child: Text('Profile not found'));
           }
@@ -283,12 +336,19 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                             ),
                             const SizedBox(height: 8),
                             Row(
-                              children: const [
-                                _MoodMini(asset: 'assets/bad.png'),
-                                SizedBox(width: 6),
-                                _MoodMini(asset: 'assets/okay.png'),
-                                SizedBox(width: 6),
-                                _MoodMini(asset: 'assets/good.png'),
+                              children: [
+                                _MoodMini(asset: _currentMoodAsset),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    _currentMoodLabel,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.copyWith(fontWeight: FontWeight.w700),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
                               ],
                             ),
                           ],
@@ -326,6 +386,43 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   ],
                 ),
                 const SizedBox(height: 16),
+
+                Text(
+                  'Public Journals & Posts',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                if (journals.isEmpty)
+                  _SimpleInfoCard(
+                    title: 'Public Journals',
+                    subtitle: 'No journal entries yet.',
+                  )
+                else
+                  ...journals.map(
+                    (j) => _SimpleInfoCard(
+                      title: (j['title'] as String?) ?? 'Untitled Journal',
+                      subtitle: (j['content'] as String?) ?? '',
+                      leading: Icons.book_outlined,
+                    ),
+                  ),
+                const SizedBox(height: 6),
+                if (posts.isEmpty)
+                  _SimpleInfoCard(
+                    title: 'Posts',
+                    subtitle: 'No public forum posts yet.',
+                    leading: Icons.chat_bubble_outline,
+                  )
+                else
+                  ...posts.map(
+                    (p) => _SimpleInfoCard(
+                      title: (p['title'] as String?) ?? 'Untitled Post',
+                      subtitle: (p['content'] as String?) ?? '',
+                      leading: Icons.forum_outlined,
+                    ),
+                  ),
+                const SizedBox(height: 14),
 
                 // Name
                 Text('Name', style: Theme.of(context).textTheme.titleSmall),
@@ -450,6 +547,63 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+class _SimpleInfoCard extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final IconData? leading;
+
+  const _SimpleInfoCard({
+    required this.title,
+    required this.subtitle,
+    this.leading,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final textColor = Theme.of(context).textTheme.bodyMedium?.color;
+    final subtleColor = Theme.of(context).textTheme.bodySmall?.color;
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (leading != null) ...[
+              Icon(leading, size: 18, color: subtleColor),
+              const SizedBox(width: 8),
+            ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(color: textColor),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

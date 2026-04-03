@@ -204,6 +204,59 @@ class AuthService {
     }
   }
 
+  Future<List<Map<String, dynamic>>> getMyJournalEntries({
+    required String authToken,
+  }) async {
+    final uri = Uri.parse('$kBackendBaseUrl/api/journal');
+    try {
+      final response = await _client.get(
+        uri,
+        headers: {'Authorization': 'Bearer $authToken'},
+      );
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final decoded = jsonDecode(response.body) as List<dynamic>;
+        return decoded.cast<Map<String, dynamic>>();
+      }
+      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+      throw AuthException(
+        decoded['error']?.toString() ?? 'Failed to load journals',
+      );
+    } catch (error) {
+      if (error is AuthException) {
+        rethrow;
+      }
+      throw AuthException('Cannot reach the server. Please try again.');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getMyForumPosts({
+    required String authToken,
+  }) async {
+    final uri = Uri.parse('$kBackendBaseUrl/api/forums');
+    try {
+      final response = await _client.get(
+        uri,
+        headers: {'Authorization': 'Bearer $authToken'},
+      );
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final decoded = jsonDecode(response.body) as List<dynamic>;
+        return decoded
+            .cast<Map<String, dynamic>>()
+            .where((post) => post['isMine'] == true)
+            .toList();
+      }
+      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+      throw AuthException(
+        decoded['error']?.toString() ?? 'Failed to load posts',
+      );
+    } catch (error) {
+      if (error is AuthException) {
+        rethrow;
+      }
+      throw AuthException('Cannot reach the server. Please try again.');
+    }
+  }
+
   Future<Map<String, dynamic>> _postJson(
     String path, {
     required Map<String, dynamic> body,
