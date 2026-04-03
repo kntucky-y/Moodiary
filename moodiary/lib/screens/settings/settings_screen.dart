@@ -6,6 +6,7 @@ import '../../services/theme_controller.dart';
 import '../../utils/transitions.dart';
 import '../companion/companion_screen.dart';
 import '../account/account_management_screen.dart';
+import '../notifications/notifications_screen.dart';
 import '../legal/legal_screens.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -218,6 +219,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     Navigator.of(context).push(
                       FadeSlideRoute(page: const AccountManagementScreen()),
                     );
+                  },
+                ),
+                const Divider(height: 0),
+                ListTile(
+                  leading: const Icon(Icons.notifications_none),
+                  title: const Text('Notification history'),
+                  subtitle: const Text('Review previous notifications'),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () {
+                    Navigator.of(
+                      context,
+                    ).push(FadeSlideRoute(page: const NotificationsScreen()));
                   },
                 ),
               ],

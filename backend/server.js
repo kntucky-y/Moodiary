@@ -10,6 +10,7 @@ const chatRoutes = require('./routes/chat');
 const journalRoutes = require('./routes/journal');
 const forumRoutes = require('./routes/forums');
 const friendRoutes = require('./routes/friends');
+const notificationRoutes = require('./routes/notifications');
 const userRoutes = require('./routes/users');
 const resourceRoutes = require('./routes/resources');
 
@@ -28,6 +29,7 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/journal', journalRoutes);
 app.use('/api/forums', forumRoutes);
 app.use('/api/friends', friendRoutes);
+app.use('/api/notifications', notificationRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/resources', resourceRoutes);
 

@@ -108,6 +108,38 @@ const formatMessage = (doc) => ({
       : new Date().toISOString(),
 });
 
+const isMutedBy = (user, targetUserId) =>
+  (user?.mutedUsers || []).some((id) => id.toString() === targetUserId.toString());
+
+const canDeliverFromSender = async (senderId, recipientIds) => {
+  if (!senderId || !recipientIds?.length) {
+    return [];
+  }
+
+  const recipients = await User.find(
+    { _id: { $in: recipientIds } },
+    'blockedUsers mutedUsers',
+  ).lean();
+
+  return recipients
+    .filter((user) => {
+      const blocked = (user.blockedUsers || []).some(
+        (id) => id.toString() === senderId.toString(),
+      );
+      const muted = isMutedBy(user, senderId);
+      return !blocked && !muted;
+    })
+    .map((user) => user._id.toString());
+};
+
+const isChatMutedBetween = async (userAId, userBId) => {
+  const [userA, userB] = await Promise.all([
+    User.findById(userAId, 'mutedUsers').lean(),
+    User.findById(userBId, 'mutedUsers').lean(),
+  ]);
+  return isMutedBy(userA, userBId) || isMutedBy(userB, userAId);
+};
+
 const upsertFriendship = async (userA, userB) => {
   const pairKey = buildPairKey(userA, userB);
   let friendship = await Friendship.findOne({ pairKey });
@@ -307,6 +339,19 @@ router.post('/:id/messages', auth, async (req, res) => {
       req.userId,
     );
 
+    const recipientIds = friendship.members
+      .map((member) => member.toString())
+      .filter((memberId) => memberId !== req.userId.toString());
+
+    if (recipientIds.length) {
+      const muted = await isChatMutedBetween(req.userId, recipientIds[0]);
+      if (muted) {
+        return res.status(403).json({
+          error: 'Chat is muted between you and this user',
+        });
+      }
+    }
+
     const message = await FriendMessage.create({
       friendship: new mongoose.Types.ObjectId(req.params.id),
       sender: req.userId,
@@ -334,10 +379,11 @@ router.post('/:id/messages', auth, async (req, res) => {
       // Socket layer not initialized; skip emit.
     }
 
-    const recipients = friendship.members
-      .map((member) => member.toString())
-      .filter((memberId) => memberId !== req.userId.toString());
-    if (recipients.length) {
+    if (recipientIds.length) {
+      const recipients = await canDeliverFromSender(req.userId, recipientIds);
+      if (!recipients.length) {
+        return res.status(201).json(payload);
+      }
       const sender = await User.findById(req.userId, 'name').lean();
       emitNotification(recipients, {
         type: 'friend_message',

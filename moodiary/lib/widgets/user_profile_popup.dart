@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/auth_service.dart';
 import '../utils/avatar_utils.dart';
@@ -41,6 +42,58 @@ class _UserProfilePopup extends StatelessWidget {
     final compact = text.replaceAll(RegExp(r'\s+'), ' ').trim();
     if (compact.length <= 110) return compact;
     return '${compact.substring(0, 107)}...';
+  }
+
+  Future<void> _blockUser(BuildContext context) async {
+    final prefs = await SharedPreferences.getInstance();
+    final selfUserId =
+        prefs.getString('user_id') ?? prefs.getString('userId') ?? '';
+    final token = prefs.getString('token') ?? '';
+    if (selfUserId.isEmpty || token.isEmpty || selfUserId == userId) {
+      return;
+    }
+    try {
+      await AuthService.instance.blockUser(
+        userId: selfUserId,
+        authToken: token,
+        targetUserId: userId,
+      );
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('User blocked')));
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not block user: $e')));
+    }
+  }
+
+  Future<void> _muteUser(BuildContext context) async {
+    final prefs = await SharedPreferences.getInstance();
+    final selfUserId =
+        prefs.getString('user_id') ?? prefs.getString('userId') ?? '';
+    final token = prefs.getString('token') ?? '';
+    if (selfUserId.isEmpty || token.isEmpty || selfUserId == userId) {
+      return;
+    }
+    try {
+      await AuthService.instance.muteUser(
+        userId: selfUserId,
+        authToken: token,
+        targetUserId: userId,
+      );
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('User muted')));
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not mute user: $e')));
+    }
   }
 
   @override
@@ -506,6 +559,21 @@ class _UserProfilePopup extends StatelessWidget {
                                 ),
                               ),
                             const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                OutlinedButton.icon(
+                                  onPressed: () => _muteUser(context),
+                                  icon: const Icon(Icons.volume_off_outlined),
+                                  label: const Text('Mute'),
+                                ),
+                                const SizedBox(width: 8),
+                                OutlinedButton.icon(
+                                  onPressed: () => _blockUser(context),
+                                  icon: const Icon(Icons.block_outlined),
+                                  label: const Text('Block'),
+                                ),
+                              ],
+                            ),
                             Align(
                               alignment: Alignment.centerRight,
                               child: TextButton(

@@ -27,6 +27,16 @@ const MOOD_ASSETS = [
   'assets/excellent.png',
 ];
 
+const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const ensureOwnUser = (req, res) => {
+  if (req.userId !== req.params.id) {
+    res.status(403).json({ error: 'Unauthorized' });
+    return false;
+  }
+  return true;
+};
+
 function serializePublicPost(post) {
   return {
     id: String(post._id),
@@ -80,24 +90,61 @@ router.get('/profile/:id', async (req, res) => {
 });
 
 // GET /api/users/search?query=... - Search users
-router.get('/search/query', async (req, res) => {
+router.get('/search/query', auth, async (req, res) => {
   try {
-    const { query } = req.query;
+    const query = (req.query.query || '').toString().trim();
+    const limit = Math.min(30, Math.max(1, Number(req.query.limit) || 20));
+    const offset = Math.max(0, Number(req.query.offset) || 0);
+    const excludeBlocked = String(req.query.excludeBlocked ?? 'true').toLowerCase() !== 'false';
 
-    if (!query || query.trim().length < 2) {
+    if (query.length < 2) {
       return res.status(400).json({ error: 'Query must be at least 2 characters' });
     }
 
-    const results = await User.find({
-      $or: [
-        { name: { $regex: query, $options: 'i' } },
-        { email: { $regex: query, $options: 'i' } },
-      ],
-    })
-      .select('name email avatarUrl bio')
-      .limit(20);
+    const regex = new RegExp(escapeRegex(query), 'i');
+    const currentUser = await User.findById(req.userId, 'blockedUsers mutedUsers').lean();
+    const blockedSet = new Set((currentUser?.blockedUsers || []).map((id) => id.toString()));
+    const mutedSet = new Set((currentUser?.mutedUsers || []).map((id) => id.toString()));
 
-    res.json({ results });
+    const baseFilter = {
+      $or: [
+        { name: regex },
+        { email: regex },
+      ],
+      _id: { $ne: req.userId },
+    };
+
+    const [matches, total] = await Promise.all([
+      User.find(baseFilter)
+        .select('name email avatarUrl bio createdAt')
+        .sort({ createdAt: -1 })
+        .skip(offset)
+        .limit(limit)
+        .lean(),
+      User.countDocuments(baseFilter),
+    ]);
+
+    const results = matches
+      .filter((user) => {
+        if (!excludeBlocked) return true;
+        const userId = user._id.toString();
+        return !blockedSet.has(userId) && !mutedSet.has(userId);
+      })
+      .map((user) => ({
+        id: user._id.toString(),
+        name: user.name,
+        email: user.email,
+        avatarUrl: user.avatarUrl,
+        bio: user.bio,
+      }));
+
+    res.json({
+      results,
+      total,
+      offset,
+      limit,
+      hasMore: offset + results.length < total,
+    });
   } catch (err) {
     console.error('Search users error', err);
     res.status(500).json({ error: 'Unable to search users' });
@@ -225,6 +272,10 @@ router.delete('/:id', auth, async (req, res) => {
 // POST /api/users/:id/block - Block user
 router.post('/:id/block', auth, async (req, res) => {
   try {
+    if (!ensureOwnUser(req, res)) {
+      return;
+    }
+
     const { targetUserId } = req.body;
 
     if (!targetUserId) {
@@ -263,6 +314,10 @@ router.post('/:id/block', auth, async (req, res) => {
 // POST /api/users/:id/unblock - Unblock user
 router.post('/:id/unblock', auth, async (req, res) => {
   try {
+    if (!ensureOwnUser(req, res)) {
+      return;
+    }
+
     const { targetUserId } = req.body;
 
     if (!targetUserId) {
@@ -289,8 +344,8 @@ router.post('/:id/unblock', auth, async (req, res) => {
 // GET /api/users/:id/blocked - Get list of blocked users
 router.get('/:id/blocked', auth, async (req, res) => {
   try {
-    if (req.userId !== req.params.id) {
-      return res.status(403).json({ error: 'Unauthorized' });
+    if (!ensureOwnUser(req, res)) {
+      return;
     }
 
     const user = await User.findById(req.params.id)
@@ -305,6 +360,98 @@ router.get('/:id/blocked', auth, async (req, res) => {
   } catch (err) {
     console.error('Get blocked users error', err);
     res.status(500).json({ error: 'Unable to fetch blocked users' });
+  }
+});
+
+// POST /api/users/:id/mute - Mute user (chat + notifications)
+router.post('/:id/mute', auth, async (req, res) => {
+  try {
+    if (!ensureOwnUser(req, res)) {
+      return;
+    }
+
+    const { targetUserId } = req.body;
+
+    if (!targetUserId) {
+      return res.status(400).json({ error: 'Target user ID is required' });
+    }
+
+    if (req.userId === targetUserId) {
+      return res.status(400).json({ error: 'Cannot mute yourself' });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(targetUserId)) {
+      return res.status(400).json({ error: 'Invalid user ID' });
+    }
+
+    const user = await User.findById(req.userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (user.mutedUsers.some((id) => id.toString() === targetUserId)) {
+      return res.status(400).json({ error: 'User already muted' });
+    }
+
+    user.mutedUsers.push(targetUserId);
+    await user.save();
+
+    res.json({ message: 'User muted successfully' });
+  } catch (err) {
+    console.error('Mute user error', err);
+    res.status(500).json({ error: 'Unable to mute user' });
+  }
+});
+
+// POST /api/users/:id/unmute - Unmute user
+router.post('/:id/unmute', auth, async (req, res) => {
+  try {
+    if (!ensureOwnUser(req, res)) {
+      return;
+    }
+
+    const { targetUserId } = req.body;
+
+    if (!targetUserId) {
+      return res.status(400).json({ error: 'Target user ID is required' });
+    }
+
+    const user = await User.findById(req.userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    user.mutedUsers = user.mutedUsers.filter(
+      (id) => id.toString() !== targetUserId,
+    );
+    await user.save();
+
+    res.json({ message: 'User unmuted successfully' });
+  } catch (err) {
+    console.error('Unmute user error', err);
+    res.status(500).json({ error: 'Unable to unmute user' });
+  }
+});
+
+// GET /api/users/:id/muted - Get list of muted users
+router.get('/:id/muted', auth, async (req, res) => {
+  try {
+    if (!ensureOwnUser(req, res)) {
+      return;
+    }
+
+    const user = await User.findById(req.params.id)
+      .populate('mutedUsers', 'name email avatarUrl')
+      .select('mutedUsers');
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({ mutedUsers: user.mutedUsers });
+  } catch (err) {
+    console.error('Get muted users error', err);
+    res.status(500).json({ error: 'Unable to fetch muted users' });
   }
 });
 

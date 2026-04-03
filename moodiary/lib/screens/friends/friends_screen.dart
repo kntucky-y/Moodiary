@@ -21,6 +21,7 @@ import '../../services/theme_controller.dart';
 import '../../theme/moodiary_colors.dart';
 import '../../utils/avatar_utils.dart';
 import '../../widgets/user_profile_popup.dart';
+import 'user_discovery_screen.dart';
 import 'friend_chat_screen.dart';
 
 const _kBaseUrl = 'https://moodiary-production.up.railway.app';
@@ -349,11 +350,9 @@ class _FriendsScreenState extends State<FriendsScreen> {
   }
 
   void _openAddFriendSheet() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => _AddFriendSheet(onSubmit: _sendRequest),
-    );
+    Navigator.of(
+      context,
+    ).push(FadeSlideRoute(page: const UserDiscoveryScreen()));
   }
 
   void _openChat(_FriendSummary friend) {
@@ -749,7 +748,7 @@ class _FriendsHeader extends StatelessWidget {
                   ),
                 ),
                 icon: const Icon(Icons.person_add_alt_rounded),
-                label: const Text('Add new friend'),
+                label: const Text('Find friends'),
               ),
             ),
           ],

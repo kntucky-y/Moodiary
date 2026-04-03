@@ -146,12 +146,19 @@ class AuthService {
 
   Future<List<Map<String, dynamic>>> searchUsers({
     required String query,
+    required String authToken,
+    int limit = 20,
+    int offset = 0,
   }) async {
+    final encodedQuery = Uri.encodeQueryComponent(query);
     final uri = Uri.parse(
-      '$kBackendBaseUrl/api/users/search/query?query=$query',
+      '$kBackendBaseUrl/api/users/search/query?query=$encodedQuery&limit=$limit&offset=$offset',
     );
     try {
-      final response = await _client.get(uri);
+      final response = await _client.get(
+        uri,
+        headers: {'Authorization': 'Bearer $authToken'},
+      );
       final decoded = jsonDecode(response.body) as Map<String, dynamic>;
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -178,6 +185,179 @@ class AuthService {
       authToken: authToken,
       method: 'POST',
       body: {'targetUserId': targetUserId},
+    );
+  }
+
+  Future<void> sendFriendRequest({
+    required String authToken,
+    required String email,
+  }) async {
+    await _sendAuthedJson(
+      '/api/friends/request',
+      authToken: authToken,
+      method: 'POST',
+      body: {'email': email},
+    );
+  }
+
+  Future<void> unblockUser({
+    required String userId,
+    required String authToken,
+    required String targetUserId,
+  }) async {
+    await _sendAuthedJson(
+      '/api/users/$userId/unblock',
+      authToken: authToken,
+      method: 'POST',
+      body: {'targetUserId': targetUserId},
+    );
+  }
+
+  Future<void> muteUser({
+    required String userId,
+    required String authToken,
+    required String targetUserId,
+  }) async {
+    await _sendAuthedJson(
+      '/api/users/$userId/mute',
+      authToken: authToken,
+      method: 'POST',
+      body: {'targetUserId': targetUserId},
+    );
+  }
+
+  Future<void> unmuteUser({
+    required String userId,
+    required String authToken,
+    required String targetUserId,
+  }) async {
+    await _sendAuthedJson(
+      '/api/users/$userId/unmute',
+      authToken: authToken,
+      method: 'POST',
+      body: {'targetUserId': targetUserId},
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> getBlockedUsers({
+    required String userId,
+    required String authToken,
+  }) async {
+    final uri = Uri.parse('$kBackendBaseUrl/api/users/$userId/blocked');
+    try {
+      final response = await _client.get(
+        uri,
+        headers: {'Authorization': 'Bearer $authToken'},
+      );
+      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final users = decoded['blockedUsers'] as List<dynamic>? ?? const [];
+        return users.cast<Map<String, dynamic>>();
+      }
+
+      throw AuthException(
+        decoded['error']?.toString() ?? 'Failed to load blocked users',
+      );
+    } catch (error) {
+      if (error is AuthException) {
+        rethrow;
+      }
+      throw AuthException('Cannot reach the server. Please try again.');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getMutedUsers({
+    required String userId,
+    required String authToken,
+  }) async {
+    final uri = Uri.parse('$kBackendBaseUrl/api/users/$userId/muted');
+    try {
+      final response = await _client.get(
+        uri,
+        headers: {'Authorization': 'Bearer $authToken'},
+      );
+      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final users = decoded['mutedUsers'] as List<dynamic>? ?? const [];
+        return users.cast<Map<String, dynamic>>();
+      }
+
+      throw AuthException(
+        decoded['error']?.toString() ?? 'Failed to load muted users',
+      );
+    } catch (error) {
+      if (error is AuthException) {
+        rethrow;
+      }
+      throw AuthException('Cannot reach the server. Please try again.');
+    }
+  }
+
+  Future<Map<String, dynamic>> getNotifications({
+    required String authToken,
+    int limit = 20,
+    int offset = 0,
+    bool unreadOnly = false,
+  }) async {
+    final unreadParam = unreadOnly ? 'true' : 'false';
+    final uri = Uri.parse(
+      '$kBackendBaseUrl/api/notifications?limit=$limit&offset=$offset&unread=$unreadParam',
+    );
+    try {
+      final response = await _client.get(
+        uri,
+        headers: {'Authorization': 'Bearer $authToken'},
+      );
+      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final rawItems = (decoded['items'] as List<dynamic>? ?? const []);
+        return {...decoded, 'items': rawItems.cast<Map<String, dynamic>>()};
+      }
+
+      throw AuthException(
+        decoded['error']?.toString() ?? 'Failed to load notifications',
+      );
+    } catch (error) {
+      if (error is AuthException) {
+        rethrow;
+      }
+      throw AuthException('Cannot reach the server. Please try again.');
+    }
+  }
+
+  Future<void> markNotificationRead({
+    required String authToken,
+    required String notificationId,
+  }) async {
+    await _sendAuthedJson(
+      '/api/notifications/$notificationId/read',
+      authToken: authToken,
+      method: 'POST',
+      body: const {},
+    );
+  }
+
+  Future<void> markAllNotificationsRead({required String authToken}) async {
+    await _sendAuthedJson(
+      '/api/notifications/read-all',
+      authToken: authToken,
+      method: 'POST',
+      body: const {},
+    );
+  }
+
+  Future<void> deleteNotification({
+    required String authToken,
+    required String notificationId,
+  }) async {
+    await _sendAuthedJson(
+      '/api/notifications/$notificationId',
+      authToken: authToken,
+      method: 'DELETE',
+      body: const {},
     );
   }
 

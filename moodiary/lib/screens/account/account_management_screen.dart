@@ -12,8 +12,12 @@ class AccountManagementScreen extends StatefulWidget {
 }
 
 class _AccountManagementScreenState extends State<AccountManagementScreen> {
-  late String _userId;
-  late String _authToken;
+  String _userId = '';
+  String _authToken = '';
+  bool _isReady = false;
+  bool _loadingSafetyLists = false;
+  List<Map<String, dynamic>> _blockedUsers = const [];
+  List<Map<String, dynamic>> _mutedUsers = const [];
 
   final _currentPasswordController = TextEditingController();
   final _newPasswordController = TextEditingController();
@@ -34,6 +38,66 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
     final prefs = await SharedPreferences.getInstance();
     _userId = prefs.getString('user_id') ?? prefs.getString('userId') ?? '';
     _authToken = prefs.getString('token') ?? '';
+    if (!mounted) return;
+    setState(() => _isReady = true);
+    await _loadSafetyLists();
+  }
+
+  Future<void> _loadSafetyLists() async {
+    if (_userId.isEmpty || _authToken.isEmpty) return;
+    setState(() => _loadingSafetyLists = true);
+    try {
+      final results = await Future.wait<dynamic>([
+        AuthService.instance.getBlockedUsers(
+          userId: _userId,
+          authToken: _authToken,
+        ),
+        AuthService.instance.getMutedUsers(
+          userId: _userId,
+          authToken: _authToken,
+        ),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        _blockedUsers = (results[0] as List<Map<String, dynamic>>);
+        _mutedUsers = (results[1] as List<Map<String, dynamic>>);
+      });
+    } catch (e) {
+      if (!mounted) return;
+      _showError('Could not load blocked/muted users: $e');
+    } finally {
+      if (mounted) setState(() => _loadingSafetyLists = false);
+    }
+  }
+
+  Future<void> _unblockUser(String targetUserId) async {
+    if (!_isReady) return;
+    try {
+      await AuthService.instance.unblockUser(
+        userId: _userId,
+        authToken: _authToken,
+        targetUserId: targetUserId,
+      );
+      await _loadSafetyLists();
+      _showSuccess('User unblocked');
+    } catch (e) {
+      _showError('Could not unblock user: $e');
+    }
+  }
+
+  Future<void> _unmuteUser(String targetUserId) async {
+    if (!_isReady) return;
+    try {
+      await AuthService.instance.unmuteUser(
+        userId: _userId,
+        authToken: _authToken,
+        targetUserId: targetUserId,
+      );
+      await _loadSafetyLists();
+      _showSuccess('User unmuted');
+    } catch (e) {
+      _showError('Could not unmute user: $e');
+    }
   }
 
   Future<void> _changePassword() async {
@@ -282,6 +346,81 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
                             : const Text('Change Password'),
                       ),
                     ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 32),
+
+            Text(
+              'Safety Controls',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 16),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          'Blocked Users',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const Spacer(),
+                        IconButton(
+                          onPressed: _loadingSafetyLists
+                              ? null
+                              : _loadSafetyLists,
+                          icon: const Icon(Icons.refresh),
+                        ),
+                      ],
+                    ),
+                    if (_loadingSafetyLists)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 8),
+                        child: LinearProgressIndicator(),
+                      ),
+                    if (_blockedUsers.isEmpty)
+                      const Text('No blocked users.')
+                    else
+                      ..._blockedUsers.map(
+                        (user) => ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text((user['name'] as String?) ?? 'User'),
+                          subtitle: Text((user['email'] as String?) ?? ''),
+                          trailing: TextButton(
+                            onPressed: () => _unblockUser(
+                              (user['_id'] ?? user['id']).toString(),
+                            ),
+                            child: const Text('Unblock'),
+                          ),
+                        ),
+                      ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Muted Users',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    if (_mutedUsers.isEmpty)
+                      const Text('No muted users.')
+                    else
+                      ..._mutedUsers.map(
+                        (user) => ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text((user['name'] as String?) ?? 'User'),
+                          subtitle: Text((user['email'] as String?) ?? ''),
+                          trailing: TextButton(
+                            onPressed: () => _unmuteUser(
+                              (user['_id'] ?? user['id']).toString(),
+                            ),
+                            child: const Text('Unmute'),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),

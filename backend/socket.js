@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const FriendMessage = require('./models/FriendMessage');
 const Friendship = require('./models/Friendship');
 const User = require('./models/User');
+const NotificationHistory = require('./models/NotificationHistory');
 const { ensureFriendshipAccess } = require('./utils/friendships');
 const { sendPushNotification } = require('./utils/push_notifications');
 
@@ -11,6 +12,35 @@ let ioInstance;
 
 const roomName = (id) => `friendship:${id}`;
 const userRoom = (id) => `user:${id}`;
+
+const isMutedBy = (user, targetUserId) =>
+  (user?.mutedUsers || []).some((id) => id.toString() === targetUserId.toString());
+
+const isBlockedBy = (user, targetUserId) =>
+  (user?.blockedUsers || []).some((id) => id.toString() === targetUserId.toString());
+
+const isChatMutedBetween = async (userAId, userBId) => {
+  const [userA, userB] = await Promise.all([
+    User.findById(userAId, 'mutedUsers').lean(),
+    User.findById(userBId, 'mutedUsers').lean(),
+  ]);
+  return isMutedBy(userA, userBId) || isMutedBy(userB, userAId);
+};
+
+const filterRecipientsBySender = async (senderId, recipientIds) => {
+  if (!senderId || !recipientIds?.length) {
+    return [];
+  }
+
+  const users = await User.find(
+    { _id: { $in: recipientIds } },
+    'blockedUsers mutedUsers',
+  ).lean();
+
+  return users
+    .filter((user) => !isBlockedBy(user, senderId) && !isMutedBy(user, senderId))
+    .map((user) => user._id.toString());
+};
 
 const formatMessage = (doc, friendshipId) => ({
   id: doc._id.toString(),
@@ -80,6 +110,21 @@ const initSocket = (server) => {
           socket.userId,
         );
 
+        const recipients = friendship.members
+          .map((member) => member.toString())
+          .filter((memberId) => memberId !== socket.userId.toString());
+
+        if (recipients.length) {
+          const muted = await isChatMutedBetween(socket.userId, recipients[0]);
+          if (muted) {
+            socket.emit('friends:error', {
+              friendshipId,
+              error: 'Chat is muted between you and this user',
+            });
+            return;
+          }
+        }
+
         const message = await FriendMessage.create({
           friendship: new mongoose.Types.ObjectId(friendshipId),
           sender: socket.userId,
@@ -97,9 +142,6 @@ const initSocket = (server) => {
         const formatted = formatMessage(message, friendshipId);
         ioInstance.to(roomName(friendshipId)).emit('friends:message', formatted);
 
-        const recipients = friendship.members
-          .map((member) => member.toString())
-          .filter((memberId) => memberId !== socket.userId.toString());
         let sender;
         try {
           sender = await User.findById(socket.userId, 'name').lean();
@@ -107,7 +149,11 @@ const initSocket = (server) => {
           sender = null;
         }
 
-        emitNotification(recipients, {
+        const deliverableRecipients = await filterRecipientsBySender(
+          socket.userId,
+          recipients,
+        );
+        emitNotification(deliverableRecipients, {
           type: 'friend_message',
           friendshipId,
           messageId: formatted.id,
@@ -135,6 +181,17 @@ const emitNotification = (targets, payload) => {
   const recipientIds = list
     .map((id) => id && id.toString())
     .filter(Boolean);
+
+  if (recipientIds.length) {
+    const documents = recipientIds.map((recipient) => ({
+      recipient,
+      type: (payload && payload.type) || 'generic',
+      payload: payload || {},
+    }));
+    NotificationHistory.insertMany(documents, { ordered: false }).catch((err) => {
+      console.warn('Notification history persistence failed:', err.message);
+    });
+  }
 
   if (ioInstance) {
     recipientIds.forEach((userId) => {

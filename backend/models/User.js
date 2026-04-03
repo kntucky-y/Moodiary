@@ -41,6 +41,11 @@ const userSchema = new mongoose.Schema(
       ref: 'User',
       default: [],
     },
+    mutedUsers: {
+      type: [mongoose.Schema.Types.ObjectId],
+      ref: 'User',
+      default: [],
+    },
     pushTokens: {
       type: [String],
       default: [],
