@@ -200,6 +200,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   int? _selectedMood;
   bool _sidebarOpen = false;
   String? _profileAvatarUrl;
+  ImageProvider<Object>? _profileAvatarImage;
 
   List<_MoodTask> _todayTasks = [];
   List<bool> _completedStates = [false, false, false];
@@ -223,8 +224,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Future<void> _loadProfileAvatar() async {
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
+    final avatarUrl = prefs.getString('user_avatar_url');
     setState(() {
-      _profileAvatarUrl = prefs.getString('user_avatar_url');
+      _profileAvatarUrl = avatarUrl;
+      _profileAvatarImage = avatarImageProvider(avatarUrl);
     });
   }
 
@@ -618,6 +621,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   await _loadProfileAvatar();
                 },
                 profileAvatarUrl: _profileAvatarUrl,
+                profileAvatarImage: _profileAvatarImage,
                 onCompanionTap: _showCompanionChat,
               ),
               Expanded(
@@ -865,6 +869,7 @@ class _Header extends StatelessWidget {
   final String companionAsset;
   final String companionName;
   final String? profileAvatarUrl;
+  final ImageProvider<Object>? profileAvatarImage;
   final VoidCallback onHamburger;
   final VoidCallback onProfileTap;
   final VoidCallback onCompanionTap;
@@ -875,6 +880,7 @@ class _Header extends StatelessWidget {
     required this.companionAsset,
     required this.companionName,
     required this.profileAvatarUrl,
+    required this.profileAvatarImage,
     required this.onHamburger,
     required this.onProfileTap,
     required this.onCompanionTap,
@@ -939,10 +945,8 @@ class _Header extends StatelessWidget {
                         child: CircleAvatar(
                           radius: 17,
                           backgroundColor: Colors.transparent,
-                          backgroundImage: avatarImageProvider(
-                            profileAvatarUrl,
-                          ),
-                          child: avatarImageProvider(profileAvatarUrl) == null
+                          backgroundImage: profileAvatarImage,
+                          child: profileAvatarImage == null
                               ? const Icon(
                                   Icons.person,
                                   color: Colors.white,
