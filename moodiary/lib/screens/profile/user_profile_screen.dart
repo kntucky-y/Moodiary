@@ -1,6 +1,7 @@
-import 'dart:typed_data';
 import 'dart:convert';
 
+import 'package:file_selector/file_selector.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -147,18 +148,44 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
   Future<void> _pickAvatarImage() async {
     try {
-      final picker = ImagePicker();
-      final picked = await picker.pickImage(
-        source: ImageSource.gallery,
-        imageQuality: 35,
-        maxWidth: 256,
-        maxHeight: 256,
-      );
-      if (picked == null) return;
+      final Uint8List bytes;
+      final String mimeType;
 
-      final Uint8List bytes = await picked.readAsBytes();
-      final lower = picked.path.toLowerCase();
-      final mimeType = lower.endsWith('.png') ? 'image/png' : 'image/jpeg';
+      if (!kIsWeb &&
+          (defaultTargetPlatform == TargetPlatform.windows ||
+              defaultTargetPlatform == TargetPlatform.macOS ||
+              defaultTargetPlatform == TargetPlatform.linux)) {
+        const fileTypeGroup = XTypeGroup(
+          label: 'Images',
+          extensions: ['png', 'jpg', 'jpeg', 'webp'],
+        );
+        final picked = await openFile(acceptedTypeGroups: [fileTypeGroup]);
+        if (picked == null) return;
+        bytes = await picked.readAsBytes();
+        final lower = picked.name.toLowerCase();
+        mimeType = lower.endsWith('.png')
+            ? 'image/png'
+            : lower.endsWith('.webp')
+            ? 'image/webp'
+            : 'image/jpeg';
+      } else {
+        final picker = ImagePicker();
+        final picked = await picker.pickImage(
+          source: ImageSource.gallery,
+          imageQuality: 35,
+          maxWidth: 256,
+          maxHeight: 256,
+        );
+        if (picked == null) return;
+        bytes = await picked.readAsBytes();
+        final lower = picked.path.toLowerCase();
+        mimeType = lower.endsWith('.png')
+            ? 'image/png'
+            : lower.endsWith('.webp')
+            ? 'image/webp'
+            : 'image/jpeg';
+      }
+
       final dataUrl = dataUrlFromImageBytes(bytes, mimeType: mimeType);
 
       if (dataUrl == null) {
