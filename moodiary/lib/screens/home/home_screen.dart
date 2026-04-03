@@ -19,6 +19,7 @@ import '../../services/realtime_notifications.dart';
 import '../settings/settings_screen.dart';
 import '../resources/resources_screen.dart';
 import '../../utils/avatar_utils.dart';
+import '../../utils/streak_utils.dart';
 
 const _kPurple = Color(0xFFA076F9);
 const _kLightPurple = Color(0xFFD8B4F8);
@@ -207,6 +208,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   int _taskPoints = 0; // points from task completions only
   int _todayActivityScore = 0; // activity score from calendar log (today)
   int _moodScore = 0; // combined: taskPoints + moodLevelScore + activityScore
+  int _streakCount = 0;
 
   late final AnimationController _entranceCtrl;
 
@@ -311,8 +313,77 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         // Pre-select mood icon if today's log already has one
         if (cachedMoodLevel != null) _selectedMood = cachedMoodLevel - 1;
       });
+      await _refreshStreak();
       _entranceCtrl.forward(from: 0);
     }
+  }
+
+  Future<void> _refreshStreak() async {
+    final prefs = await SharedPreferences.getInstance();
+    final streak = await StreakUtils.refreshFromMoodCache(prefs);
+    if (!mounted) return;
+    setState(() {
+      _streakCount = streak;
+    });
+  }
+
+  Future<void> _upsertTaskProgressInMoodCache(
+    String dateKey,
+    int taskPoints,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+    final rawCache = prefs.getString('mood_logs_cache');
+    List<dynamic> cacheData = [];
+    if (rawCache != null) {
+      try {
+        cacheData = jsonDecode(rawCache) as List<dynamic>;
+      } catch (_) {
+        cacheData = [];
+      }
+    }
+
+    final idx = cacheData.indexWhere(
+      (d) => d is Map<String, dynamic> && d['dateKey'] == dateKey,
+    );
+
+    if (idx >= 0) {
+      final entry = Map<String, dynamic>.from(
+        cacheData[idx] as Map<String, dynamic>,
+      );
+      final moodScore = (entry['moodScore'] as num?)?.toInt() ?? 0;
+      final activityScore = (entry['activityScore'] as num?)?.toInt() ?? 0;
+      final activities = (entry['activities'] as List?) ?? const [];
+      final hasMood = (entry['moodLevel'] as int?) != null;
+
+      if (taskPoints > 0) {
+        entry['taskScore'] = taskPoints;
+      } else {
+        entry.remove('taskScore');
+      }
+      entry['score'] = taskPoints + moodScore;
+
+      final hasProgress =
+          hasMood ||
+          activityScore > 0 ||
+          activities.isNotEmpty ||
+          taskPoints > 0;
+      if (hasProgress) {
+        cacheData[idx] = entry;
+      } else {
+        cacheData.removeAt(idx);
+      }
+    } else if (taskPoints > 0) {
+      cacheData.add({
+        'dateKey': dateKey,
+        'activities': <String>[],
+        'activityScore': 0,
+        'moodScore': 0,
+        'taskScore': taskPoints,
+        'score': taskPoints,
+      });
+    }
+
+    await prefs.setString('mood_logs_cache', jsonEncode(cacheData));
   }
 
   /// Called when user taps a mood icon on the home screen.
@@ -339,6 +410,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     if (idx >= 0) {
       cacheData[idx]['moodLevel'] = index + 1;
       cacheData[idx]['moodScore'] = newMoodScore;
+      cacheData[idx]['score'] = _taskPoints + newMoodScore;
     } else {
       cacheData.add({
         'dateKey': today,
@@ -350,6 +422,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       });
     }
     await prefs.setString('mood_logs_cache', jsonEncode(cacheData));
+    await _refreshStreak();
     // Sync to DB — server auto-computes moodLevelScore and merges with existing data
     final token = prefs.getString('token');
     if (token == null) return;
@@ -380,6 +453,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       _completedStates.map((b) => '$b').join(','),
     );
     await prefs.setInt('mood_score_$today', newTaskPoints);
+    await _upsertTaskProgressInMoodCache(today, newTaskPoints);
+    await _refreshStreak();
     _syncScoreToDb(today, newTaskPoints);
   }
 
@@ -405,6 +480,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       _completedStates.map((b) => '$b').join(','),
     );
     await prefs.setInt('mood_score_$today', newTaskPoints);
+    await _upsertTaskProgressInMoodCache(today, newTaskPoints);
+    await _refreshStreak();
     _syncScoreToDb(today, newTaskPoints);
   }
 
@@ -664,7 +741,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       ),
                       const SizedBox(height: 12),
                       // ── Mood Score Card ─────────────────────────────────
-                      _MoodScoreCard(score: _moodScore),
+                      _MoodScoreCard(
+                        score: _moodScore,
+                        streakCount: _streakCount,
+                      ),
                       const SizedBox(height: 12),
                       Container(
                         decoration: BoxDecoration(
@@ -1246,7 +1326,8 @@ class _TaskCard extends StatelessWidget {
 // ─── Mood Score Card ──────────────────────────────────────────────────────────
 class _MoodScoreCard extends StatelessWidget {
   final int score;
-  const _MoodScoreCard({required this.score});
+  final int streakCount;
+  const _MoodScoreCard({required this.score, required this.streakCount});
 
   String get _statusLabel {
     if (score >= 100) return 'Thriving 🌟';
@@ -1356,6 +1437,24 @@ class _MoodScoreCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(_message, style: TextStyle(fontSize: 12, color: subtleText)),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFB923C).withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(
+                color: const Color(0xFFFB923C).withValues(alpha: 0.45),
+              ),
+            ),
+            child: Text(
+              '🔥 Streak: $streakCount ${streakCount == 1 ? 'day' : 'days'}',
+              style: const TextStyle(
+                fontWeight: FontWeight.w700,
+                color: Color(0xFFEA580C),
+              ),
+            ),
+          ),
         ],
       ),
     );

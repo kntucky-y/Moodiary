@@ -1,5 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'streak_utils.dart';
+
 /// Centralized helpers for clearing state that should be scoped to a
 /// particular authenticated user.
 class UserCache {
@@ -13,6 +15,8 @@ class UserCache {
     'companion_id',
     'companion_name',
     profileBundleCacheKey,
+    StreakUtils.streakCountKey,
+    StreakUtils.streakLastDateKey,
   };
 
   static Future<void> clear([SharedPreferences? prefs]) async {
