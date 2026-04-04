@@ -46,6 +46,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _themeMode = ThemeController.instance.mode;
       _loading = false;
     });
+    await DataSaverMode.setEnabled(dataSaver);
     await _updateNotificationSchedule(_dailyKey, daily, silent: true);
     await _updateNotificationSchedule(_weeklyKey, weekly, silent: true);
   }
@@ -66,6 +67,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(key, value);
+    if (key == _dataSaverKey) {
+      await DataSaverMode.setEnabled(value);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              value
+                  ? 'Data Saver enabled: reduced motion and lighter transitions.'
+                  : 'Data Saver disabled: full animations restored.',
+            ),
+          ),
+        );
+      }
+      return;
+    }
     if (key == _dailyKey || key == _weeklyKey) {
       await _updateNotificationSchedule(key, value);
     }

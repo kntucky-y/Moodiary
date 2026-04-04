@@ -44,84 +44,6 @@ class _UserProfilePopup extends StatelessWidget {
     return '${compact.substring(0, 107)}...';
   }
 
-  Future<void> _blockUser(BuildContext context) async {
-    final prefs = await SharedPreferences.getInstance();
-    final selfUserId =
-        prefs.getString('user_id') ?? prefs.getString('userId') ?? '';
-    final token = prefs.getString('token') ?? '';
-    if (selfUserId.isEmpty || token.isEmpty || selfUserId == userId) {
-      return;
-    }
-    try {
-      await AuthService.instance.blockUser(
-        userId: selfUserId,
-        authToken: token,
-        targetUserId: userId,
-      );
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('User blocked')));
-    } catch (e) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Could not block user: $e')));
-    }
-  }
-
-  Future<void> _muteUser(BuildContext context) async {
-    final prefs = await SharedPreferences.getInstance();
-    final selfUserId =
-        prefs.getString('user_id') ?? prefs.getString('userId') ?? '';
-    final token = prefs.getString('token') ?? '';
-    if (selfUserId.isEmpty || token.isEmpty || selfUserId == userId) {
-      return;
-    }
-    try {
-      await AuthService.instance.muteUser(
-        userId: selfUserId,
-        authToken: token,
-        targetUserId: userId,
-      );
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('User muted')));
-    } catch (e) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Could not mute user: $e')));
-    }
-  }
-
-  Future<void> _unmuteUser(BuildContext context) async {
-    final prefs = await SharedPreferences.getInstance();
-    final selfUserId =
-        prefs.getString('user_id') ?? prefs.getString('userId') ?? '';
-    final token = prefs.getString('token') ?? '';
-    if (selfUserId.isEmpty || token.isEmpty || selfUserId == userId) {
-      return;
-    }
-    try {
-      await AuthService.instance.unmuteUser(
-        userId: selfUserId,
-        authToken: token,
-        targetUserId: userId,
-      );
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('User unmuted')));
-    } catch (e) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Could not unmute user: $e')));
-    }
-  }
-
   Future<void> _reportUser(BuildContext context, String displayName) async {
     final prefs = await SharedPreferences.getInstance();
     final selfUserId =
@@ -658,11 +580,7 @@ class _UserProfilePopup extends StatelessWidget {
                               children: [
                                 _MuteToggleButton(targetUserId: userId),
                                 const SizedBox(width: 8),
-                                OutlinedButton.icon(
-                                  onPressed: () => _blockUser(context),
-                                  icon: const Icon(Icons.block_outlined),
-                                  label: const Text('Block'),
-                                ),
+                                _BlockToggleButton(targetUserId: userId),
                               ],
                             ),
                             const SizedBox(height: 8),
@@ -803,6 +721,104 @@ class _MuteToggleButtonState extends State<_MuteToggleButton> {
         _isMuted ? Icons.volume_up_outlined : Icons.volume_off_outlined,
       ),
       label: Text(_isMuted ? 'Unmute' : 'Mute'),
+    );
+  }
+}
+
+class _BlockToggleButton extends StatefulWidget {
+  final String targetUserId;
+
+  const _BlockToggleButton({required this.targetUserId});
+
+  @override
+  State<_BlockToggleButton> createState() => _BlockToggleButtonState();
+}
+
+class _BlockToggleButtonState extends State<_BlockToggleButton> {
+  String _selfUserId = '';
+  String _authToken = '';
+  bool _isBlocked = false;
+  bool _loading = true;
+  bool _submitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadState();
+  }
+
+  Future<void> _loadState() async {
+    final prefs = await SharedPreferences.getInstance();
+    _selfUserId = prefs.getString('user_id') ?? prefs.getString('userId') ?? '';
+    _authToken = prefs.getString('token') ?? '';
+
+    if (_selfUserId.isEmpty ||
+        _authToken.isEmpty ||
+        _selfUserId == widget.targetUserId) {
+      if (mounted) setState(() => _loading = false);
+      return;
+    }
+
+    try {
+      final blocked = await AuthService.instance.getBlockedUsers(
+        userId: _selfUserId,
+        authToken: _authToken,
+      );
+      final isBlocked = blocked.any(
+        (u) => (u['_id'] ?? u['id']).toString() == widget.targetUserId,
+      );
+      if (!mounted) return;
+      setState(() {
+        _isBlocked = isBlocked;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _toggleBlock() async {
+    if (_submitting || _selfUserId.isEmpty || _authToken.isEmpty) return;
+    setState(() => _submitting = true);
+    try {
+      if (_isBlocked) {
+        await AuthService.instance.unblockUser(
+          userId: _selfUserId,
+          authToken: _authToken,
+          targetUserId: widget.targetUserId,
+        );
+      } else {
+        await AuthService.instance.blockUser(
+          userId: _selfUserId,
+          authToken: _authToken,
+          targetUserId: widget.targetUserId,
+        );
+      }
+      if (!mounted) return;
+      setState(() => _isBlocked = !_isBlocked);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_isBlocked ? 'User blocked' : 'User unblocked')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not update block: $e')));
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading || _selfUserId == widget.targetUserId) {
+      return const SizedBox.shrink();
+    }
+    return OutlinedButton.icon(
+      onPressed: _submitting ? null : _toggleBlock,
+      icon: Icon(_isBlocked ? Icons.lock_open_rounded : Icons.block_outlined),
+      label: Text(_isBlocked ? 'Unblock' : 'Block'),
     );
   }
 }

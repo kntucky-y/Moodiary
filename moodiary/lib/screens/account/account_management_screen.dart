@@ -465,6 +465,9 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
                         onPressed: _deleteAccount,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Theme.of(context).colorScheme.error,
+                          foregroundColor: Theme.of(
+                            context,
+                          ).colorScheme.onError,
                         ),
                         child: const Text('Delete My Account'),
                       ),

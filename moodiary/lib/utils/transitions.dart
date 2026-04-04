@@ -1,12 +1,35 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+class DataSaverMode {
+  static const _prefsKey = 'settings_data_saver';
+  static bool _enabled = false;
+
+  static bool get enabled => _enabled;
+
+  static Future<void> load() async {
+    final prefs = await SharedPreferences.getInstance();
+    _enabled = prefs.getBool(_prefsKey) ?? false;
+  }
+
+  static Future<void> setEnabled(bool value) async {
+    _enabled = value;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_prefsKey, value);
+  }
+}
 
 /// Smooth fade + slight upward-slide page transition for all screen pushes.
 class FadeSlideRoute<T> extends PageRouteBuilder<T> {
   FadeSlideRoute({required Widget page})
     : super(
         pageBuilder: (context, animation, secondaryAnimation) => page,
-        transitionDuration: const Duration(milliseconds: 350),
-        reverseTransitionDuration: const Duration(milliseconds: 250),
+        transitionDuration: DataSaverMode.enabled
+            ? Duration.zero
+            : const Duration(milliseconds: 350),
+        reverseTransitionDuration: DataSaverMode.enabled
+            ? Duration.zero
+            : const Duration(milliseconds: 250),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           final fade = CurvedAnimation(
             parent: animation,
@@ -56,8 +79,12 @@ class _TapScaleState extends State<TapScale>
     super.initState();
     _ctrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 80),
-      reverseDuration: const Duration(milliseconds: 200),
+      duration: DataSaverMode.enabled
+          ? const Duration(milliseconds: 1)
+          : const Duration(milliseconds: 80),
+      reverseDuration: DataSaverMode.enabled
+          ? const Duration(milliseconds: 1)
+          : const Duration(milliseconds: 200),
     );
     _scaleAnim = Tween<double>(
       begin: 1.0,

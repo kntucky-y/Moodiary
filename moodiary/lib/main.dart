@@ -5,6 +5,7 @@ import 'screens/onboarding/onboarding_screen.dart';
 import 'services/local_notifications_service.dart';
 import 'services/push_notifications_service.dart';
 import 'services/theme_controller.dart';
+import 'utils/transitions.dart';
 import 'utils/in_app_notifications.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -12,6 +13,7 @@ final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await ThemeController.instance.load();
+  await DataSaverMode.load();
   await LocalNotificationsService.instance.initialize();
   await PushNotificationsService.instance.initialize();
   InAppNotifications.instance.configure(_rootNavigatorKey);
