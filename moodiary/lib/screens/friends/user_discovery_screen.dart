@@ -24,8 +24,10 @@ class _UserDiscoveryScreenState extends State<UserDiscoveryScreen> {
   int _companionId = 1;
   String _companionName = 'Companion';
   bool _loading = false;
+  bool _loadingSuggested = false;
   bool _hasSearched = false;
   List<Map<String, dynamic>> _results = [];
+  List<Map<String, dynamic>> _suggested = [];
 
   @override
   void initState() {
@@ -40,6 +42,28 @@ class _UserDiscoveryScreenState extends State<UserDiscoveryScreen> {
     _userName = prefs.getString('user_name') ?? '';
     _companionId = prefs.getInt('companion_id') ?? 1;
     _companionName = prefs.getString('companion_name') ?? 'Companion';
+    await _loadSuggested();
+  }
+
+  Future<void> _loadSuggested() async {
+    if (_authToken.isEmpty) return;
+    setState(() => _loadingSuggested = true);
+    try {
+      final users = await AuthService.instance.getSuggestedUsers(
+        authToken: _authToken,
+        limit: 12,
+      );
+      if (!mounted) return;
+      setState(() {
+        _suggested = users;
+      });
+    } catch (_) {
+      // Keep UI usable even if suggestions fail.
+    } finally {
+      if (mounted) {
+        setState(() => _loadingSuggested = false);
+      }
+    }
   }
 
   void _onSearchChanged() {
@@ -112,6 +136,8 @@ class _UserDiscoveryScreenState extends State<UserDiscoveryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final displayList = _hasSearched ? _results : _suggested;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Find Friends'), centerTitle: true),
       body: Column(
@@ -142,6 +168,7 @@ class _UserDiscoveryScreenState extends State<UserDiscoveryScreen> {
                             _results = [];
                             _hasSearched = false;
                           });
+                          _loadSuggested();
                         },
                         icon: const Icon(Icons.clear),
                       ),
@@ -149,15 +176,32 @@ class _UserDiscoveryScreenState extends State<UserDiscoveryScreen> {
               onSubmitted: _search,
             ),
           ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 6),
+            child: Row(
+              children: [
+                Text(
+                  _hasSearched ? 'Search Results' : 'Suggested Accounts',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
           Expanded(
             child: _hasSearched && _results.isEmpty && !_loading
                 ? const Center(child: Text('No users found.'))
+                : _loadingSuggested && !_hasSearched
+                ? const Center(child: CircularProgressIndicator())
+                : displayList.isEmpty
+                ? const Center(child: Text('No suggestions yet.'))
                 : ListView.separated(
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                    itemCount: _results.length,
+                    itemCount: displayList.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 12),
                     itemBuilder: (context, index) {
-                      final user = _results[index];
+                      final user = displayList[index];
                       final userId = user['id']?.toString() ?? '';
                       final email = user['email']?.toString() ?? '';
                       final name = user['name']?.toString() ?? 'User';

@@ -237,6 +237,41 @@ router.get('/search/query', auth, async (req, res) => {
   }
 });
 
+// GET /api/users/search/suggested - Suggested user accounts
+router.get('/search/suggested', auth, async (req, res) => {
+  try {
+    const limit = Math.min(20, Math.max(1, Number(req.query.limit) || 10));
+    const currentUser = await User.findById(req.userId, 'blockedUsers mutedUsers').lean();
+    const blockedSet = new Set((currentUser?.blockedUsers || []).map((id) => id.toString()));
+    const mutedSet = new Set((currentUser?.mutedUsers || []).map((id) => id.toString()));
+
+    const candidates = await User.find({ _id: { $ne: req.userId } })
+      .select('name email avatarUrl bio createdAt')
+      .sort({ createdAt: -1 })
+      .limit(limit * 3)
+      .lean();
+
+    const results = candidates
+      .filter((user) => {
+        const userId = user._id.toString();
+        return !blockedSet.has(userId) && !mutedSet.has(userId);
+      })
+      .slice(0, limit)
+      .map((user) => ({
+        id: user._id.toString(),
+        name: user.name,
+        email: user.email,
+        avatarUrl: user.avatarUrl,
+        bio: user.bio,
+      }));
+
+    res.json({ results });
+  } catch (err) {
+    console.error('Suggested users error', err);
+    res.status(500).json({ error: 'Unable to load suggested users' });
+  }
+});
+
 // POST /api/users/:id/report - Report a user for moderation review
 router.post('/:id/report', auth, async (req, res) => {
   try {

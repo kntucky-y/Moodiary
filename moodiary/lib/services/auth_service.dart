@@ -175,6 +175,36 @@ class AuthService {
     }
   }
 
+  Future<List<Map<String, dynamic>>> getSuggestedUsers({
+    required String authToken,
+    int limit = 10,
+  }) async {
+    final uri = Uri.parse(
+      '$kBackendBaseUrl/api/users/search/suggested?limit=$limit',
+    );
+    try {
+      final response = await _client.get(
+        uri,
+        headers: {'Authorization': 'Bearer $authToken'},
+      );
+      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final results = decoded['results'] as List?;
+        return results?.cast<Map<String, dynamic>>() ?? [];
+      }
+
+      throw AuthException(
+        decoded['error']?.toString() ?? 'Failed to load suggestions',
+      );
+    } catch (error) {
+      if (error is AuthException) {
+        rethrow;
+      }
+      throw AuthException('Cannot reach the server. Please try again.');
+    }
+  }
+
   Future<void> blockUser({
     required String userId,
     required String authToken,

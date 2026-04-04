@@ -328,6 +328,11 @@ class _UserProfilePopup extends StatelessWidget {
                                           IconButton(
                                             padding: EdgeInsets.zero,
                                             constraints: const BoxConstraints(),
+                                            style: IconButton.styleFrom(
+                                              overlayColor: Colors.transparent,
+                                              splashFactory:
+                                                  NoSplash.splashFactory,
+                                            ),
                                             onPressed: () =>
                                                 Navigator.of(context).pop(),
                                             icon: const Icon(
@@ -651,17 +656,7 @@ class _UserProfilePopup extends StatelessWidget {
                             const SizedBox(height: 6),
                             Row(
                               children: [
-                                OutlinedButton.icon(
-                                  onPressed: () => _muteUser(context),
-                                  icon: const Icon(Icons.volume_off_outlined),
-                                  label: const Text('Mute'),
-                                ),
-                                const SizedBox(width: 8),
-                                OutlinedButton.icon(
-                                  onPressed: () => _unmuteUser(context),
-                                  icon: const Icon(Icons.volume_up_outlined),
-                                  label: const Text('Unmute'),
-                                ),
+                                _MuteToggleButton(targetUserId: userId),
                                 const SizedBox(width: 8),
                                 OutlinedButton.icon(
                                   onPressed: () => _blockUser(context),
@@ -710,6 +705,106 @@ class _ReportDraft {
   final String details;
 
   const _ReportDraft({required this.reason, required this.details});
+}
+
+class _MuteToggleButton extends StatefulWidget {
+  final String targetUserId;
+
+  const _MuteToggleButton({required this.targetUserId});
+
+  @override
+  State<_MuteToggleButton> createState() => _MuteToggleButtonState();
+}
+
+class _MuteToggleButtonState extends State<_MuteToggleButton> {
+  String _selfUserId = '';
+  String _authToken = '';
+  bool _isMuted = false;
+  bool _loading = true;
+  bool _submitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadState();
+  }
+
+  Future<void> _loadState() async {
+    final prefs = await SharedPreferences.getInstance();
+    _selfUserId = prefs.getString('user_id') ?? prefs.getString('userId') ?? '';
+    _authToken = prefs.getString('token') ?? '';
+
+    if (_selfUserId.isEmpty ||
+        _authToken.isEmpty ||
+        _selfUserId == widget.targetUserId) {
+      if (mounted) setState(() => _loading = false);
+      return;
+    }
+
+    try {
+      final muted = await AuthService.instance.getMutedUsers(
+        userId: _selfUserId,
+        authToken: _authToken,
+      );
+      final isMuted = muted.any(
+        (u) => (u['_id'] ?? u['id']).toString() == widget.targetUserId,
+      );
+      if (!mounted) return;
+      setState(() {
+        _isMuted = isMuted;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _toggleMute() async {
+    if (_submitting || _selfUserId.isEmpty || _authToken.isEmpty) return;
+    setState(() => _submitting = true);
+    try {
+      if (_isMuted) {
+        await AuthService.instance.unmuteUser(
+          userId: _selfUserId,
+          authToken: _authToken,
+          targetUserId: widget.targetUserId,
+        );
+      } else {
+        await AuthService.instance.muteUser(
+          userId: _selfUserId,
+          authToken: _authToken,
+          targetUserId: widget.targetUserId,
+        );
+      }
+      if (!mounted) return;
+      setState(() => _isMuted = !_isMuted);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_isMuted ? 'User muted' : 'User unmuted')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not update mute: $e')));
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading || _selfUserId == widget.targetUserId) {
+      return const SizedBox.shrink();
+    }
+    return OutlinedButton.icon(
+      onPressed: _submitting ? null : _toggleMute,
+      icon: Icon(
+        _isMuted ? Icons.volume_up_outlined : Icons.volume_off_outlined,
+      ),
+      label: Text(_isMuted ? 'Unmute' : 'Mute'),
+    );
+  }
 }
 
 class _ReportUserSheet extends StatefulWidget {
