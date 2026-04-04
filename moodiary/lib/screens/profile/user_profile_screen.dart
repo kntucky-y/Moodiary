@@ -129,11 +129,20 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         authToken: _authToken,
         userName: userName,
       ),
+      AuthService.instance.getMbtiHistory(
+        userId: _userId,
+        authToken: _authToken,
+        limit: 5,
+      ),
     ]);
 
     return {
       'profile': results[0] as Map<String, dynamic>,
       'posts': results[1] as List<Map<String, dynamic>>,
+      'mbtiHistory':
+          ((results[2] as Map<String, dynamic>)['items'] as List<dynamic>? ??
+                  const [])
+              .cast<Map<String, dynamic>>(),
     };
   }
 
@@ -364,6 +373,11 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                             p['isMine'] == true ||
                             p['authorName'] == userData['name'],
                       )
+                      .take(3)
+                      .toList();
+              final mbtiHistory =
+                  (bundle?['mbtiHistory'] as List<Map<String, dynamic>>? ??
+                          const [])
                       .take(3)
                       .toList();
 
@@ -602,6 +616,35 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                   ),
                                 ),
                               ),
+                              if (mbtiHistory.isNotEmpty) ...[
+                                const SizedBox(height: 10),
+                                Text(
+                                  'Recent MBTI results',
+                                  style: Theme.of(context).textTheme.labelMedium
+                                      ?.copyWith(fontWeight: FontWeight.w700),
+                                ),
+                                const SizedBox(height: 6),
+                                ...mbtiHistory.map((entry) {
+                                  final type =
+                                      (entry['mbtiType'] as String?) ?? 'N/A';
+                                  final createdAt =
+                                      (entry['createdAt'] as String?) ?? '';
+                                  final dateText = createdAt.isEmpty
+                                      ? ''
+                                      : createdAt.split('T').first;
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 4),
+                                    child: Text(
+                                      dateText.isEmpty
+                                          ? type
+                                          : '$type • $dateText',
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.bodySmall,
+                                    ),
+                                  );
+                                }),
+                              ],
                             ],
                           ),
                         ),

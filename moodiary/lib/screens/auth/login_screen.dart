@@ -12,6 +12,7 @@ import '../../utils/transitions.dart';
 import '../../utils/user_cache.dart';
 import '../companion/companion_screen.dart';
 import '../home/home_screen.dart';
+import '../profile/mbti_test_screen.dart';
 import 'reset_password_screen.dart';
 
 const _kPurple = Color(0xFF9B7FDB);
@@ -84,12 +85,24 @@ class _LoginScreenState extends State<LoginScreen> {
 
     final companionId = prefs.getInt('companion_id');
     final companionName = prefs.getString('companion_name');
+    final requiresMbti =
+        mbtiLatestType == null || mbtiLatestType.trim().isEmpty;
 
     if (!mounted) return;
 
     Navigator.of(context).pushAndRemoveUntil(
       FadeSlideRoute(
-        page: companionId != null && companionName != null
+        page: requiresMbti
+            ? MbtiTestScreen(
+                userName: userName,
+                requireCompanionSelection:
+                    companionId == null || companionName == null,
+                forceHomeOnComplete:
+                    companionId != null && companionName != null,
+                initialCompanionId: companionId,
+                initialCompanionName: companionName,
+              )
+            : companionId != null && companionName != null
             ? HomeScreen(
                 userName: userName,
                 companionId: companionId,

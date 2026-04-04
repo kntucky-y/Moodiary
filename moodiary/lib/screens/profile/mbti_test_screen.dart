@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -8,11 +10,17 @@ import '../home/home_screen.dart';
 class MbtiTestScreen extends StatefulWidget {
   final String userName;
   final bool requireCompanionSelection;
+  final bool forceHomeOnComplete;
+  final int? initialCompanionId;
+  final String? initialCompanionName;
 
   const MbtiTestScreen({
     super.key,
     required this.userName,
     this.requireCompanionSelection = false,
+    this.forceHomeOnComplete = false,
+    this.initialCompanionId,
+    this.initialCompanionName,
   });
 
   @override
@@ -30,9 +38,12 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
 
   final List<int> _answers = List<int>.filled(_questions.length, 0);
   int _index = 0;
+  bool _started = false;
   bool _submitting = false;
+  bool _matching = false;
   Map<String, dynamic>? _result;
   String? _error;
+  Map<String, dynamic>? _selectedCompanion;
 
   Future<void> _submit() async {
     setState(() {
@@ -65,12 +76,25 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
 
       if (!mounted) return;
       setState(() {
+        _matching = true;
+      });
+
+      await Future<void>.delayed(const Duration(milliseconds: 1200));
+
+      if (!mounted) return;
+      final suggested =
+          (result['suggestedCompanions'] as List<dynamic>? ?? const [])
+              .cast<Map<String, dynamic>>();
+      setState(() {
         _result = result;
+        _selectedCompanion = suggested.isNotEmpty ? suggested.first : null;
+        _matching = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _error = e.toString();
+        _matching = false;
       });
     } finally {
       if (mounted) {
@@ -103,82 +127,109 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
     );
   }
 
+  void _finishWithoutSelection() {
+    if (widget.forceHomeOnComplete &&
+        widget.initialCompanionId != null &&
+        widget.initialCompanionName != null) {
+      Navigator.of(context).pushAndRemoveUntil(
+        FadeSlideRoute(
+          page: HomeScreen(
+            userName: widget.userName,
+            companionId: widget.initialCompanionId!,
+            companionName: widget.initialCompanionName!,
+          ),
+        ),
+        (_) => false,
+      );
+      return;
+    }
+    Navigator.of(context).pop(true);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final done = _answers.where((a) => a != 0).length;
-
+    if (!_started) {
+      return _buildIntro(context);
+    }
+    if (_matching) {
+      return _buildMatching(context);
+    }
     if (_result != null) {
-      final type = (_result!['type'] ?? 'Unknown').toString();
-      final suggested =
-          (_result!['suggestedCompanions'] as List<dynamic>? ?? const [])
-              .cast<Map<String, dynamic>>();
+      return _buildResult(context);
+    }
+    return _buildQuestions(context);
+  }
 
-      return Scaffold(
-        appBar: AppBar(title: const Text('MBTI Result')),
-        body: ListView(
-          padding: const EdgeInsets.all(16),
+  Widget _buildIntro(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Scaffold(
+      appBar: AppBar(title: const Text('MBTI Companion Test')),
+      body: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Your MBTI Type',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      type,
-                      style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                        color: cs.primary,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Companion suggestions based on your result:',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                  ],
+            Text(
+              'Let\'s find your perfect companion',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Answer a real 60-question personality assessment. We\'ll match you with companions that fit your MBTI result.',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 18),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: List.generate(
+                6,
+                (i) => Container(
+                  width: 70,
+                  height: 70,
+                  decoration: BoxDecoration(
+                    color: [
+                      const Color(0xFFE9D5FF),
+                      const Color(0xFFBFDBFE),
+                      const Color(0xFFBBF7D0),
+                      const Color(0xFFFEF08A),
+                      const Color(0xFFFECACA),
+                      const Color(0xFFDDD6FE),
+                    ][i],
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Icon(Icons.sentiment_satisfied_alt_rounded),
                 ),
               ),
             ),
-            const SizedBox(height: 12),
-            ...suggested.map((c) {
-              return Card(
-                child: ListTile(
-                  leading: CircleAvatar(
-                    child: Text((c['id'] ?? '?').toString()),
-                  ),
-                  title: Text((c['name'] ?? 'Companion').toString()),
-                  subtitle: Text((c['description'] ?? '').toString()),
-                  trailing: widget.requireCompanionSelection
-                      ? ElevatedButton(
-                          onPressed: () => _chooseCompanion(c),
-                          child: const Text('Choose'),
-                        )
-                      : null,
+            const Spacer(),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => setState(() => _started = true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: cs.primary,
+                  foregroundColor: cs.onPrimary,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
-              );
-            }),
-            const SizedBox(height: 12),
-            if (!widget.requireCompanionSelection)
-              ElevatedButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('Done'),
+                child: const Text('Start MBTI Test'),
               ),
+            ),
           ],
         ),
-      );
-    }
+      ),
+    );
+  }
 
+  Widget _buildQuestions(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final done = _answers.where((a) => a != 0).length;
     final question = _questions[_index];
 
     return Scaffold(
-      appBar: AppBar(title: const Text('MBTI Assessment')),
+      appBar: AppBar(title: const Text('MBTI Questions')),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -186,13 +237,24 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
           children: [
             LinearProgressIndicator(value: done / _questions.length),
             const SizedBox(height: 8),
-            Text('Question ${_index + 1} of ${_questions.length}'),
-            const SizedBox(height: 14),
             Text(
-              question,
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+              'Question ${_index + 1} of ${_questions.length}',
+              style: Theme.of(context).textTheme.labelLarge,
+            ),
+            const SizedBox(height: 14),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: cs.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Text(
+                question,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
             const SizedBox(height: 14),
             ...List.generate(5, (i) {
@@ -263,6 +325,112 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildMatching(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Matching Companions')),
+      body: const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('Finding the companion who understands you...'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildResult(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final type = (_result!['type'] ?? 'Unknown').toString();
+    final suggested =
+        (_result!['suggestedCompanions'] as List<dynamic>? ?? const [])
+            .cast<Map<String, dynamic>>();
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('You\'re Matched')),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Your MBTI Type',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    type,
+                    style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      color: cs.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Suggested companions for your personality:',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          ...suggested.map(
+            (companion) => Card(
+              child: ListTile(
+                selected: _selectedCompanion?['id'] == companion['id'],
+                leading: CircleAvatar(
+                  child: Text((companion['id'] ?? '?').toString()),
+                ),
+                title: Text((companion['name'] ?? 'Companion').toString()),
+                subtitle: Text((companion['description'] ?? '').toString()),
+                onTap: () => setState(() => _selectedCompanion = companion),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          if (_selectedCompanion != null)
+            Card(
+              color: cs.primaryContainer,
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "You're matched with ${_selectedCompanion!['name']}!",
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text((_selectedCompanion!['description'] ?? '').toString()),
+                  ],
+                ),
+              ),
+            ),
+          const SizedBox(height: 12),
+          if (widget.requireCompanionSelection && _selectedCompanion != null)
+            ElevatedButton(
+              onPressed: () => _chooseCompanion(_selectedCompanion!),
+              child: const Text('Get Started'),
+            )
+          else
+            ElevatedButton(
+              onPressed: _finishWithoutSelection,
+              child: Text(widget.forceHomeOnComplete ? 'Continue to Home' : 'Done'),
+            ),
+        ],
       ),
     );
   }
