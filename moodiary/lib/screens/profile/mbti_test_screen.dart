@@ -203,7 +203,7 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('MBTI Companion Test')),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -225,50 +225,57 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
               icon: const Icon(Icons.menu_book_outlined, size: 18),
               label: const Text('Methodology & references'),
             ),
-            const SizedBox(height: 18),
-            SizedBox(
-              height: 170,
-              child: GridView.builder(
-                itemCount: 6,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
-                ),
-                itemBuilder: (context, i) => Container(
-                  decoration: BoxDecoration(
-                    color: previewColors[i],
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Center(
-                    child: Image.asset(
-                      'assets/doodle${i + 1}.png',
-                      width: 52,
-                      height: 52,
-                      fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) =>
-                          const Icon(Icons.sentiment_satisfied_alt_rounded),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => setState(() => _started = true),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: cs.primary,
-                  foregroundColor: cs.onPrimary,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-                child: const Text('Start MBTI Test'),
-              ),
-            ),
             const SizedBox(height: 8),
+            Text(
+              'Meet all companions',
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 12),
+            GridView.builder(
+              itemCount: 12,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
+              ),
+              itemBuilder: (context, i) => Container(
+                decoration: BoxDecoration(
+                  color: previewColors[i % previewColors.length],
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Center(
+                  child: Image.asset(
+                    'assets/doodle${i + 1}.png',
+                    width: 52,
+                    height: 52,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) =>
+                        const Icon(Icons.sentiment_satisfied_alt_rounded),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 96),
           ],
+        ),
+      ),
+      bottomNavigationBar: SafeArea(
+        minimum: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+        child: SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: () => setState(() => _started = true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: cs.primary,
+              foregroundColor: cs.onPrimary,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+            ),
+            child: const Text('Start MBTI Test'),
+          ),
         ),
       ),
     );
