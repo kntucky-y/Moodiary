@@ -45,6 +45,36 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
   String? _error;
   Map<String, dynamic>? _selectedCompanion;
 
+  void _showReferencesDialog() {
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Methodology & References'),
+        content: const SingleChildScrollView(
+          child: Text(
+            'This is an MBTI-style educational assessment built for companion matching in Moodiary. '\
+            'It is not the official, licensed MBTI instrument.\n\n'
+            'Design notes:\n'
+            '- 60 Likert-scale items across E/I, S/N, T/F, J/P dimensions.\n'
+            '- Deterministic scoring and companion recommendation mapping.\n'
+            '- Results are stored as latest type plus test history.\n\n'
+            'References used:\n'
+            '1. Jung, C. G. (1921). Psychological Types.\n'
+            '2. Myers & Briggs Foundation: MBTI Basics — https://www.myersbriggs.org/my-mbti-personality-type/mbti-basics/\n'
+            '3. Pittenger, D. J. (2005). Cautionary comments regarding MBTI reliability/validity discussions.\n\n'
+            'For implementation details in this project, see docs/mbti_methodology.md.',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _submit() async {
     setState(() {
       _submitting = true;
@@ -179,6 +209,12 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
             Text(
               'Answer a real 60-question personality assessment. We\'ll match you with companions that fit your MBTI result.',
               style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 6),
+            TextButton.icon(
+              onPressed: _showReferencesDialog,
+              icon: const Icon(Icons.menu_book_outlined, size: 18),
+              label: const Text('Methodology & references'),
             ),
             const SizedBox(height: 18),
             Wrap(
@@ -420,6 +456,12 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
               ),
             ),
           const SizedBox(height: 12),
+          TextButton.icon(
+            onPressed: _showReferencesDialog,
+            icon: const Icon(Icons.menu_book_outlined, size: 18),
+            label: const Text('View methodology & references'),
+          ),
+          const SizedBox(height: 6),
           if (widget.requireCompanionSelection && _selectedCompanion != null)
             ElevatedButton(
               onPressed: () => _chooseCompanion(_selectedCompanion!),

@@ -1,3 +1,9 @@
+// MBTI-style scoring utility.
+// Reference notes and citation trail are documented in:
+// moodiary/docs/mbti_methodology.md
+// This implementation is an educational, app-specific assessment and not the
+// official licensed MBTI instrument.
+
 const MBTI_QUESTION_COUNT = 60;
 
 const MBTI_QUESTIONS = [
