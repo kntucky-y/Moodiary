@@ -1538,7 +1538,7 @@ class _BottomNav extends StatelessWidget {
       _NavItem(Icons.home_rounded, 'Home', active: true, onTap: () {}),
       _NavItem(
         Icons.people_alt_rounded,
-        'Friends',
+        'Buddies',
         onTap: () {
           Navigator.of(context).push(
             FadeSlideRoute(

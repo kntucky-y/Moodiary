@@ -96,6 +96,32 @@ class _UserProfilePopup extends StatelessWidget {
     }
   }
 
+  Future<void> _unmuteUser(BuildContext context) async {
+    final prefs = await SharedPreferences.getInstance();
+    final selfUserId =
+        prefs.getString('user_id') ?? prefs.getString('userId') ?? '';
+    final token = prefs.getString('token') ?? '';
+    if (selfUserId.isEmpty || token.isEmpty || selfUserId == userId) {
+      return;
+    }
+    try {
+      await AuthService.instance.unmuteUser(
+        userId: selfUserId,
+        authToken: token,
+        targetUserId: userId,
+      );
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('User unmuted')));
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not unmute user: $e')));
+    }
+  }
+
   Future<void> _reportUser(BuildContext context, String displayName) async {
     final prefs = await SharedPreferences.getInstance();
     final selfUserId =
@@ -208,6 +234,8 @@ class _UserProfilePopup extends StatelessWidget {
               final user = payload['user'] as Map<String, dynamic>? ?? const {};
               final currentMood =
                   payload['currentMood'] as Map<String, dynamic>?;
+              final currentStreak =
+                  (payload['currentStreak'] as num?)?.toInt() ?? 0;
               final publicPosts =
                   (payload['publicPosts'] as List<dynamic>? ?? const [])
                       .cast<Map<String, dynamic>>();
@@ -415,6 +443,29 @@ class _UserProfilePopup extends StatelessWidget {
                                       ),
                                     ],
                                   ),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.local_fire_department_outlined,
+                                        size: 16,
+                                        color: colorScheme.primary,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        currentStreak > 0
+                                            ? '$currentStreak day streak'
+                                            : 'No active streak',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall
+                                            ?.copyWith(
+                                              color:
+                                                  colorScheme.onSurfaceVariant,
+                                            ),
+                                      ),
+                                    ],
+                                  ),
                                 ],
                               ),
                             ),
@@ -604,6 +655,12 @@ class _UserProfilePopup extends StatelessWidget {
                                   onPressed: () => _muteUser(context),
                                   icon: const Icon(Icons.volume_off_outlined),
                                   label: const Text('Mute'),
+                                ),
+                                const SizedBox(width: 8),
+                                OutlinedButton.icon(
+                                  onPressed: () => _unmuteUser(context),
+                                  icon: const Icon(Icons.volume_up_outlined),
+                                  label: const Text('Unmute'),
                                 ),
                                 const SizedBox(width: 8),
                                 OutlinedButton.icon(

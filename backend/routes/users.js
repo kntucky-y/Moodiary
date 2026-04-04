@@ -30,6 +30,85 @@ const MOOD_ASSETS = [
 
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+const parseDateKey = (dateKey) => {
+  if (typeof dateKey !== 'string') return null;
+  const parts = dateKey.split('-');
+  if (parts.length !== 3) return null;
+  const y = Number(parts[0]);
+  const m = Number(parts[1]);
+  const d = Number(parts[2]);
+  if (!Number.isInteger(y) || !Number.isInteger(m) || !Number.isInteger(d)) {
+    return null;
+  }
+  return new Date(y, m - 1, d);
+};
+
+const toDateKey = (date) => {
+  const y = date.getFullYear().toString().padStart(4, '0');
+  const m = (date.getMonth() + 1).toString().padStart(2, '0');
+  const d = date.getDate().toString().padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+
+const hasProgress = (entry) => {
+  if (!entry || typeof entry !== 'object') return false;
+  if (typeof entry.moodLevel === 'number' && entry.moodLevel >= 1 && entry.moodLevel <= 5) {
+    return true;
+  }
+  if (typeof entry.taskScore === 'number' && entry.taskScore > 0) {
+    return true;
+  }
+  if (typeof entry.activityScore === 'number' && entry.activityScore > 0) {
+    return true;
+  }
+  if (typeof entry.score === 'number' && entry.score > 0) {
+    return true;
+  }
+  if (Array.isArray(entry.activities) && entry.activities.length > 0) {
+    return true;
+  }
+  return false;
+};
+
+const calculateCurrentStreak = (moodLogs) => {
+  const dateKeys = new Set();
+  for (const entry of moodLogs || []) {
+    if (!hasProgress(entry)) continue;
+    const dateKey = entry.dateKey;
+    if (typeof dateKey === 'string' && dateKey.length > 0) {
+      dateKeys.add(dateKey);
+    }
+  }
+
+  if (dateKeys.size === 0) return 0;
+
+  const sorted = Array.from(dateKeys).sort((a, b) => b.localeCompare(a));
+  const latestDate = parseDateKey(sorted[0]);
+  if (!latestDate) return 0;
+
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const latest = new Date(latestDate.getFullYear(), latestDate.getMonth(), latestDate.getDate());
+  const msPerDay = 24 * 60 * 60 * 1000;
+  const gapFromToday = Math.floor((today.getTime() - latest.getTime()) / msPerDay);
+  if (gapFromToday > 1) return 0;
+
+  let streak = 1;
+  let cursor = latest;
+  while (true) {
+    const prev = new Date(cursor);
+    prev.setDate(prev.getDate() - 1);
+    const prevKey = toDateKey(prev);
+    if (dateKeys.has(prevKey)) {
+      streak += 1;
+      cursor = prev;
+    } else {
+      break;
+    }
+  }
+  return streak;
+};
+
 const ensureOwnUser = (req, res) => {
   if (req.userId !== req.params.id) {
     res.status(403).json({ error: 'Unauthorized' });
@@ -57,12 +136,15 @@ router.get('/profile/:id', async (req, res) => {
       return res.status(400).json({ error: 'Invalid user ID' });
     }
 
-    const [user, latestMood, publicPosts] = await Promise.all([
+    const [user, latestMood, publicPosts, moodLogs] = await Promise.all([
       User.findById(id).select('name email avatarUrl bio createdAt'),
       MoodLog.findOne({ userId: id }).sort({ dateKey: -1, createdAt: -1 }),
       ForumPost.find({ userId: id, isArchived: { $ne: true } })
         .sort({ createdAt: -1 })
         .limit(6),
+      MoodLog.find({ userId: id })
+        .select('dateKey moodLevel taskScore activityScore score activities')
+        .lean(),
     ]);
 
     if (!user) {
@@ -79,9 +161,12 @@ router.get('/profile/:id', async (req, res) => {
         }
       : null;
 
+    const currentStreak = calculateCurrentStreak(moodLogs);
+
     res.json({
       user: sanitizeUser(user),
       currentMood,
+      currentStreak,
       publicPosts: publicPosts.map(serializePublicPost),
     });
   } catch (err) {

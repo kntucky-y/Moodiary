@@ -80,7 +80,7 @@ class AppSidebar extends StatelessWidget {
       _SidebarEntry(
         section: SidebarSection.friends,
         icon: Icons.people_alt_outlined,
-        label: 'Friends',
+        label: 'Buddies',
         onTap: onNavigateFriends,
       ),
       _SidebarEntry(
