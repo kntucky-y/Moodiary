@@ -21,6 +21,7 @@ import '../home/home_screen.dart';
 import '../journal/journal_screen.dart';
 import '../onboarding/onboarding_screen.dart';
 import '../settings/settings_screen.dart';
+import 'mbti_test_screen.dart';
 
 class UserProfileScreen extends StatefulWidget {
   const UserProfileScreen({super.key});
@@ -540,6 +541,65 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                   'Current streak: $_streakCount ${_streakCount == 1 ? 'day' : 'days'}',
                                   style: Theme.of(context).textTheme.bodyMedium
                                       ?.copyWith(fontWeight: FontWeight.w700),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: cs.surfaceContainer,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(Icons.psychology_outlined),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'MBTI Personality',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .labelLarge
+                                        ?.copyWith(fontWeight: FontWeight.w700),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                (userData['mbtiLatestType'] as String?) ??
+                                    'No MBTI result yet',
+                                style: Theme.of(context).textTheme.titleMedium
+                                    ?.copyWith(fontWeight: FontWeight.w800),
+                              ),
+                              const SizedBox(height: 8),
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: OutlinedButton(
+                                  onPressed: () async {
+                                    final completed =
+                                        await Navigator.of(context).push<bool>(
+                                          FadeSlideRoute(
+                                            page: MbtiTestScreen(
+                                              userName: _currentUserName,
+                                            ),
+                                          ),
+                                        );
+                                    if (completed == true && mounted) {
+                                      await _refreshProfileBundleInBackground();
+                                    }
+                                  },
+                                  child: Text(
+                                    (userData['mbtiLatestType'] as String?) ==
+                                            null
+                                        ? 'Take MBTI Test'
+                                        : 'Retake MBTI Test',
+                                  ),
                                 ),
                               ),
                             ],

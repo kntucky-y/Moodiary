@@ -112,6 +112,7 @@ class AuthService {
     String? email,
     String? bio,
     String? avatarUrl,
+    String? mbtiLatestType,
     String? currentPassword,
     String? newPassword,
   }) async {
@@ -120,6 +121,7 @@ class AuthService {
     if (email != null) body['email'] = email;
     if (bio != null) body['bio'] = bio;
     if (avatarUrl != null) body['avatarUrl'] = avatarUrl;
+    if (mbtiLatestType != null) body['mbtiLatestType'] = mbtiLatestType;
     if (currentPassword != null) body['currentPassword'] = currentPassword;
     if (newPassword != null) body['newPassword'] = newPassword;
 
@@ -245,6 +247,51 @@ class AuthService {
         if (details.trim().isNotEmpty) 'details': details.trim(),
       },
     );
+  }
+
+  Future<Map<String, dynamic>> submitMbtiTest({
+    required String userId,
+    required String authToken,
+    required List<int> answers,
+  }) async {
+    return _sendAuthedJsonWithResponse(
+      '/api/users/$userId/mbti/submit',
+      authToken: authToken,
+      method: 'POST',
+      body: {'answers': answers},
+    );
+  }
+
+  Future<Map<String, dynamic>> getMbtiHistory({
+    required String userId,
+    required String authToken,
+    int limit = 10,
+    int offset = 0,
+  }) async {
+    final uri = Uri.parse(
+      '$kBackendBaseUrl/api/users/$userId/mbti/history?limit=$limit&offset=$offset',
+    );
+    try {
+      final response = await _client.get(
+        uri,
+        headers: {'Authorization': 'Bearer $authToken'},
+      );
+      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final items = (decoded['items'] as List<dynamic>? ?? const []);
+        return {...decoded, 'items': items.cast<Map<String, dynamic>>()};
+      }
+
+      throw AuthException(
+        decoded['error']?.toString() ?? 'Failed to load MBTI history',
+      );
+    } catch (error) {
+      if (error is AuthException) {
+        rethrow;
+      }
+      throw AuthException('Cannot reach the server. Please try again.');
+    }
   }
 
   Future<void> unblockUser({

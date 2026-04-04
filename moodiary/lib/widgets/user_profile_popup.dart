@@ -158,6 +158,7 @@ class _UserProfilePopup extends StatelessWidget {
                   payload['currentMood'] as Map<String, dynamic>?;
               final currentStreak =
                   (payload['currentStreak'] as num?)?.toInt() ?? 0;
+              final mbtiLatestType = user['mbtiLatestType'] as String?;
               final publicPosts =
                   (payload['publicPosts'] as List<dynamic>? ?? const [])
                       .cast<Map<String, dynamic>>();
@@ -383,6 +384,30 @@ class _UserProfilePopup extends StatelessWidget {
                                         currentStreak > 0
                                             ? '$currentStreak day streak'
                                             : 'No active streak',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall
+                                            ?.copyWith(
+                                              color:
+                                                  colorScheme.onSurfaceVariant,
+                                            ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.psychology_outlined,
+                                        size: 16,
+                                        color: colorScheme.primary,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        mbtiLatestType == null ||
+                                                mbtiLatestType.isEmpty
+                                            ? 'MBTI: Not tested yet'
+                                            : 'MBTI: $mbtiLatestType',
                                         style: Theme.of(context)
                                             .textTheme
                                             .bodySmall

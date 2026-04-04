@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../home/home_screen.dart';
+import '../profile/mbti_test_screen.dart';
 import '../../theme/moodiary_colors.dart';
 import '../../utils/transitions.dart';
 
@@ -197,6 +198,21 @@ class _CompanionModal extends StatelessWidget {
 
   Future<void> _choose(BuildContext context) async {
     final prefs = await SharedPreferences.getInstance();
+    final mbtiLatestType = prefs.getString('mbti_latest_type') ?? '';
+    if (mbtiLatestType.isEmpty) {
+      if (!context.mounted) return;
+      Navigator.of(context).pop();
+      await Navigator.of(context).push(
+        FadeSlideRoute(
+          page: MbtiTestScreen(
+            userName: userName,
+            requireCompanionSelection: true,
+          ),
+        ),
+      );
+      return;
+    }
+
     await prefs.setInt('companion_id', companion.id);
     await prefs.setString('companion_name', companion.name);
     if (context.mounted) {

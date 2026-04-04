@@ -7,7 +7,9 @@ const User = require('../models/User');
 const MoodLog = require('../models/Mood');
 const ForumPost = require('../models/ForumPost');
 const UserReport = require('../models/UserReport');
+const MbtiTestAttempt = require('../models/MbtiTestAttempt');
 const auth = require('../middleware/auth');
+const { scoreMbti } = require('../utils/mbti');
 
 const sanitizeUser = (user) => ({
   id: user._id,
@@ -17,6 +19,9 @@ const sanitizeUser = (user) => ({
   bio: user.bio,
   provider: user.provider,
   createdAt: user.createdAt,
+  mbtiLatestType: user.mbtiLatestType || null,
+  mbtiLastTestedAt: user.mbtiLastTestedAt || null,
+  mbtiAttemptsCount: user.mbtiAttemptsCount || 0,
 });
 
 const MOOD_LABELS = ['Terrible', 'Bad', 'Okay', 'Good', 'Excellent'];
@@ -137,7 +142,9 @@ router.get('/profile/:id', async (req, res) => {
     }
 
     const [user, latestMood, publicPosts, moodLogs] = await Promise.all([
-      User.findById(id).select('name email avatarUrl bio createdAt'),
+      User.findById(id).select(
+        'name email avatarUrl bio createdAt mbtiLatestType mbtiLastTestedAt mbtiAttemptsCount',
+      ),
       MoodLog.findOne({ userId: id }).sort({ dateKey: -1, createdAt: -1 }),
       ForumPost.find({ userId: id, isArchived: { $ne: true } })
         .sort({ createdAt: -1 })
@@ -309,6 +316,91 @@ router.post('/:id/report', auth, async (req, res) => {
   }
 });
 
+// POST /api/users/:id/mbti/submit - Submit MBTI answers and compute result
+router.post('/:id/mbti/submit', auth, async (req, res) => {
+  try {
+    if (!ensureOwnUser(req, res)) {
+      return;
+    }
+
+    const { answers } = req.body;
+    const result = scoreMbti(answers);
+    if (result.error) {
+      return res.status(400).json({ error: result.error });
+    }
+
+    const user = await User.findById(req.userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    await MbtiTestAttempt.create({
+      userId: req.userId,
+      mbtiType: result.type,
+      answers,
+      scores: result.scores,
+    });
+
+    user.mbtiLatestType = result.type;
+    user.mbtiLatestScores = result.scores;
+    user.mbtiLastTestedAt = new Date();
+    user.mbtiAttemptsCount = (user.mbtiAttemptsCount || 0) + 1;
+    await user.save();
+
+    res.json({
+      result: {
+        type: result.type,
+        scores: result.scores,
+        suggestedCompanionIds: result.suggestedCompanionIds,
+        suggestedCompanions: result.suggestedCompanions,
+      },
+      attemptsCount: user.mbtiAttemptsCount,
+      testedAt: user.mbtiLastTestedAt,
+    });
+  } catch (err) {
+    console.error('Submit MBTI error', err);
+    res.status(500).json({ error: 'Unable to submit MBTI test' });
+  }
+});
+
+// GET /api/users/:id/mbti/history - Get MBTI test history
+router.get('/:id/mbti/history', auth, async (req, res) => {
+  try {
+    if (!ensureOwnUser(req, res)) {
+      return;
+    }
+
+    const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 10));
+    const offset = Math.max(0, Number(req.query.offset) || 0);
+
+    const [items, total] = await Promise.all([
+      MbtiTestAttempt.find({ userId: req.userId })
+        .sort({ createdAt: -1 })
+        .skip(offset)
+        .limit(limit)
+        .select('mbtiType scores createdAt')
+        .lean(),
+      MbtiTestAttempt.countDocuments({ userId: req.userId }),
+    ]);
+
+    res.json({
+      items: items.map((entry) => ({
+        id: entry._id.toString(),
+        mbtiType: entry.mbtiType,
+        scores: entry.scores,
+        createdAt: entry.createdAt,
+      })),
+      total,
+      limit,
+      offset,
+      hasMore: offset + items.length < total,
+    });
+  } catch (err) {
+    console.error('MBTI history error', err);
+    res.status(500).json({ error: 'Unable to fetch MBTI history' });
+  }
+});
+
 // PATCH /api/users/:id - Update user profile (authenticated)
 router.patch('/:id', auth, async (req, res) => {
   try {
@@ -317,7 +409,15 @@ router.patch('/:id', auth, async (req, res) => {
       return res.status(403).json({ error: 'Unauthorized' });
     }
 
-    const { name, bio, avatarUrl, email, currentPassword, newPassword } = req.body;
+    const {
+      name,
+      bio,
+      avatarUrl,
+      email,
+      currentPassword,
+      newPassword,
+      mbtiLatestType,
+    } = req.body;
 
     const user = await User.findById(req.params.id);
     if (!user) {
@@ -359,6 +459,21 @@ router.patch('/:id', auth, async (req, res) => {
     // Update avatar
     if (avatarUrl && typeof avatarUrl === 'string') {
       user.avatarUrl = avatarUrl.trim();
+    }
+
+    // Optional manual MBTI type override from trusted client flows.
+    if (mbtiLatestType !== undefined && mbtiLatestType !== null) {
+      const allowedTypes = new Set([
+        'ISTJ', 'ISFJ', 'INFJ', 'INTJ',
+        'ISTP', 'ISFP', 'INFP', 'INTP',
+        'ESTP', 'ESFP', 'ENFP', 'ENTP',
+        'ESTJ', 'ESFJ', 'ENFJ', 'ENTJ',
+      ]);
+      if (!allowedTypes.has(mbtiLatestType)) {
+        return res.status(400).json({ error: 'Invalid MBTI type' });
+      }
+      user.mbtiLatestType = mbtiLatestType;
+      user.mbtiLastTestedAt = new Date();
     }
 
     // Change password if requested

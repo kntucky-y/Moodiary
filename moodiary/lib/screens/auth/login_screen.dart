@@ -55,6 +55,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
     final userName = (user['name'] ?? 'Friend') as String;
     await prefs.setString('user_name', userName);
+    final mbtiLatestType = user['mbtiLatestType']?.toString();
+    if (mbtiLatestType != null && mbtiLatestType.isNotEmpty) {
+      await prefs.setString('mbti_latest_type', mbtiLatestType);
+    } else {
+      await prefs.remove('mbti_latest_type');
+    }
     final avatarUrl = (user['avatarUrl'] as String?)?.trim();
     if (avatarUrl != null && avatarUrl.isNotEmpty) {
       await prefs.setString('user_avatar_url', avatarUrl);

@@ -19,6 +19,9 @@ const sanitizeUser = (user) => ({
   email: user.email,
   avatarUrl: user.avatarUrl,
   provider: user.provider,
+  mbtiLatestType: user.mbtiLatestType || null,
+  mbtiLastTestedAt: user.mbtiLastTestedAt || null,
+  mbtiAttemptsCount: user.mbtiAttemptsCount || 0,
 });
 
 const respondWithAuth = (res, user, status = 200) => {
