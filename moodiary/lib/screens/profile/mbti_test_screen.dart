@@ -52,7 +52,7 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
         title: const Text('Methodology & References'),
         content: const SingleChildScrollView(
           child: Text(
-            'This is an MBTI-style educational assessment built for companion matching in Moodiary. '\
+            'This is an MBTI-style educational assessment built for companion matching in Moodiary. '
             'It is not the official, licensed MBTI instrument.\n\n'
             'Design notes:\n'
             '- 60 Likert-scale items across E/I, S/N, T/F, J/P dimensions.\n'
@@ -201,9 +201,9 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
           children: [
             Text(
               'Let\'s find your perfect companion',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w800,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 10),
             Text(
@@ -287,9 +287,9 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
               ),
               child: Text(
                 question,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
               ),
             ),
             const SizedBox(height: 14),
@@ -470,7 +470,9 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
           else
             ElevatedButton(
               onPressed: _finishWithoutSelection,
-              child: Text(widget.forceHomeOnComplete ? 'Continue to Home' : 'Done'),
+              child: Text(
+                widget.forceHomeOnComplete ? 'Continue to Home' : 'Done',
+              ),
             ),
         ],
       ),
