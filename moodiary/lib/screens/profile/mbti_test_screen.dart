@@ -410,6 +410,12 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
         (_result!['suggestedCompanions'] as List<dynamic>? ?? const [])
             .cast<Map<String, dynamic>>();
 
+    int _companionIdOf(Map<String, dynamic> companion) {
+      final raw = companion['id'];
+      if (raw is num) return raw.toInt();
+      return int.tryParse(raw?.toString() ?? '') ?? 0;
+    }
+
     return Scaffold(
       appBar: AppBar(title: const Text('You\'re Matched')),
       body: ListView(
@@ -438,23 +444,61 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
                     'Suggested companions for your personality:',
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
+                  if (suggested.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      'Choose 1 of the ${suggested.length} companions to proceed.',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: cs.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
           ),
           const SizedBox(height: 10),
           ...suggested.map(
-            (companion) => Card(
-              child: ListTile(
-                selected: _selectedCompanion?['id'] == companion['id'],
-                leading: CircleAvatar(
-                  child: Text((companion['id'] ?? '?').toString()),
+            (companion) {
+              final companionId = _companionIdOf(companion);
+              final isSelected = _selectedCompanion?['id'] == companion['id'];
+              return Card(
+                color: isSelected ? cs.primaryContainer : null,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(
+                    color: isSelected ? cs.primary : Colors.transparent,
+                    width: 1.2,
+                  ),
                 ),
-                title: Text((companion['name'] ?? 'Companion').toString()),
-                subtitle: Text((companion['description'] ?? '').toString()),
-                onTap: () => setState(() => _selectedCompanion = companion),
+                child: ListTile(
+                  selected: isSelected,
+                  leading: CircleAvatar(
+                    backgroundColor: Colors.white,
+                    child: Image.asset(
+                      'assets/doodle$companionId.png',
+                      width: 30,
+                      height: 30,
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) => const Icon(
+                        Icons.sentiment_satisfied_alt_rounded,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                  trailing: Icon(
+                    isSelected
+                        ? Icons.radio_button_checked
+                        : Icons.radio_button_off,
+                    color: isSelected ? cs.primary : cs.onSurfaceVariant,
+                  ),
+                  title: Text((companion['name'] ?? 'Companion').toString()),
+                  subtitle: Text((companion['description'] ?? '').toString()),
+                  onTap: () => setState(() => _selectedCompanion = companion),
+                ),
+              );
+            },
               ),
-            ),
           ),
           const SizedBox(height: 8),
           if (_selectedCompanion != null)
@@ -465,11 +509,35 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      "You're matched with ${_selectedCompanion!['name']}!",
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 16,
+                          backgroundColor: Colors.white,
+                          child: Image.asset(
+                            'assets/doodle${_companionIdOf(_selectedCompanion!)}.png',
+                            width: 20,
+                            height: 20,
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) =>
+                                const Icon(
+                                  Icons.sentiment_satisfied_alt_rounded,
+                                  size: 14,
+                                ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            "You're matched with ${_selectedCompanion!['name']}!",
+                            style: Theme.of(
+                              context,
+                            ).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 6),
                     Text((_selectedCompanion!['description'] ?? '').toString()),
