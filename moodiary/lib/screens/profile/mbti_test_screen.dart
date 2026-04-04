@@ -192,6 +192,15 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
 
   Widget _buildIntro(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    const previewColors = [
+      Color(0xFFE9D5FF),
+      Color(0xFFBFDBFE),
+      Color(0xFFBBF7D0),
+      Color(0xFFFEF08A),
+      Color(0xFFFECACA),
+      Color(0xFFDDD6FE),
+    ];
+
     return Scaffold(
       appBar: AppBar(title: const Text('MBTI Companion Test')),
       body: Padding(
@@ -217,30 +226,35 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
               label: const Text('Methodology & references'),
             ),
             const SizedBox(height: 18),
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: List.generate(
-                6,
-                (i) => Container(
-                  width: 70,
-                  height: 70,
+            SizedBox(
+              height: 170,
+              child: GridView.builder(
+                itemCount: 6,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  crossAxisSpacing: 10,
+                  mainAxisSpacing: 10,
+                ),
+                itemBuilder: (context, i) => Container(
                   decoration: BoxDecoration(
-                    color: [
-                      const Color(0xFFE9D5FF),
-                      const Color(0xFFBFDBFE),
-                      const Color(0xFFBBF7D0),
-                      const Color(0xFFFEF08A),
-                      const Color(0xFFFECACA),
-                      const Color(0xFFDDD6FE),
-                    ][i],
+                    color: previewColors[i],
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  child: const Icon(Icons.sentiment_satisfied_alt_rounded),
+                  child: Center(
+                    child: Image.asset(
+                      'assets/doodle${i + 1}.png',
+                      width: 52,
+                      height: 52,
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) =>
+                          const Icon(Icons.sentiment_satisfied_alt_rounded),
+                    ),
+                  ),
                 ),
               ),
             ),
-            const Spacer(),
+            const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -253,6 +267,7 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
                 child: const Text('Start MBTI Test'),
               ),
             ),
+            const SizedBox(height: 8),
           ],
         ),
       ),
