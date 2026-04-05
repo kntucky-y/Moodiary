@@ -18,7 +18,7 @@ class AuthService {
   static final AuthService instance = AuthService._();
 
   final http.Client _client = http.Client();
-  static const Duration _requestTimeout = Duration(seconds: 15);
+  static const Duration _requestTimeout = Duration(seconds: 30);
 
   Future<Map<String, dynamic>> login({
     required String email,
@@ -582,15 +582,28 @@ class AuthService {
     required Map<String, dynamic> body,
   }) async {
     final uri = Uri.parse('$kBackendBaseUrl$path');
+    http.Response? response;
 
     try {
-      final response = await _client
-          .post(
-            uri,
-            headers: const {'Content-Type': 'application/json'},
-            body: jsonEncode(body),
-          )
-          .timeout(_requestTimeout);
+      final encodedBody = jsonEncode(body);
+      try {
+        response = await _client
+            .post(
+              uri,
+              headers: const {'Content-Type': 'application/json'},
+              body: encodedBody,
+            )
+            .timeout(_requestTimeout);
+      } on TimeoutException {
+        // Retry once to handle backend cold starts (e.g., Railway wake-up).
+        response = await _client
+            .post(
+              uri,
+              headers: const {'Content-Type': 'application/json'},
+              body: encodedBody,
+            )
+            .timeout(const Duration(seconds: 45));
+      }
 
       final decoded = jsonDecode(response.body) as Map<String, dynamic>;
 
@@ -606,7 +619,9 @@ class AuthService {
         rethrow;
       }
       if (error is TimeoutException) {
-        throw AuthException('Request timed out. Please try again.');
+        throw AuthException(
+          'Server is taking too long to respond. Please try again in a few seconds.',
+        );
       }
       throw AuthException('Cannot reach the server. Please try again.');
     }
