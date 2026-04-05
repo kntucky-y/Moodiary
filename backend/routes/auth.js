@@ -136,6 +136,24 @@ router.post('/forgot-password', async (req, res) => {
     });
   } catch (err) {
     console.error('Forgot password error', err);
+    const message = String(err?.message || '');
+    if (
+      /EAUTH|Invalid login|Username and Password not accepted|535|authentication failed/i.test(
+        message
+      )
+    ) {
+      return res.status(502).json({
+        error:
+          'Email sender authentication failed. Verify MAIL_USER and MAIL_PASS (Gmail app password).',
+      });
+    }
+
+    if (/timed out|timeout/i.test(message)) {
+      return res.status(504).json({
+        error: 'Email service timed out. Please try again in a moment.',
+      });
+    }
+
     res.status(500).json({ error: 'Unable to process request' });
   }
 });
