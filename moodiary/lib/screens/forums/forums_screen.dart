@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:math' show Random;
 
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -885,6 +884,18 @@ class _ForumsScreenState extends State<ForumsScreen> {
                         ],
                       ),
                       const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'Forums',
+                          style: TextStyle(
+                            color: primaryText,
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
                       Text(
                         _showArchived
                             ? 'Archived forum posts'
