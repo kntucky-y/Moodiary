@@ -68,18 +68,6 @@ class AppSidebar extends StatelessWidget {
         onTap: onNavigateUserProfile,
       ),
       _SidebarEntry(
-        section: SidebarSection.calendar,
-        icon: Icons.calendar_month_outlined,
-        label: 'Calendar',
-        onTap: onNavigateCalendar,
-      ),
-      _SidebarEntry(
-        section: SidebarSection.journal,
-        icon: Icons.book_outlined,
-        label: 'Journal',
-        onTap: onNavigateJournal,
-      ),
-      _SidebarEntry(
         section: SidebarSection.friends,
         icon: Icons.people_alt_outlined,
         label: 'Buddies',

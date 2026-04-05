@@ -127,6 +127,11 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
             _userId,
           );
           setState(() {
+            final exactIndex = _messages.indexWhere((m) => m.id == incoming.id);
+            if (exactIndex != -1) {
+              _messages[exactIndex] = incoming;
+              return;
+            }
             final pendingIndex = _messages.lastIndexWhere(
               (m) =>
                   m.pending &&
@@ -196,39 +201,54 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
     _scrollToBottom();
 
     try {
-      if (_socket != null && _socket!.connected) {
-        _socket!.emit('friends:message', {
-          'friendshipId': widget.friendshipId,
-          'text': text,
-        });
-      } else {
-        final resp = await http.post(
-          Uri.parse('$_kBaseUrl/api/friends/${widget.friendshipId}/messages'),
-          headers: {
-            'Authorization': 'Bearer $_token',
-            'Content-Type': 'application/json',
-          },
-          body: jsonEncode({'text': text}),
-        );
-        if (resp.statusCode == 201) {
-          final created = _FriendMessage.fromJson(
-            jsonDecode(resp.body) as Map<String, dynamic>,
-            _userId,
-          );
-          if (mounted) {
-            setState(() {
-              final pendingIndex = _messages.lastIndexWhere((m) => m.pending);
-              if (pendingIndex != -1) {
-                _messages[pendingIndex] = created;
-              } else {
-                _messages.add(created);
-              }
-            });
-          }
-        }
+      final resp = await http
+          .post(
+            Uri.parse('$_kBaseUrl/api/friends/${widget.friendshipId}/messages'),
+            headers: {
+              'Authorization': 'Bearer $_token',
+              'Content-Type': 'application/json',
+            },
+            body: jsonEncode({'text': text}),
+          )
+          .timeout(const Duration(seconds: 12));
+
+      if (resp.statusCode != 201) {
+        throw Exception('Failed to send message');
       }
+
+      final created = _FriendMessage.fromJson(
+        jsonDecode(resp.body) as Map<String, dynamic>,
+        _userId,
+      );
+
+      if (mounted) {
+        setState(() {
+          final pendingIndex = _messages.lastIndexWhere(
+            (m) => m.id == optimistic.id,
+          );
+          if (pendingIndex != -1) {
+            _messages[pendingIndex] = created;
+          } else if (_messages.every((m) => m.id != created.id)) {
+            _messages.add(created);
+          }
+        });
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _messages.removeWhere((m) => m.id == optimistic.id);
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to send message. Please retry.')),
+      );
+      _input.text = text;
+      _input.selection = TextSelection.fromPosition(
+        TextPosition(offset: _input.text.length),
+      );
+      _scrollToBottom();
     } finally {
       if (mounted) setState(() => _sending = false);
+      _scrollToBottom();
     }
   }
 
