@@ -51,7 +51,19 @@ class LocalNotificationsService {
     tz.initializeTimeZones();
     String location = 'UTC';
     try {
-      location = await FlutterTimezone.getLocalTimezone();
+      final rawTimezone = await (FlutterTimezone.getLocalTimezone as dynamic)();
+      if (rawTimezone is String && rawTimezone.isNotEmpty) {
+        location = rawTimezone;
+      } else {
+        final asString = rawTimezone.toString();
+        if (asString.isNotEmpty) {
+          // Some flutter_timezone versions expose a TimezoneInfo object.
+          final identifierMatch = RegExp(
+            r"identifier:\s*'([^']+)'",
+          ).firstMatch(asString);
+          location = identifierMatch?.group(1) ?? asString;
+        }
+      }
     } catch (_) {}
     try {
       tz.setLocalLocation(tz.getLocation(location));
