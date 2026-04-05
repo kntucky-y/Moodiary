@@ -107,6 +107,21 @@ class _FriendsScreenState extends State<FriendsScreen> {
             ),
           )
           .toList();
+      final hadCachedFriends =
+          (decoded['friends'] as List<dynamic>? ?? const []).isNotEmpty;
+      final looksCorrupted =
+          hadCachedFriends &&
+          friends.every(
+            (f) =>
+                f.friendUserId.isEmpty &&
+                f.name == 'Friend' &&
+                f.email.isEmpty &&
+                (f.avatarUrl == null || f.avatarUrl!.isEmpty),
+          );
+      if (looksCorrupted) {
+        await prefs.remove(_kFriendsCacheKey);
+        return;
+      }
       setState(() {
         _friends = friends;
         _incoming = incoming;
@@ -125,7 +140,16 @@ class _FriendsScreenState extends State<FriendsScreen> {
           .map(
             (friend) => {
               'id': friend.id,
-              'friend': {},
+              'friend': {
+                'id': friend.friendUserId,
+                'name': friend.name,
+                'email': friend.email,
+                'avatarUrl': friend.avatarUrl,
+              },
+              'currentMood': {
+                'label': friend.currentMoodLabel,
+                'asset': friend.currentMoodAsset,
+              },
               'lastMessage': friend.lastMessage == null
                   ? null
                   : {
@@ -139,8 +163,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
           .map(
             (request) => {
               'id': request.id,
-              'name': request.name,
-              'email': request.email,
+              'friend': {'name': request.name, 'email': request.email},
             },
           )
           .toList(),
@@ -148,8 +171,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
           .map(
             (request) => {
               'id': request.id,
-              'name': request.name,
-              'email': request.email,
+              'friend': {'name': request.name, 'email': request.email},
             },
           )
           .toList(),
@@ -643,20 +665,24 @@ class _FriendSummary {
   factory _FriendSummary.fromJson(Map<String, dynamic> json) {
     final last = json['lastMessage'] as Map<String, dynamic>?;
     final friend = json['friend'] as Map<String, dynamic>? ?? {};
+    final mood = json['currentMood'] as Map<String, dynamic>?;
+    final rawLastCreatedAt = last?['createdAt'];
+    DateTime? parsedLastMessageAt;
+    if (rawLastCreatedAt is String && rawLastCreatedAt.isNotEmpty) {
+      parsedLastMessageAt = DateTime.tryParse(rawLastCreatedAt)?.toLocal();
+    }
     return _FriendSummary(
       id: json['id'].toString(),
-      friendUserId: friend['id']?.toString() ?? '',
-      name: friend['name'] as String? ?? 'Friend',
-      email: friend['email'] as String? ?? '',
-      avatarUrl: friend['avatarUrl'] as String?,
-      currentMoodLabel:
-          (json['currentMood'] as Map<String, dynamic>?)?['label'] as String?,
-      currentMoodAsset:
-          (json['currentMood'] as Map<String, dynamic>?)?['asset'] as String?,
+      friendUserId: friend['id']?.toString() ?? friend['_id']?.toString() ?? '',
+      name:
+          (friend['name'] as String?) ?? (json['name'] as String?) ?? 'Friend',
+      email: (friend['email'] as String?) ?? (json['email'] as String?) ?? '',
+      avatarUrl:
+          (friend['avatarUrl'] as String?) ?? (json['avatarUrl'] as String?),
+      currentMoodLabel: mood?['label'] as String?,
+      currentMoodAsset: mood?['asset'] as String?,
       lastMessage: last != null ? last['text'] as String? : null,
-      lastMessageAt: last != null && last['createdAt'] != null
-          ? DateTime.parse(last['createdAt'] as String).toLocal()
-          : null,
+      lastMessageAt: parsedLastMessageAt,
     );
   }
 
@@ -703,8 +729,9 @@ class _FriendRequest {
     final friend = json['friend'] as Map<String, dynamic>? ?? {};
     return _FriendRequest(
       id: json['id'].toString(),
-      name: friend['name'] as String? ?? 'Friend',
-      email: friend['email'] as String? ?? '',
+      name:
+          (friend['name'] as String?) ?? (json['name'] as String?) ?? 'Friend',
+      email: (friend['email'] as String?) ?? (json['email'] as String?) ?? '',
       incoming: incoming,
     );
   }
