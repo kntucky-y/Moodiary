@@ -15,14 +15,22 @@ const readEnv = (keys) => {
 
 const isGmailAccount = (email) => /@gmail\.com$/i.test(email);
 
+const normalizeMailPassword = ({ user, service, pass }) => {
+  const isGmail = service === 'gmail' || isGmailAccount(user);
+  if (!isGmail) return pass;
+  // Google displays app passwords in grouped chunks; pasted values may contain spaces.
+  return pass.replace(/\s+/g, '');
+};
+
 const getMailConfig = () => {
   const user = readEnv(['MAIL_USER', 'GMAIL_USER']);
-  const pass = readEnv(['MAIL_PASS', 'GMAIL_APP_PASSWORD']);
+  const rawPass = readEnv(['MAIL_PASS', 'GMAIL_APP_PASSWORD']);
   const service = readEnv(['MAIL_SERVICE']).toLowerCase();
   const host = readEnv(['MAIL_HOST']);
   const port = Number(readEnv(['MAIL_PORT']) || 587);
   const secureEnv = readEnv(['MAIL_SECURE']);
   const from = readEnv(['MAIL_FROM']);
+  const pass = normalizeMailPassword({ user, service, pass: rawPass });
 
   if (!user || !pass) {
     return null;
