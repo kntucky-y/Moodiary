@@ -8,6 +8,8 @@ const MoodLog = require('../models/Mood');
 const ForumPost = require('../models/ForumPost');
 const UserReport = require('../models/UserReport');
 const MbtiTestAttempt = require('../models/MbtiTestAttempt');
+const Friendship = require('../models/Friendship');
+const FriendRequest = require('../models/FriendRequest');
 const auth = require('../middleware/auth');
 const { scoreMbti } = require('../utils/mbti');
 
@@ -248,11 +250,50 @@ router.get('/search/query', auth, async (req, res) => {
 router.get('/search/suggested', auth, async (req, res) => {
   try {
     const limit = Math.min(20, Math.max(1, Number(req.query.limit) || 10));
-    const currentUser = await User.findById(req.userId, 'blockedUsers mutedUsers').lean();
+    const [currentUser, friendships, pendingRequests] = await Promise.all([
+      User.findById(req.userId, 'blockedUsers mutedUsers').lean(),
+      Friendship.find({
+        members: req.userId,
+        $or: [{ status: 'active' }, { status: { $exists: false } }],
+      })
+        .select('members')
+        .lean(),
+      FriendRequest.find({
+        status: 'pending',
+        $or: [{ requester: req.userId }, { recipient: req.userId }],
+      })
+        .select('requester recipient')
+        .lean(),
+    ]);
+
     const blockedSet = new Set((currentUser?.blockedUsers || []).map((id) => id.toString()));
     const mutedSet = new Set((currentUser?.mutedUsers || []).map((id) => id.toString()));
+    const connectedSet = new Set();
 
-    const candidates = await User.find({ _id: { $ne: req.userId } })
+    for (const friendship of friendships) {
+      for (const memberId of friendship.members || []) {
+        const member = memberId?.toString();
+        if (member && member !== req.userId.toString()) {
+          connectedSet.add(member);
+        }
+      }
+    }
+
+    for (const request of pendingRequests) {
+      const requester = request.requester?.toString();
+      const recipient = request.recipient?.toString();
+      const otherUserId = requester === req.userId.toString() ? recipient : requester;
+      if (otherUserId) {
+        connectedSet.add(otherUserId);
+      }
+    }
+
+    const excludedIds = [
+      req.userId,
+      ...Array.from(connectedSet),
+    ];
+
+    const candidates = await User.find({ _id: { $nin: excludedIds } })
       .select('name email avatarUrl bio createdAt')
       .sort({ createdAt: -1 })
       .limit(limit * 3)

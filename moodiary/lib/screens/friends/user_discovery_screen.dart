@@ -55,7 +55,12 @@ class _UserDiscoveryScreenState extends State<UserDiscoveryScreen> {
       );
       if (!mounted) return;
       setState(() {
-        _suggested = users;
+        _suggested = users.where((user) {
+          final id = user['id']?.toString() ?? '';
+          final name = user['name']?.toString() ?? '';
+          final email = user['email']?.toString() ?? '';
+          return id.isNotEmpty && (name.isNotEmpty || email.isNotEmpty);
+        }).toList();
       });
     } catch (_) {
       // Keep UI usable even if suggestions fail.
@@ -109,13 +114,19 @@ class _UserDiscoveryScreenState extends State<UserDiscoveryScreen> {
     }
   }
 
-  Future<void> _sendFriendRequest(String email) async {
+  Future<void> _sendFriendRequest(String email, {String? userId}) async {
     try {
       await AuthService.instance.sendFriendRequest(
         authToken: _authToken,
         email: email,
       );
       if (!mounted) return;
+      setState(() {
+        if (userId != null && userId.isNotEmpty) {
+          _suggested.removeWhere((user) => user['id']?.toString() == userId);
+          _results.removeWhere((user) => user['id']?.toString() == userId);
+        }
+      });
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Friend request sent!')));
@@ -253,7 +264,8 @@ class _UserDiscoveryScreenState extends State<UserDiscoveryScreen> {
                           trailing: TextButton(
                             onPressed: email.isEmpty
                                 ? null
-                                : () => _sendFriendRequest(email),
+                                : () =>
+                                      _sendFriendRequest(email, userId: userId),
                             child: const Text('Request'),
                           ),
                         ),
