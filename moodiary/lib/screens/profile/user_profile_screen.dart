@@ -382,6 +382,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               final bundle = snapshot.data;
               final userData =
                   bundle?['profile']?['user'] as Map<String, dynamic>?;
+              final partner =
+                  bundle?['profile']?['partner'] as Map<String, dynamic>?;
               if (userData == null) {
                 return const Center(child: Text('Profile not found'));
               }
@@ -580,6 +582,67 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                             ],
                           ),
                         ),
+                        if (partner != null) ...[
+                          const SizedBox(height: 10),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: cs.surfaceContainer,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              children: [
+                                CircleAvatar(
+                                  radius: 18,
+                                  backgroundImage: avatarImageProvider(
+                                    partner['avatarUrl'] as String?,
+                                  ),
+                                  child:
+                                      avatarImageProvider(
+                                            partner['avatarUrl'] as String?,
+                                          ) ==
+                                          null
+                                      ? const Icon(Icons.favorite_outline)
+                                      : null,
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Partner',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .labelSmall
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        (partner['name'] as String?) ??
+                                            'Partner',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodyMedium
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const Icon(
+                                  Icons.favorite_rounded,
+                                  color: Color(0xFFEC4899),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 10),
                         Container(
                           width: double.infinity,

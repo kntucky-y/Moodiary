@@ -136,6 +136,20 @@ function serializePublicPost(post) {
   };
 }
 
+function serializePartner(friendship, userId) {
+  if (!friendship) return null;
+  const partner = (friendship.members || []).find(
+    (member) => member && member._id.toString() !== userId.toString(),
+  );
+  if (!partner?._id) return null;
+  return {
+    id: partner._id.toString(),
+    name: partner.name || 'Partner',
+    email: partner.email || '',
+    avatarUrl: partner.avatarUrl || '',
+  };
+}
+
 // GET /api/users/profile/:id - Get user profile
 router.get('/profile/:id', async (req, res) => {
   try {
@@ -144,7 +158,7 @@ router.get('/profile/:id', async (req, res) => {
       return res.status(400).json({ error: 'Invalid user ID' });
     }
 
-    const [user, latestMood, publicPosts, moodLogs] = await Promise.all([
+    const [user, latestMood, publicPosts, moodLogs, partnerFriendship] = await Promise.all([
       User.findById(id).select(
         'name email avatarUrl bio createdAt mbtiLatestType mbtiLastTestedAt mbtiAttemptsCount',
       ),
@@ -158,6 +172,13 @@ router.get('/profile/:id', async (req, res) => {
         .limit(6),
       MoodLog.find({ userId: id })
         .select('dateKey moodLevel taskScore activityScore score activities')
+        .lean(),
+      Friendship.findOne({
+        members: id,
+        relationshipRole: 'partner',
+        $or: [{ status: 'active' }, { status: { $exists: false } }],
+      })
+        .populate('members', 'name email avatarUrl')
         .lean(),
     ]);
 
@@ -181,6 +202,7 @@ router.get('/profile/:id', async (req, res) => {
       user: sanitizeUser(user),
       currentMood,
       currentStreak,
+      partner: serializePartner(partnerFriendship, id),
       publicPosts: publicPosts.map(serializePublicPost),
     });
   } catch (err) {

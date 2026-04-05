@@ -160,6 +160,7 @@ class _UserProfilePopup extends StatelessWidget {
               final currentStreak =
                   (payload['currentStreak'] as num?)?.toInt() ?? 0;
               final mbtiLatestType = user['mbtiLatestType'] as String?;
+              final partner = payload['partner'] as Map<String, dynamic>?;
               final publicPosts =
                   (payload['publicPosts'] as List<dynamic>? ?? const [])
                       .cast<Map<String, dynamic>>()
@@ -421,6 +422,29 @@ class _UserProfilePopup extends StatelessWidget {
                                       ),
                                     ],
                                   ),
+                                  if (partner != null) ...[
+                                    const SizedBox(height: 8),
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.favorite_rounded,
+                                          size: 16,
+                                          color: colorScheme.primary,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          'Partner: ${(partner['name'] as String?) ?? 'Partner'}',
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodySmall
+                                              ?.copyWith(
+                                                color: colorScheme
+                                                    .onSurfaceVariant,
+                                              ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
                                 ],
                               ),
                             ),
