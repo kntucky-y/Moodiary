@@ -27,6 +27,18 @@ class MbtiTestScreen extends StatefulWidget {
   State<MbtiTestScreen> createState() => _MbtiTestScreenState();
 }
 
+class _MbtiQuestion {
+  final String dimension;
+  final String title;
+  final String subtitle;
+
+  const _MbtiQuestion({
+    required this.dimension,
+    required this.title,
+    required this.subtitle,
+  });
+}
+
 class _MbtiTestScreenState extends State<MbtiTestScreen> {
   static const _scaleLabels = [
     'Strongly disagree',
@@ -45,8 +57,6 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
   String? _error;
   Map<String, dynamic>? _selectedCompanion;
 
-  static const _optionGroups = ['E/I', 'S/N', 'T/F', 'J/P'];
-
   void _showReferencesDialog() {
     showDialog<void>(
       context: context,
@@ -57,7 +67,7 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
             'This is an MBTI-style educational assessment built for companion matching in Moodiary. '
             'It is not the official, licensed MBTI instrument.\n\n'
             'Design notes:\n'
-            '- 60 Likert-scale items across E/I, S/N, T/F, J/P dimensions.\n'
+            '- 30 Likert-scale items across E/I, S/N, T/F, J/P dimensions.\n'
             '- Deterministic scoring and companion recommendation mapping.\n'
             '- Results are stored as latest type plus test history.\n\n'
             'References used:\n'
@@ -178,6 +188,43 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
     Navigator.of(context).pop(true);
   }
 
+  Future<void> _takeLater() async {
+    final suggestions =
+        (_result?['suggestedCompanions'] as List<dynamic>? ?? const [])
+            .cast<Map<String, dynamic>>();
+    final fallback =
+        widget.initialCompanionId != null && widget.initialCompanionName != null
+        ? <String, dynamic>{
+            'id': widget.initialCompanionId,
+            'name': widget.initialCompanionName,
+          }
+        : suggestions.isNotEmpty
+        ? suggestions.first
+        : <String, dynamic>{'id': 1, 'name': 'Sparky'};
+
+    final companionId = (fallback['id'] as num?)?.toInt() ?? 1;
+    final companionName =
+        (fallback['name']?.toString().trim().isNotEmpty ?? false)
+        ? fallback['name'].toString()
+        : 'Sparky';
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('companion_id', companionId);
+    await prefs.setString('companion_name', companionName);
+
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      FadeSlideRoute(
+        page: HomeScreen(
+          userName: widget.userName,
+          companionId: companionId,
+          companionName: companionName,
+        ),
+      ),
+      (_) => false,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!_started) {
@@ -211,14 +258,14 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Let\'s find your perfect companion',
+              'Find your companion match',
               style: Theme.of(
                 context,
               ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 10),
             Text(
-              'Answer a real 60-question personality assessment. We\'ll match you with companions that fit your MBTI result.',
+              'Answer 30 short statements across four personality dimensions. We\'ll match you with companions that fit your result.',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 6),
@@ -229,10 +276,17 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Meet all companions',
+              'Companion preview',
               style: Theme.of(
                 context,
               ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'These are visual previews only. Names appear after you get your result.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 12),
             GridView.builder(
@@ -311,16 +365,23 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Text(
-                question,
+                question.title,
                 style: Theme.of(
                   context,
                 ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
               ),
             ),
+            const SizedBox(height: 10),
+            Text(
+              question.subtitle,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: cs.onSurfaceVariant,
+                height: 1.4,
+              ),
+            ),
             const SizedBox(height: 14),
             ...List.generate(5, (i) {
               final value = i + 1;
-              final groupIndex = _index ~/ 15;
               final isSelected = answeredValue == value;
               return Padding(
                 padding: const EdgeInsets.only(bottom: 8),
@@ -356,11 +417,11 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(_scaleLabels[i]),
-                              if (groupIndex < _optionGroups.length && i == 0)
+                              if (i == 0)
                                 Padding(
                                   padding: const EdgeInsets.only(top: 4),
                                   child: Text(
-                                    'Dimension: ${_optionGroups[groupIndex]}',
+                                    'Dimension: ${question.dimension}',
                                     style: Theme.of(context).textTheme.bodySmall
                                         ?.copyWith(color: cs.onSurfaceVariant),
                                   ),
@@ -590,12 +651,19 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
             label: const Text('View methodology & references'),
           ),
           const SizedBox(height: 6),
-          if (widget.requireCompanionSelection && _selectedCompanion != null)
+          if (widget.requireCompanionSelection) ...[
             ElevatedButton(
-              onPressed: () => _chooseCompanion(_selectedCompanion!),
+              onPressed: _selectedCompanion == null
+                  ? null
+                  : () => _chooseCompanion(_selectedCompanion!),
               child: const Text('Get Started'),
-            )
-          else
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton(
+              onPressed: _takeLater,
+              child: const Text('Take later'),
+            ),
+          ] else
             ElevatedButton(
               onPressed: _finishWithoutSelection,
               child: Text(
@@ -608,65 +676,178 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
   }
 }
 
-const List<String> _questions = [
-  'I feel energized after spending time with many people.',
-  'I prefer to process my thoughts alone before speaking.',
-  'I usually start conversations in group settings.',
-  'Quiet time is essential for me after social events.',
-  'I think better by talking ideas out loud.',
-  'I often keep my reactions private at first.',
-  'I enjoy meeting new people more than revisiting familiar plans.',
-  'I prefer deep one-on-one talks over lively group conversations.',
-  'I tend to act first and reflect later.',
-  'I usually observe first before joining in.',
-  'I feel motivated when the room is active and interactive.',
-  'I recharge best in calm, low-stimulation environments.',
-  'I enjoy sharing updates as things happen.',
-  'I prefer to share once I have fully formed my thoughts.',
-  'I usually feel comfortable being the center of attention.',
-  'I trust concrete facts more than hunches.',
-  'I enjoy imagining future possibilities beyond present reality.',
-  'I focus on what is practical right now.',
-  'I often notice hidden patterns and meanings.',
-  'I prefer clear instructions over open-ended exploration.',
-  'I am drawn to ideas that challenge conventional thinking.',
-  'I remember details of past experiences easily.',
-  'I naturally connect separate ideas into a bigger picture.',
-  'I trust experience more than theory.',
-  'I enjoy discussing what could be, even if it is uncertain.',
-  'I prefer examples with real-world evidence.',
-  'I rely on intuition when data is incomplete.',
-  'I value consistency and proven methods.',
-  'I quickly spot opportunities for innovation.',
-  'I feel more comfortable with specifics than abstractions.',
-  'I make decisions by weighing objective logic first.',
-  'I consider personal values before making final decisions.',
-  'I can separate criticism of ideas from criticism of people.',
-  'I avoid choices that may hurt relationships unnecessarily.',
-  'I prefer clear criteria over emotional impressions.',
-  'I value empathy as much as accuracy in tough conversations.',
-  'I prioritize fairness through consistent rules.',
-  'I adapt decisions based on individual circumstances.',
-  'I am comfortable giving direct critical feedback.',
-  'I naturally notice emotional undercurrents in group decisions.',
-  'I trust rational debate to find the best answer.',
-  'I ask how decisions will affect people before finalizing them.',
-  'I value competence over harmony when priorities conflict.',
-  'I care deeply about preserving mutual respect during conflict.',
-  'I usually evaluate options with a pros-and-cons lens.',
-  'I prefer planning ahead instead of improvising at the last minute.',
-  'I like keeping options open until the final moment.',
-  'I feel better once decisions are settled.',
-  'I enjoy adapting as new information appears.',
-  'I usually create structure before starting a task.',
-  'I work best in flexible environments with minimal constraints.',
-  'I keep to-do lists and schedules consistently.',
-  'I dislike committing too early when plans may change.',
-  'I prefer clear closure over open-ended timelines.',
-  'I am comfortable with uncertainty while exploring choices.',
-  'I usually complete tasks before relaxing.',
-  'I often start tasks close to deadlines and still perform well.',
-  'I get stressed when plans are vague for too long.',
-  'I prefer spontaneity over strict routines on most days.',
-  'I feel most productive with a defined process.',
+const List<_MbtiQuestion> _questions = [
+  _MbtiQuestion(
+    dimension: 'E/I',
+    title: 'I feel energized after spending time with many people.',
+    subtitle:
+        'Extraversion is about drawing energy from interaction, while introversion is about recharging through quieter reflection.',
+  ),
+  _MbtiQuestion(
+    dimension: 'E/I',
+    title: 'I prefer to process my thoughts alone before speaking.',
+    subtitle:
+        'Introversion often shows up as needing a private moment to organize thoughts before sharing them.',
+  ),
+  _MbtiQuestion(
+    dimension: 'E/I',
+    title: 'I usually start conversations in group settings.',
+    subtitle:
+        'Extraversion tends to feel natural in active, social settings where interaction keeps the energy moving.',
+  ),
+  _MbtiQuestion(
+    dimension: 'E/I',
+    title: 'Quiet time is essential for me after social events.',
+    subtitle:
+        'Introversion often means recovery happens after the social energy is spent.',
+  ),
+  _MbtiQuestion(
+    dimension: 'E/I',
+    title: 'I think better by talking ideas out loud.',
+    subtitle:
+        'Extraversion can show up as thinking through ideas in conversation instead of in silence.',
+  ),
+  _MbtiQuestion(
+    dimension: 'E/I',
+    title: 'I often keep my reactions private at first.',
+    subtitle:
+        'Introversion can look like holding reactions inside until they feel fully formed.',
+  ),
+  _MbtiQuestion(
+    dimension: 'E/I',
+    title: 'I enjoy meeting new people more than revisiting familiar plans.',
+    subtitle:
+        'Extraversion often prefers fresh social energy and new connections.',
+  ),
+  _MbtiQuestion(
+    dimension: 'E/I',
+    title: 'I prefer deep one-on-one talks over lively group conversations.',
+    subtitle:
+        'Introversion often favors fewer, deeper interactions over many simultaneous ones.',
+  ),
+  _MbtiQuestion(
+    dimension: 'S/N',
+    title: 'I trust concrete facts more than hunches.',
+    subtitle:
+        'Sensing focuses on what is observable and grounded in present reality.',
+  ),
+  _MbtiQuestion(
+    dimension: 'S/N',
+    title: 'I enjoy imagining future possibilities beyond present reality.',
+    subtitle:
+        'Intuition looks for patterns, meanings, and what could happen next.',
+  ),
+  _MbtiQuestion(
+    dimension: 'S/N',
+    title: 'I focus on what is practical right now.',
+    subtitle: 'Sensing tends to favor immediate facts and concrete next steps.',
+  ),
+  _MbtiQuestion(
+    dimension: 'S/N',
+    title: 'I often notice hidden patterns and meanings.',
+    subtitle:
+        'Intuition often connects details into something bigger than the obvious facts.',
+  ),
+  _MbtiQuestion(
+    dimension: 'S/N',
+    title: 'I prefer clear instructions over open-ended exploration.',
+    subtitle:
+        'Sensing usually feels better when expectations are defined and specific.',
+  ),
+  _MbtiQuestion(
+    dimension: 'S/N',
+    title: 'I am drawn to ideas that challenge conventional thinking.',
+    subtitle:
+        'Intuition often enjoys novelty, abstraction, and unconventional possibilities.',
+  ),
+  _MbtiQuestion(
+    dimension: 'S/N',
+    title: 'I remember details of past experiences easily.',
+    subtitle: 'Sensing tends to retain concrete details and lived examples.',
+  ),
+  _MbtiQuestion(
+    dimension: 'S/N',
+    title: 'I naturally connect separate ideas into a bigger picture.',
+    subtitle:
+        'Intuition is often about joining pieces into a broader meaning or pattern.',
+  ),
+  _MbtiQuestion(
+    dimension: 'T/F',
+    title: 'I make decisions by weighing objective logic first.',
+    subtitle:
+        'Thinking prioritizes consistency, analysis, and objective criteria.',
+  ),
+  _MbtiQuestion(
+    dimension: 'T/F',
+    title: 'I consider personal values before making final decisions.',
+    subtitle:
+        'Feeling often weighs people impact, empathy, and personal values strongly.',
+  ),
+  _MbtiQuestion(
+    dimension: 'T/F',
+    title: 'I can separate criticism of ideas from criticism of people.',
+    subtitle:
+        'Thinking tends to keep the discussion on the idea, not the person.',
+  ),
+  _MbtiQuestion(
+    dimension: 'T/F',
+    title: 'I avoid choices that may hurt relationships unnecessarily.',
+    subtitle:
+        'Feeling often tries to preserve connection and mutual care when deciding.',
+  ),
+  _MbtiQuestion(
+    dimension: 'T/F',
+    title: 'I prefer clear criteria over emotional impressions.',
+    subtitle:
+        'Thinking usually feels best when decisions can be explained logically.',
+  ),
+  _MbtiQuestion(
+    dimension: 'T/F',
+    title: 'I value empathy as much as accuracy in tough conversations.',
+    subtitle: 'Feeling balances facts with the human impact of the message.',
+  ),
+  _MbtiQuestion(
+    dimension: 'T/F',
+    title: 'I prioritize fairness through consistent rules.',
+    subtitle:
+        'Thinking often leans on principles that stay consistent across situations.',
+  ),
+  _MbtiQuestion(
+    dimension: 'J/P',
+    title: 'I prefer planning ahead instead of improvising at the last minute.',
+    subtitle:
+        'Judging tends to like structure, preparation, and clear outcomes.',
+  ),
+  _MbtiQuestion(
+    dimension: 'J/P',
+    title: 'I like keeping options open until the final moment.',
+    subtitle:
+        'Perceiving often feels better when there is room to adapt later.',
+  ),
+  _MbtiQuestion(
+    dimension: 'J/P',
+    title: 'I feel better once decisions are settled.',
+    subtitle:
+        'Judging usually prefers closure instead of unresolved possibilities.',
+  ),
+  _MbtiQuestion(
+    dimension: 'J/P',
+    title: 'I enjoy adapting as new information appears.',
+    subtitle: 'Perceiving often stays flexible as circumstances change.',
+  ),
+  _MbtiQuestion(
+    dimension: 'J/P',
+    title: 'I usually create structure before starting a task.',
+    subtitle: 'Judging often likes a plan before action begins.',
+  ),
+  _MbtiQuestion(
+    dimension: 'J/P',
+    title: 'I work best in flexible environments with minimal constraints.',
+    subtitle: 'Perceiving often prefers a looser, more adaptable pace.',
+  ),
+  _MbtiQuestion(
+    dimension: 'J/P',
+    title: 'I keep to-do lists and schedules consistently.',
+    subtitle: 'Judging often uses routines and lists to stay organized.',
+  ),
 ];

@@ -90,6 +90,30 @@ class CompanionScreen extends StatelessWidget {
   final String userName;
   const CompanionScreen({super.key, required this.userName});
 
+  Future<void> _continueLater(BuildContext context) async {
+    final prefs = await SharedPreferences.getInstance();
+    final companionId = prefs.getInt('companion_id') ?? _companions.first.id;
+    final companion = _companions.firstWhere(
+      (entry) => entry.id == companionId,
+      orElse: () => _companions.first,
+    );
+
+    await prefs.setInt('companion_id', companion.id);
+    await prefs.setString('companion_name', companion.name);
+
+    if (!context.mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      FadeSlideRoute(
+        page: HomeScreen(
+          userName: userName,
+          companionId: companion.id,
+          companionName: companion.name,
+        ),
+      ),
+      (_) => false,
+    );
+  }
+
   void _showDetail(BuildContext context, _Companion companion, Color color) {
     showDialog(
       context: context,
@@ -105,22 +129,34 @@ class CompanionScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: context.mdScaffold,
+      appBar: AppBar(
+        backgroundColor: context.mdScaffold,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          onPressed: () async {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            } else {
+              await _continueLater(context);
+            }
+          },
+        ),
+        title: const Text('Choose a Companion'),
+        actions: [
+          TextButton(
+            onPressed: () => _continueLater(context),
+            child: const Text('Take later'),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const SizedBox(height: 32),
-              Text(
-                'Choose a Companion',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: context.mdPrimaryText,
-                ),
-              ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 16),
               Text(
                 'Select a companion to see its story. You can always change your companion later!',
                 textAlign: TextAlign.center,
@@ -175,7 +211,7 @@ class CompanionScreen extends StatelessWidget {
                       ),
                     );
                   },
-                ),
+                  const SizedBox(height: 20),
               ),
               SizedBox(height: MediaQuery.of(context).padding.bottom + 16),
             ],

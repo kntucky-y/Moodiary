@@ -4,7 +4,7 @@
 // This implementation is an educational, app-specific assessment and not the
 // official licensed MBTI instrument.
 
-const MBTI_QUESTION_COUNT = 60;
+const MBTI_QUESTION_COUNT = 30;
 
 const MBTI_QUESTIONS = [
   { id: 1, dimension: 'EI', reverse: false, text: 'I feel energized after spending time with many people.' },
@@ -15,61 +15,31 @@ const MBTI_QUESTIONS = [
   { id: 6, dimension: 'EI', reverse: true, text: 'I often keep my reactions private at first.' },
   { id: 7, dimension: 'EI', reverse: false, text: 'I enjoy meeting new people more than revisiting familiar plans.' },
   { id: 8, dimension: 'EI', reverse: true, text: 'I prefer deep one-on-one talks over lively group conversations.' },
-  { id: 9, dimension: 'EI', reverse: false, text: 'I tend to act first and reflect later.' },
-  { id: 10, dimension: 'EI', reverse: true, text: 'I usually observe first before joining in.' },
-  { id: 11, dimension: 'EI', reverse: false, text: 'I feel motivated when the room is active and interactive.' },
-  { id: 12, dimension: 'EI', reverse: true, text: 'I recharge best in calm, low-stimulation environments.' },
-  { id: 13, dimension: 'EI', reverse: false, text: 'I enjoy sharing updates as things happen.' },
-  { id: 14, dimension: 'EI', reverse: true, text: 'I prefer to share once I have fully formed my thoughts.' },
-  { id: 15, dimension: 'EI', reverse: false, text: 'I usually feel comfortable being the center of attention.' },
 
-  { id: 16, dimension: 'SN', reverse: false, text: 'I trust concrete facts more than hunches.' },
-  { id: 17, dimension: 'SN', reverse: true, text: 'I enjoy imagining future possibilities beyond present reality.' },
-  { id: 18, dimension: 'SN', reverse: false, text: 'I focus on what is practical right now.' },
-  { id: 19, dimension: 'SN', reverse: true, text: 'I often notice hidden patterns and meanings.' },
-  { id: 20, dimension: 'SN', reverse: false, text: 'I prefer clear instructions over open-ended exploration.' },
-  { id: 21, dimension: 'SN', reverse: true, text: 'I am drawn to ideas that challenge conventional thinking.' },
-  { id: 22, dimension: 'SN', reverse: false, text: 'I remember details of past experiences easily.' },
-  { id: 23, dimension: 'SN', reverse: true, text: 'I naturally connect separate ideas into a bigger picture.' },
-  { id: 24, dimension: 'SN', reverse: false, text: 'I trust experience more than theory.' },
-  { id: 25, dimension: 'SN', reverse: true, text: 'I enjoy discussing what could be, even if it is uncertain.' },
-  { id: 26, dimension: 'SN', reverse: false, text: 'I prefer examples with real-world evidence.' },
-  { id: 27, dimension: 'SN', reverse: true, text: 'I rely on intuition when data is incomplete.' },
-  { id: 28, dimension: 'SN', reverse: false, text: 'I value consistency and proven methods.' },
-  { id: 29, dimension: 'SN', reverse: true, text: 'I quickly spot opportunities for innovation.' },
-  { id: 30, dimension: 'SN', reverse: false, text: 'I feel more comfortable with specifics than abstractions.' },
+  { id: 9, dimension: 'SN', reverse: false, text: 'I trust concrete facts more than hunches.' },
+  { id: 10, dimension: 'SN', reverse: true, text: 'I enjoy imagining future possibilities beyond present reality.' },
+  { id: 11, dimension: 'SN', reverse: false, text: 'I focus on what is practical right now.' },
+  { id: 12, dimension: 'SN', reverse: true, text: 'I often notice hidden patterns and meanings.' },
+  { id: 13, dimension: 'SN', reverse: false, text: 'I prefer clear instructions over open-ended exploration.' },
+  { id: 14, dimension: 'SN', reverse: true, text: 'I am drawn to ideas that challenge conventional thinking.' },
+  { id: 15, dimension: 'SN', reverse: false, text: 'I remember details of past experiences easily.' },
+  { id: 16, dimension: 'SN', reverse: true, text: 'I naturally connect separate ideas into a bigger picture.' },
 
-  { id: 31, dimension: 'TF', reverse: false, text: 'I make decisions by weighing objective logic first.' },
-  { id: 32, dimension: 'TF', reverse: true, text: 'I consider personal values before making final decisions.' },
-  { id: 33, dimension: 'TF', reverse: false, text: 'I can separate criticism of ideas from criticism of people.' },
-  { id: 34, dimension: 'TF', reverse: true, text: 'I avoid choices that may hurt relationships unnecessarily.' },
-  { id: 35, dimension: 'TF', reverse: false, text: 'I prefer clear criteria over emotional impressions.' },
-  { id: 36, dimension: 'TF', reverse: true, text: 'I value empathy as much as accuracy in tough conversations.' },
-  { id: 37, dimension: 'TF', reverse: false, text: 'I prioritize fairness through consistent rules.' },
-  { id: 38, dimension: 'TF', reverse: true, text: 'I adapt decisions based on individual circumstances.' },
-  { id: 39, dimension: 'TF', reverse: false, text: 'I am comfortable giving direct critical feedback.' },
-  { id: 40, dimension: 'TF', reverse: true, text: 'I naturally notice emotional undercurrents in group decisions.' },
-  { id: 41, dimension: 'TF', reverse: false, text: 'I trust rational debate to find the best answer.' },
-  { id: 42, dimension: 'TF', reverse: true, text: 'I ask how decisions will affect people before finalizing them.' },
-  { id: 43, dimension: 'TF', reverse: false, text: 'I value competence over harmony when priorities conflict.' },
-  { id: 44, dimension: 'TF', reverse: true, text: 'I care deeply about preserving mutual respect during conflict.' },
-  { id: 45, dimension: 'TF', reverse: false, text: 'I usually evaluate options with a pros-and-cons lens.' },
+  { id: 17, dimension: 'TF', reverse: false, text: 'I make decisions by weighing objective logic first.' },
+  { id: 18, dimension: 'TF', reverse: true, text: 'I consider personal values before making final decisions.' },
+  { id: 19, dimension: 'TF', reverse: false, text: 'I can separate criticism of ideas from criticism of people.' },
+  { id: 20, dimension: 'TF', reverse: true, text: 'I avoid choices that may hurt relationships unnecessarily.' },
+  { id: 21, dimension: 'TF', reverse: false, text: 'I prefer clear criteria over emotional impressions.' },
+  { id: 22, dimension: 'TF', reverse: true, text: 'I value empathy as much as accuracy in tough conversations.' },
+  { id: 23, dimension: 'TF', reverse: false, text: 'I prioritize fairness through consistent rules.' },
 
-  { id: 46, dimension: 'JP', reverse: false, text: 'I prefer planning ahead instead of improvising at the last minute.' },
-  { id: 47, dimension: 'JP', reverse: true, text: 'I like keeping options open until the final moment.' },
-  { id: 48, dimension: 'JP', reverse: false, text: 'I feel better once decisions are settled.' },
-  { id: 49, dimension: 'JP', reverse: true, text: 'I enjoy adapting as new information appears.' },
-  { id: 50, dimension: 'JP', reverse: false, text: 'I usually create structure before starting a task.' },
-  { id: 51, dimension: 'JP', reverse: true, text: 'I work best in flexible environments with minimal constraints.' },
-  { id: 52, dimension: 'JP', reverse: false, text: 'I keep to-do lists and schedules consistently.' },
-  { id: 53, dimension: 'JP', reverse: true, text: 'I dislike committing too early when plans may change.' },
-  { id: 54, dimension: 'JP', reverse: false, text: 'I prefer clear closure over open-ended timelines.' },
-  { id: 55, dimension: 'JP', reverse: true, text: 'I am comfortable with uncertainty while exploring choices.' },
-  { id: 56, dimension: 'JP', reverse: false, text: 'I usually complete tasks before relaxing.' },
-  { id: 57, dimension: 'JP', reverse: true, text: 'I often start tasks close to deadlines and still perform well.' },
-  { id: 58, dimension: 'JP', reverse: false, text: 'I get stressed when plans are vague for too long.' },
-  { id: 59, dimension: 'JP', reverse: true, text: 'I prefer spontaneity over strict routines on most days.' },
-  { id: 60, dimension: 'JP', reverse: false, text: 'I feel most productive with a defined process.' },
+  { id: 24, dimension: 'JP', reverse: false, text: 'I prefer planning ahead instead of improvising at the last minute.' },
+  { id: 25, dimension: 'JP', reverse: true, text: 'I like keeping options open until the final moment.' },
+  { id: 26, dimension: 'JP', reverse: false, text: 'I feel better once decisions are settled.' },
+  { id: 27, dimension: 'JP', reverse: true, text: 'I enjoy adapting as new information appears.' },
+  { id: 28, dimension: 'JP', reverse: false, text: 'I usually create structure before starting a task.' },
+  { id: 29, dimension: 'JP', reverse: true, text: 'I work best in flexible environments with minimal constraints.' },
+  { id: 30, dimension: 'JP', reverse: false, text: 'I keep to-do lists and schedules consistently.' },
 ];
 
 const COMPANION_BY_ID = {
@@ -156,7 +126,7 @@ const MBTI_TO_COMPANIONS = {
 
 const validateAnswers = (answers) => {
   if (!Array.isArray(answers) || answers.length !== MBTI_QUESTION_COUNT) {
-    return 'Answers must contain exactly 60 items';
+    return 'Answers must contain exactly 30 items';
   }
   const invalid = answers.some((value) => !Number.isInteger(value) || value < 1 || value > 5);
   if (invalid) {
