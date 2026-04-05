@@ -250,6 +250,7 @@ router.get('/search/query', auth, async (req, res) => {
 router.get('/search/suggested', auth, async (req, res) => {
   try {
     const limit = Math.min(20, Math.max(1, Number(req.query.limit) || 10));
+    const selfUserId = req.userId.toString();
     const [currentUser, friendships, pendingRequests] = await Promise.all([
       User.findById(req.userId, 'blockedUsers mutedUsers').lean(),
       Friendship.find({
@@ -273,7 +274,7 @@ router.get('/search/suggested', auth, async (req, res) => {
     for (const friendship of friendships) {
       for (const memberId of friendship.members || []) {
         const member = memberId?.toString();
-        if (member && member !== req.userId.toString()) {
+        if (member && member !== selfUserId) {
           connectedSet.add(member);
         }
       }
@@ -282,7 +283,7 @@ router.get('/search/suggested', auth, async (req, res) => {
     for (const request of pendingRequests) {
       const requester = request.requester?.toString();
       const recipient = request.recipient?.toString();
-      const otherUserId = requester === req.userId.toString() ? recipient : requester;
+      const otherUserId = requester === selfUserId ? recipient : requester;
       if (otherUserId) {
         connectedSet.add(otherUserId);
       }
@@ -302,7 +303,11 @@ router.get('/search/suggested', auth, async (req, res) => {
     const results = candidates
       .filter((user) => {
         const userId = user._id.toString();
-        return !blockedSet.has(userId) && !mutedSet.has(userId);
+        return (
+          !blockedSet.has(userId) &&
+          !mutedSet.has(userId) &&
+          !connectedSet.has(userId)
+        );
       })
       .slice(0, limit)
       .map((user) => ({
@@ -696,6 +701,17 @@ router.post('/:id/mute', auth, async (req, res) => {
 
     if (!mongoose.Types.ObjectId.isValid(targetUserId)) {
       return res.status(400).json({ error: 'Invalid user ID' });
+    }
+
+    const activeFriendship = await Friendship.findOne({
+      members: { $all: [req.userId, targetUserId] },
+      $or: [{ status: 'active' }, { status: { $exists: false } }],
+    }).select('_id');
+
+    if (!activeFriendship) {
+      return res
+        .status(400)
+        .json({ error: 'You can only mute users you are friends with' });
     }
 
     const user = await User.findById(req.userId);
