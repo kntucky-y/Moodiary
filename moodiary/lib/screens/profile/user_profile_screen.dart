@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -236,6 +237,11 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           UserCache.profileBundleCacheKey,
           jsonEncode(existingCache),
         );
+        if (mounted) {
+          setState(() {
+            _profileFuture = Future.value(existingCache);
+          });
+        }
       }
 
       if (!mounted) return;
@@ -245,8 +251,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       setState(() {
         _isEditing = false;
         _selectedAvatarDataUrl = null;
-        _profileFuture = _loadProfileBundle();
       });
+      unawaited(_refreshProfileBundleInBackground());
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(

@@ -26,6 +26,7 @@ import '../../widgets/user_profile_popup.dart';
 const _kPurple = Color(0xFFA076F9);
 const _kSubtle = Color(0xFF8A8A8D);
 const _kBaseUrl = 'https://moodiary-production.up.railway.app';
+const _kForumsCacheKey = 'forums_cache_v1';
 
 const _kCardPalette = <Color>[
   Color(0xFFE8DDF6),
@@ -89,8 +90,69 @@ class _ForumsScreenState extends State<ForumsScreen> {
     if (token == null) {
       setState(() => _loading = false);
     } else {
+      await _loadCachedPosts();
       await _fetchPosts();
     }
+  }
+
+  Future<void> _loadCachedPosts() async {
+    final prefs = await SharedPreferences.getInstance();
+    final rawCache = prefs.getString(_kForumsCacheKey);
+    if (rawCache == null || rawCache.isEmpty || !mounted) return;
+    try {
+      final decoded = jsonDecode(rawCache) as Map<String, dynamic>;
+      final posts = (decoded['posts'] as List<dynamic>? ?? const [])
+          .map((e) => _ForumPost.fromJson(e as Map<String, dynamic>))
+          .toList();
+      setState(() {
+        _posts = posts;
+        _activePostId = decoded['activePostId'] as String?;
+        _showMineOnly = (decoded['showMineOnly'] as bool?) ?? false;
+        _showArchived = (decoded['showArchived'] as bool?) ?? false;
+        _loading = posts.isEmpty;
+      });
+    } catch (_) {
+      // Ignore malformed cache and continue with a network fetch.
+    }
+  }
+
+  Future<void> _savePostsCache() async {
+    final prefs = await SharedPreferences.getInstance();
+    final cache = {
+      'posts': _posts
+          .map(
+            (post) => {
+              'id': post.id,
+              'title': post.title,
+              'content': post.content,
+              'isAnonymous': post.isAnonymous,
+              'authorId': post.authorId,
+              'author': post.author,
+              'authorAvatarUrl': post.authorAvatarUrl,
+              'companionId': post.companionId,
+              'likes': post.likes,
+              'likedByMe': post.likedByMe,
+              'isMine': post.isMine,
+              'comments': post.comments
+                  .map(
+                    (comment) => {
+                      'id': comment.id,
+                      'moodAsset': comment.moodAsset,
+                      'text': comment.text,
+                      'isAnonymous': comment.isAnonymous,
+                      'authorName': comment.authorName,
+                      'authorAvatarUrl': comment.authorAvatarUrl,
+                    },
+                  )
+                  .toList(),
+            },
+          )
+          .toList(),
+      'activePostId': _activePostId,
+      'showMineOnly': _showMineOnly,
+      'showArchived': _showArchived,
+    };
+    await prefs.setString(_kForumsCacheKey, jsonEncode(cache));
   }
 
   Map<String, String> get _authHeaders => {
@@ -131,6 +193,7 @@ class _ForumsScreenState extends State<ForumsScreen> {
           }
           _loading = false;
         });
+        await _savePostsCache();
       } else {
         setState(() => _loading = false);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -206,6 +269,8 @@ class _ForumsScreenState extends State<ForumsScreen> {
           }
           _fabExpanded = false;
         });
+        await _savePostsCache();
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Your post has been published.')),
         );
@@ -279,6 +344,8 @@ class _ForumsScreenState extends State<ForumsScreen> {
           _posts.removeWhere((p) => p.id == postId);
           if (_activePostId == postId) _activePostId = null;
         });
+        await _savePostsCache();
+        if (!mounted) return;
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('Post archived.')));
@@ -314,6 +381,8 @@ class _ForumsScreenState extends State<ForumsScreen> {
           _posts.removeWhere((p) => p.id == postId);
           if (_activePostId == postId) _activePostId = null;
         });
+        await _savePostsCache();
+        if (!mounted) return;
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('Post restored.')));
@@ -358,6 +427,8 @@ class _ForumsScreenState extends State<ForumsScreen> {
           _posts.removeWhere((p) => p.id == postId);
           if (_activePostId == postId) _activePostId = null;
         });
+        await _savePostsCache();
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Post permanently deleted.')),
         );
@@ -398,6 +469,8 @@ class _ForumsScreenState extends State<ForumsScreen> {
           post.likes = (data['likes'] as int?) ?? post.likes;
           post.likedByMe = (data['likedByMe'] as bool?) ?? post.likedByMe;
         });
+        await _savePostsCache();
+        if (!mounted) return;
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to update like: ${resp.body}')),
@@ -719,6 +792,7 @@ class _ForumsScreenState extends State<ForumsScreen> {
             _activePostId = updated.id;
           }
         });
+        await _savePostsCache();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to add comment: ${resp.body}')),

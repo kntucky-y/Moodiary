@@ -27,6 +27,7 @@ import 'friend_chat_screen.dart';
 const _kBaseUrl = 'https://moodiary-production.up.railway.app';
 const _kPurple = Color(0xFFA076F9);
 const _kSubtle = Color(0xFF9CA3AF);
+const _kFriendsCacheKey = 'friends_cache_v1';
 
 class FriendsScreen extends StatefulWidget {
   final String userName;
@@ -78,7 +79,92 @@ class _FriendsScreenState extends State<FriendsScreen> {
       _currentUserName = latestName;
     }
     await RealtimeNotifications.instance.ensureConnected(token: _token);
+    await _loadCachedFriends();
     await _loadFriends();
+  }
+
+  Future<void> _loadCachedFriends() async {
+    final prefs = await SharedPreferences.getInstance();
+    final rawCache = prefs.getString(_kFriendsCacheKey);
+    if (rawCache == null || rawCache.isEmpty || !mounted) return;
+    try {
+      final decoded = jsonDecode(rawCache) as Map<String, dynamic>;
+      final friends = (decoded['friends'] as List<dynamic>? ?? const [])
+          .map((j) => _FriendSummary.fromJson(j as Map<String, dynamic>))
+          .toList();
+      final incoming = (decoded['incoming'] as List<dynamic>? ?? const [])
+          .map(
+            (j) => _FriendRequest.fromJson(
+              j as Map<String, dynamic>,
+              incoming: true,
+            ),
+          )
+          .toList();
+      final outgoing = (decoded['outgoing'] as List<dynamic>? ?? const [])
+          .map(
+            (j) => _FriendRequest.fromJson(
+              j as Map<String, dynamic>,
+              incoming: false,
+            ),
+          )
+          .toList();
+      setState(() {
+        _friends = friends;
+        _incoming = incoming;
+        _outgoing = outgoing;
+        _loading = friends.isEmpty && incoming.isEmpty && outgoing.isEmpty;
+      });
+    } catch (_) {
+      // Ignore malformed cache and fall through to network fetch.
+    }
+  }
+
+  Future<void> _saveFriendsCache() async {
+    final prefs = await SharedPreferences.getInstance();
+    final cache = {
+      'friends': _friends
+          .map(
+            (friend) => {
+              'id': friend.id,
+              'friend': {
+                'id': friend.friendUserId,
+                'name': friend.name,
+                'email': friend.email,
+                'avatarUrl': friend.avatarUrl,
+              },
+              'currentMood': {
+                'label': friend.currentMoodLabel,
+                'asset': friend.currentMoodAsset,
+              },
+              'lastMessage': friend.lastMessage == null
+                  ? null
+                  : {
+                      'text': friend.lastMessage,
+                      'createdAt': friend.lastMessageAt?.toIso8601String(),
+                    },
+            },
+          )
+          .toList(),
+      'incoming': _incoming
+          .map(
+            (request) => {
+              'id': request.id,
+              'name': request.name,
+              'email': request.email,
+            },
+          )
+          .toList(),
+      'outgoing': _outgoing
+          .map(
+            (request) => {
+              'id': request.id,
+              'name': request.name,
+              'email': request.email,
+            },
+          )
+          .toList(),
+    };
+    await prefs.setString(_kFriendsCacheKey, jsonEncode(cache));
   }
 
   Future<void> _refreshUserNameFromPrefs() async {
@@ -165,6 +251,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
           _outgoing = outgoing;
           _loading = false;
         });
+        await _saveFriendsCache();
       } else {
         setState(() => _loading = false);
       }
@@ -181,6 +268,9 @@ class _FriendsScreenState extends State<FriendsScreen> {
     );
     if (resp.statusCode == 200) {
       if (!mounted) return;
+      setState(() {
+        _incoming.removeWhere((request) => request.id == id);
+      });
       await _loadFriends();
     } else {
       final message = _responseErrorMessage(resp, fallback: 'Unable to accept');
@@ -199,6 +289,11 @@ class _FriendsScreenState extends State<FriendsScreen> {
     );
     if (resp.statusCode == 200) {
       if (!mounted) return;
+      setState(() {
+        _incoming.removeWhere((request) => request.id == id);
+        _outgoing.removeWhere((request) => request.id == id);
+      });
+      await _saveFriendsCache();
       await _loadFriends();
     } else {
       final message = _responseErrorMessage(
@@ -224,7 +319,10 @@ class _FriendsScreenState extends State<FriendsScreen> {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('Friend removed.')));
-        await _loadFriends();
+        setState(() {
+          _friends.removeWhere((friend) => friend.id == friendshipId);
+        });
+        await _saveFriendsCache();
       } else {
         final message = _responseErrorMessage(
           resp,
