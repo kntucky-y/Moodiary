@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 
 import 'package:http/http.dart' as http;
 
@@ -17,6 +18,7 @@ class AuthService {
   static final AuthService instance = AuthService._();
 
   final http.Client _client = http.Client();
+  static const Duration _requestTimeout = Duration(seconds: 15);
 
   Future<Map<String, dynamic>> login({
     required String email,
@@ -539,11 +541,13 @@ class AuthService {
     final uri = Uri.parse('$kBackendBaseUrl$path');
 
     try {
-      final response = await _client.post(
-        uri,
-        headers: const {'Content-Type': 'application/json'},
-        body: jsonEncode(body),
-      );
+      final response = await _client
+          .post(
+            uri,
+            headers: const {'Content-Type': 'application/json'},
+            body: jsonEncode(body),
+          )
+          .timeout(_requestTimeout);
 
       final decoded = jsonDecode(response.body) as Map<String, dynamic>;
 
@@ -557,6 +561,9 @@ class AuthService {
     } catch (error) {
       if (error is AuthException) {
         rethrow;
+      }
+      if (error is TimeoutException) {
+        throw AuthException('Request timed out. Please try again.');
       }
       throw AuthException('Cannot reach the server. Please try again.');
     }

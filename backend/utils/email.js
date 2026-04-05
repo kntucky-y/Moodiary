@@ -1,6 +1,7 @@
 const nodemailer = require('nodemailer');
 
 let transporter;
+const MAIL_SEND_TIMEOUT_MS = Number(process.env.MAIL_SEND_TIMEOUT_MS || 15000);
 
 const readEnv = (keys) => {
   for (const key of keys) {
@@ -31,6 +32,9 @@ const getMailConfig = () => {
     return {
       transport: {
         service,
+        connectionTimeout: MAIL_SEND_TIMEOUT_MS,
+        greetingTimeout: MAIL_SEND_TIMEOUT_MS,
+        socketTimeout: MAIL_SEND_TIMEOUT_MS,
         auth: { user, pass },
       },
       from: from || `Moodiary <${user}>`,
@@ -44,6 +48,9 @@ const getMailConfig = () => {
         port,
         secure:
           secureEnv === 'true' || (secureEnv === '' && port === 465),
+        connectionTimeout: MAIL_SEND_TIMEOUT_MS,
+        greetingTimeout: MAIL_SEND_TIMEOUT_MS,
+        socketTimeout: MAIL_SEND_TIMEOUT_MS,
         auth: { user, pass },
       },
       from: from || `Moodiary <${user}>`,
@@ -54,6 +61,9 @@ const getMailConfig = () => {
     return {
       transport: {
         service: 'gmail',
+        connectionTimeout: MAIL_SEND_TIMEOUT_MS,
+        greetingTimeout: MAIL_SEND_TIMEOUT_MS,
+        socketTimeout: MAIL_SEND_TIMEOUT_MS,
         auth: { user, pass },
       },
       from: from || `Moodiary <${user}>`,
@@ -97,7 +107,7 @@ async function sendPasswordResetEmail({ to, name, token }) {
   const config = getMailConfig();
   const from = config?.from || 'Moodiary <no-reply@moodiary.app>';
 
-  await mailer.sendMail({
+  const mailTask = mailer.sendMail({
     from,
     to,
     subject: 'Reset your Moodiary password',
@@ -110,6 +120,15 @@ async function sendPasswordResetEmail({ to, name, token }) {
       <p>This link will expire in 60 minutes. If you did not request a reset, you can safely ignore this email.</p>
     `,
   });
+
+  const timeoutTask = new Promise((_, reject) => {
+    setTimeout(
+      () => reject(new Error('Email send timed out. Please try again.')),
+      MAIL_SEND_TIMEOUT_MS
+    );
+  });
+
+  await Promise.race([mailTask, timeoutTask]);
 
   return { delivered: true, previewUrl: resetLink };
 }
