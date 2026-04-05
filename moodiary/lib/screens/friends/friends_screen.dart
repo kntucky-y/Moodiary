@@ -150,6 +150,10 @@ class _FriendsScreenState extends State<FriendsScreen> {
                 'label': friend.currentMoodLabel,
                 'asset': friend.currentMoodAsset,
               },
+              'relationship': {
+                'role': friend.relationshipRole,
+                'partnerStatus': friend.partnerStatus,
+              },
               'lastMessage': friend.lastMessage == null
                   ? null
                   : {
@@ -375,6 +379,90 @@ class _FriendsScreenState extends State<FriendsScreen> {
     }
   }
 
+  Future<void> _updateRelationship({
+    required _FriendSummary friend,
+    required String endpoint,
+    required String successMessage,
+  }) async {
+    if (_token == null) return;
+    try {
+      final resp = await http.post(
+        Uri.parse('$_kBaseUrl/api/friends/${friend.id}/partner/$endpoint'),
+        headers: {'Authorization': 'Bearer $_token'},
+      );
+      if (resp.statusCode >= 200 && resp.statusCode < 300) {
+        final data = jsonDecode(resp.body) as Map<String, dynamic>;
+        final relationship =
+            data['relationship'] as Map<String, dynamic>? ?? const {};
+        final role = (relationship['role'] as String?) ?? 'friend';
+        final partnerStatus =
+            (relationship['partnerStatus'] as String?) ?? 'none';
+        if (!mounted) return;
+        setState(() {
+          final index = _friends.indexWhere((f) => f.id == friend.id);
+          if (index == -1) return;
+          _friends[index] = _friends[index].copyWith(
+            relationshipRole: role,
+            partnerStatus: partnerStatus,
+          );
+        });
+        await _saveFriendsCache();
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(successMessage)));
+        return;
+      }
+      final message = _responseErrorMessage(
+        resp,
+        fallback: 'Unable to update relationship',
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not update relationship right now.'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _requestPartner(_FriendSummary friend) async {
+    await _updateRelationship(
+      friend: friend,
+      endpoint: 'request',
+      successMessage: 'Partner request sent.',
+    );
+  }
+
+  Future<void> _acceptPartner(_FriendSummary friend) async {
+    await _updateRelationship(
+      friend: friend,
+      endpoint: 'accept',
+      successMessage: 'You are now partners.',
+    );
+  }
+
+  Future<void> _declinePartner(_FriendSummary friend) async {
+    await _updateRelationship(
+      friend: friend,
+      endpoint: 'decline',
+      successMessage: 'Partner request declined.',
+    );
+  }
+
+  Future<void> _removePartner(_FriendSummary friend) async {
+    await _updateRelationship(
+      friend: friend,
+      endpoint: 'remove',
+      successMessage: 'Relationship set to friend.',
+    );
+  }
+
   String _responseErrorMessage(http.Response resp, {required String fallback}) {
     if (resp.body.isEmpty) {
       return '$fallback (${resp.statusCode})';
@@ -505,6 +593,36 @@ class _FriendsScreenState extends State<FriendsScreen> {
                 title: const Text('Chat'),
                 onTap: () => Navigator.of(ctx).pop('chat'),
               ),
+              if (friend.relationshipRole == 'partner')
+                ListTile(
+                  leading: const Icon(Icons.heart_broken_outlined),
+                  title: const Text('Remove partner role'),
+                  onTap: () => Navigator.of(ctx).pop('partner_remove'),
+                )
+              else if (friend.partnerStatus == 'pendingIncoming')
+                ListTile(
+                  leading: const Icon(Icons.favorite_rounded),
+                  title: const Text('Accept partner request'),
+                  onTap: () => Navigator.of(ctx).pop('partner_accept'),
+                )
+              else if (friend.partnerStatus == 'pendingOutgoing')
+                ListTile(
+                  leading: const Icon(Icons.schedule_rounded),
+                  title: const Text('Partner request pending'),
+                  onTap: () => Navigator.of(ctx).pop('partner_pending'),
+                )
+              else
+                ListTile(
+                  leading: const Icon(Icons.favorite_border_rounded),
+                  title: const Text('Request partner role'),
+                  onTap: () => Navigator.of(ctx).pop('partner_request'),
+                ),
+              if (friend.partnerStatus == 'pendingIncoming')
+                ListTile(
+                  leading: const Icon(Icons.close_rounded),
+                  title: const Text('Decline partner request'),
+                  onTap: () => Navigator.of(ctx).pop('partner_decline'),
+                ),
             ],
           ),
         ),
@@ -516,6 +634,18 @@ class _FriendsScreenState extends State<FriendsScreen> {
       await _openFriendProfile(friend);
     } else if (action == 'chat') {
       _openChat(friend);
+    } else if (action == 'partner_request') {
+      await _requestPartner(friend);
+    } else if (action == 'partner_accept') {
+      await _acceptPartner(friend);
+    } else if (action == 'partner_decline') {
+      await _declinePartner(friend);
+    } else if (action == 'partner_remove') {
+      await _removePartner(friend);
+    } else if (action == 'partner_pending') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Waiting for your friend to decide.')),
+      );
     }
   }
 
@@ -645,6 +775,8 @@ class _FriendSummary {
   final String name;
   final String email;
   final String? avatarUrl;
+  final String relationshipRole;
+  final String partnerStatus;
   final String? currentMoodLabel;
   final String? currentMoodAsset;
   final String? lastMessage;
@@ -656,6 +788,8 @@ class _FriendSummary {
     required this.name,
     required this.email,
     this.avatarUrl,
+    this.relationshipRole = 'friend',
+    this.partnerStatus = 'none',
     this.currentMoodLabel,
     this.currentMoodAsset,
     this.lastMessage,
@@ -666,6 +800,7 @@ class _FriendSummary {
     final last = json['lastMessage'] as Map<String, dynamic>?;
     final friend = json['friend'] as Map<String, dynamic>? ?? {};
     final mood = json['currentMood'] as Map<String, dynamic>?;
+    final relationship = json['relationship'] as Map<String, dynamic>?;
     final rawLastCreatedAt = last?['createdAt'];
     DateTime? parsedLastMessageAt;
     if (rawLastCreatedAt is String && rawLastCreatedAt.isNotEmpty) {
@@ -679,6 +814,14 @@ class _FriendSummary {
       email: (friend['email'] as String?) ?? (json['email'] as String?) ?? '',
       avatarUrl:
           (friend['avatarUrl'] as String?) ?? (json['avatarUrl'] as String?),
+      relationshipRole:
+          (relationship?['role'] as String?) ??
+          (json['relationshipRole'] as String?) ??
+          'friend',
+      partnerStatus:
+          (relationship?['partnerStatus'] as String?) ??
+          (json['partnerStatus'] as String?) ??
+          'none',
       currentMoodLabel: mood?['label'] as String?,
       currentMoodAsset: mood?['asset'] as String?,
       lastMessage: last != null ? last['text'] as String? : null,
@@ -690,6 +833,8 @@ class _FriendSummary {
     String? name,
     String? email,
     String? avatarUrl,
+    String? relationshipRole,
+    String? partnerStatus,
     String? currentMoodLabel,
     String? currentMoodAsset,
     String? lastMessage,
@@ -701,6 +846,8 @@ class _FriendSummary {
       name: name ?? this.name,
       email: email ?? this.email,
       avatarUrl: avatarUrl ?? this.avatarUrl,
+      relationshipRole: relationshipRole ?? this.relationshipRole,
+      partnerStatus: partnerStatus ?? this.partnerStatus,
       currentMoodLabel: currentMoodLabel ?? this.currentMoodLabel,
       currentMoodAsset: currentMoodAsset ?? this.currentMoodAsset,
       lastMessage: lastMessage ?? this.lastMessage,
@@ -877,6 +1024,33 @@ class _FriendCard extends StatelessWidget {
                       color: primaryText,
                     ),
                   ),
+                  if (friend.relationshipRole == 'partner' ||
+                      friend.partnerStatus == 'pendingIncoming')
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(
+                            0xFFEAB6FF,
+                          ).withValues(alpha: 0.25),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          friend.relationshipRole == 'partner'
+                              ? 'Partner'
+                              : 'Partner request',
+                          style: const TextStyle(
+                            color: Color(0xFF7C3AED),
+                            fontWeight: FontWeight.w700,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ),
+                    ),
                   const SizedBox(height: 8),
                   if (friend.currentMoodLabel != null &&
                       friend.currentMoodAsset != null)

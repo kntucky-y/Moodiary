@@ -74,6 +74,7 @@ const formatFriendship = async (doc, viewerId) => {
       email: friend?.email ?? '',
       avatarUrl: friend?.avatarUrl ?? '',
     },
+    relationship: relationshipForViewer(doc, viewerId),
     currentMood: formatCurrentMood(latestMood),
     lastMessage: doc.lastMessage
       ? {
@@ -140,6 +141,26 @@ const isChatMutedBetween = async (userAId, userBId) => {
   return isMutedBy(userA, userBId) || isMutedBy(userB, userAId);
 };
 
+const toObjectId = (value) => new mongoose.Types.ObjectId(value);
+
+const relationshipForViewer = (friendship, viewerId) => {
+  const role = friendship.relationshipRole === 'partner' ? 'partner' : 'friend';
+  if (role === 'partner') {
+    return { role, partnerStatus: 'partner' };
+  }
+
+  const requestedBy = friendship.partnerRequestBy?.toString();
+  if (!requestedBy) {
+    return { role, partnerStatus: 'none' };
+  }
+
+  return {
+    role,
+    partnerStatus:
+      requestedBy === viewerId.toString() ? 'pendingOutgoing' : 'pendingIncoming',
+  };
+};
+
 const upsertFriendship = async (userA, userB) => {
   const pairKey = buildPairKey(userA, userB);
   let friendship = await Friendship.findOne({ pairKey });
@@ -171,9 +192,40 @@ router.get('/', auth, async (req, res) => {
         .lean(),
     ]);
 
+    const viewer = await User.findById(userId, 'blockedUsers').lean();
+    const viewerBlocked = new Set((viewer?.blockedUsers || []).map((id) => id.toString()));
+
+    const friendIds = friendships
+      .map((doc) => {
+        const counterpart = (doc.members || []).find(
+          (member) => member && member._id.toString() !== userId.toString(),
+        );
+        return counterpart?._id?.toString() || null;
+      })
+      .filter(Boolean);
+
+    const counterparts = await User.find(
+      { _id: { $in: friendIds } },
+      'blockedUsers',
+    ).lean();
+    const blockedByCounterpart = new Set(
+      counterparts
+        .filter((u) => (u.blockedUsers || []).some((id) => id.toString() === userId.toString()))
+        .map((u) => u._id.toString()),
+    );
+
+    const visibleFriendships = friendships.filter((doc) => {
+      const counterpart = (doc.members || []).find(
+        (member) => member && member._id.toString() !== userId.toString(),
+      );
+      if (!counterpart?._id) return false;
+      const counterpartId = counterpart._id.toString();
+      return !viewerBlocked.has(counterpartId) && !blockedByCounterpart.has(counterpartId);
+    });
+
     res.json({
       friends: await Promise.all(
-        friendships.map((doc) => formatFriendship(doc, userId)),
+        visibleFriendships.map((doc) => formatFriendship(doc, userId)),
       ),
       pending: {
         incoming: incoming.map((doc) => formatRequest(doc, 'incoming')),
@@ -434,6 +486,105 @@ router.delete('/:id', auth, async (req, res) => {
     );
 
     res.json({ status: 'unfriended' });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+router.post('/:id/partner/request', auth, async (req, res) => {
+  try {
+    const friendship = await ensureFriendshipAccess(req.params.id, req.userId);
+    if (friendship.relationshipRole === 'partner') {
+      return res.status(400).json({ error: 'You are already partners' });
+    }
+
+    const requestedBy = friendship.partnerRequestBy?.toString();
+    if (requestedBy === req.userId.toString()) {
+      return res.status(400).json({ error: 'Partner request already sent' });
+    }
+
+    if (requestedBy && requestedBy !== req.userId.toString()) {
+      return res.status(409).json({
+        error: 'There is already an incoming partner request from this friend',
+      });
+    }
+
+    friendship.relationshipRole = 'friend';
+    friendship.partnerRequestBy = toObjectId(req.userId);
+    await friendship.save();
+
+    res.json({
+      friendshipId: friendship._id.toString(),
+      relationship: relationshipForViewer(friendship, req.userId),
+      message: 'Partner request sent',
+    });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+router.post('/:id/partner/accept', auth, async (req, res) => {
+  try {
+    const friendship = await ensureFriendshipAccess(req.params.id, req.userId);
+    const requestedBy = friendship.partnerRequestBy?.toString();
+    if (!requestedBy) {
+      return res.status(404).json({ error: 'No partner request to accept' });
+    }
+    if (requestedBy === req.userId.toString()) {
+      return res.status(400).json({ error: 'You cannot accept your own request' });
+    }
+
+    friendship.relationshipRole = 'partner';
+    friendship.partnerRequestBy = null;
+    await friendship.save();
+
+    res.json({
+      friendshipId: friendship._id.toString(),
+      relationship: relationshipForViewer(friendship, req.userId),
+      message: 'You are now partners',
+    });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+router.post('/:id/partner/decline', auth, async (req, res) => {
+  try {
+    const friendship = await ensureFriendshipAccess(req.params.id, req.userId);
+    const requestedBy = friendship.partnerRequestBy?.toString();
+    if (!requestedBy) {
+      return res.status(404).json({ error: 'No partner request to decline' });
+    }
+    if (requestedBy === req.userId.toString()) {
+      return res.status(400).json({ error: 'Use cancel request instead' });
+    }
+
+    friendship.partnerRequestBy = null;
+    friendship.relationshipRole = 'friend';
+    await friendship.save();
+
+    res.json({
+      friendshipId: friendship._id.toString(),
+      relationship: relationshipForViewer(friendship, req.userId),
+      message: 'Partner request declined',
+    });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+router.post('/:id/partner/remove', auth, async (req, res) => {
+  try {
+    const friendship = await ensureFriendshipAccess(req.params.id, req.userId);
+    friendship.relationshipRole = 'friend';
+    friendship.partnerRequestBy = null;
+    await friendship.save();
+
+    res.json({
+      friendshipId: friendship._id.toString(),
+      relationship: relationshipForViewer(friendship, req.userId),
+      message: 'Relationship set to friend',
+    });
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });
   }

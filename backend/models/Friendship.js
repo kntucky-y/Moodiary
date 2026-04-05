@@ -30,6 +30,17 @@ const friendshipSchema = new mongoose.Schema(
       },
       createdAt: Date,
     },
+    relationshipRole: {
+      type: String,
+      enum: ['friend', 'partner'],
+      default: 'friend',
+      index: true,
+    },
+    partnerRequestBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
   },
   { timestamps: true }
 );
