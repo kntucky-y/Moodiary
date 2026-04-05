@@ -149,7 +149,11 @@ router.get('/profile/:id', async (req, res) => {
         'name email avatarUrl bio createdAt mbtiLatestType mbtiLastTestedAt mbtiAttemptsCount',
       ),
       MoodLog.findOne({ userId: id }).sort({ dateKey: -1, createdAt: -1 }),
-      ForumPost.find({ userId: id, isArchived: { $ne: true } })
+      ForumPost.find({
+        userId: id,
+        isArchived: { $ne: true },
+        isAnonymous: { $ne: true },
+      })
         .sort({ createdAt: -1 })
         .limit(6),
       MoodLog.find({ userId: id })

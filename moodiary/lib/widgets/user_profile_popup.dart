@@ -162,7 +162,9 @@ class _UserProfilePopup extends StatelessWidget {
               final mbtiLatestType = user['mbtiLatestType'] as String?;
               final publicPosts =
                   (payload['publicPosts'] as List<dynamic>? ?? const [])
-                      .cast<Map<String, dynamic>>();
+                      .cast<Map<String, dynamic>>()
+                      .where((post) => (post['isAnonymous'] as bool?) != true)
+                      .toList();
 
               final name = (user['name'] as String?) ?? 'User';
               final email = (user['email'] as String?) ?? '';
