@@ -63,6 +63,15 @@ flutter_launcher_icons:
   image_path: assets/moodiary.png
   min_sdk_android: 21
   remove_alpha_ios: true
+  web:
+    generate: true
+    image_path: assets/moodiary.png
+    background_color: "#FFFFFF"
+    theme_color: "#BCA6E6"
+  windows:
+    generate: true
+    image_path: assets/moodiary.png
+    icon_size: 48
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

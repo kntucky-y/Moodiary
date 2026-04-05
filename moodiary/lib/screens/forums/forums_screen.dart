@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math' show Random;
 
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -884,26 +885,51 @@ class _ForumsScreenState extends State<ForumsScreen> {
                         ],
                       ),
                       const SizedBox(height: 8),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          'Forums',
-                          style: TextStyle(
-                            color: primaryText,
-                            fontSize: 24,
-                            fontWeight: FontWeight.w800,
+                      RichText(
+                        textAlign: TextAlign.center,
+                        text: TextSpan(
+                          style: GoogleFonts.quicksand(
+                            fontSize: 38,
+                            fontWeight: FontWeight.w700,
+                            height: 1.0,
                           ),
+                          children: const [
+                            TextSpan(
+                              text: 'F',
+                              style: TextStyle(color: Color(0xFF5E5CE6)),
+                            ),
+                            TextSpan(
+                              text: 'o',
+                              style: TextStyle(color: Color(0xFFE56AA6)),
+                            ),
+                            TextSpan(
+                              text: 'r',
+                              style: TextStyle(color: Color(0xFF57B8FF)),
+                            ),
+                            TextSpan(
+                              text: 'u',
+                              style: TextStyle(color: Color(0xFF6FCF97)),
+                            ),
+                            TextSpan(
+                              text: 'm',
+                              style: TextStyle(color: Color(0xFFFFB84D)),
+                            ),
+                            TextSpan(
+                              text: 's',
+                              style: TextStyle(color: Color(0xFFAF7BFF)),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 4),
                       Text(
                         _showArchived
                             ? 'Archived forum posts'
                             : 'A safe space to share and connect',
                         style: TextStyle(
                           color: secondaryText,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                       const SizedBox(height: 4),
