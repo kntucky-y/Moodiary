@@ -12,6 +12,7 @@ const Friendship = require('../models/Friendship');
 const FriendRequest = require('../models/FriendRequest');
 const auth = require('../middleware/auth');
 const { scoreMbti } = require('../utils/mbti');
+const { getIO, emitNotification } = require('../socket');
 
 const sanitizeUser = (user) => ({
   id: user._id,
@@ -621,6 +622,41 @@ router.post('/:id/block', auth, async (req, res) => {
     }
 
     user.blockedUsers.push(targetUserId);
+
+    const friendship = await Friendship.findOne({
+      members: { $all: [req.userId, targetUserId] },
+      $or: [{ status: 'active' }, { status: { $exists: false } }],
+    });
+    if (friendship) {
+      friendship.status = 'archived';
+      friendship.endedAt = new Date();
+      await friendship.save();
+
+      try {
+        getIO().to(`friendship:${friendship._id}`).emit('friends:removed', {
+          friendshipId: friendship._id.toString(),
+        });
+      } catch (_) {
+        // Socket layer not initialized; skip emit.
+      }
+
+      emitNotification([req.userId, targetUserId], {
+        type: 'friend_removed',
+        friendshipId: friendship._id.toString(),
+        targetUserId,
+        message: 'Friendship ended',
+        at: new Date().toISOString(),
+      });
+    }
+
+    await FriendRequest.deleteMany({
+      $or: [
+        { requester: req.userId, recipient: targetUserId },
+        { requester: targetUserId, recipient: req.userId },
+      ],
+      status: 'pending',
+    });
+
     await user.save();
 
     res.json({ message: 'User blocked successfully' });

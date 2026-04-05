@@ -524,18 +524,16 @@ class _ForumsScreenState extends State<ForumsScreen> {
                   children: [
                     Row(
                       children: [
-                        Image.asset(
-                          'assets/doodle${widget.companionId}.png',
-                          width: 42,
-                          height: 42,
-                          errorBuilder: (context, error, stackTrace) =>
-                              const Icon(
-                                Icons.chat_bubble_outline,
-                                size: 30,
-                                color: _kSubtle,
-                              ),
+                        Expanded(
+                          child: Text(
+                            'Create a post',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: primaryText,
+                            ),
+                          ),
                         ),
-                        const Spacer(),
                         IconButton(
                           onPressed: () => Navigator.of(ctx).pop(),
                           icon: const Icon(
@@ -545,7 +543,7 @@ class _ForumsScreenState extends State<ForumsScreen> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 4),
                     TextField(
                       controller: titleController,
                       maxLength: 70,
@@ -887,87 +885,26 @@ class _ForumsScreenState extends State<ForumsScreen> {
                         ],
                       ),
                       const SizedBox(height: 8),
-                      RichText(
-                        text: TextSpan(
-                          children: [
-                            TextSpan(
-                              text: 'For',
-                              style: GoogleFonts.lexend(
-                                fontSize: 52,
-                                fontWeight: FontWeight.bold,
-                                color: primaryText,
-                              ),
-                            ),
-                            TextSpan(
-                              text: 'u',
-                              style: GoogleFonts.caveat(
-                                fontSize: 56,
-                                fontWeight: FontWeight.bold,
-                                color: const Color(0xFF86C58C),
-                              ),
-                            ),
-                            TextSpan(
-                              text: 'ms',
-                              style: GoogleFonts.playfairDisplay(
-                                fontSize: 52,
-                                fontWeight: FontWeight.bold,
-                                color: _kPurple,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 4),
                       Text(
                         _showArchived
                             ? 'Archived forum posts'
                             : 'A safe space to share and connect',
-                        style: TextStyle(color: secondaryText, fontSize: 15),
+                        style: TextStyle(
+                          color: secondaryText,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                      const SizedBox(height: 8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          ChoiceChip(
-                            label: const Text('Active'),
-                            selected: !_showArchived,
-                            onSelected: (_) {
-                              if (_showArchived) {
-                                _toggleArchived();
-                              }
-                            },
+                      const SizedBox(height: 4),
+                      if (!_showArchived && _showMineOnly)
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: TextButton.icon(
+                            onPressed: () =>
+                                setState(() => _showMineOnly = false),
+                            icon: const Icon(Icons.filter_alt_off, size: 18),
+                            label: const Text('Showing only my posts'),
                           ),
-                          const SizedBox(width: 8),
-                          ChoiceChip(
-                            label: const Text('Archive'),
-                            selected: _showArchived,
-                            onSelected: (_) {
-                              if (!_showArchived) {
-                                _toggleArchived();
-                              }
-                            },
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      if (!_showArchived)
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            ChoiceChip(
-                              label: const Text('All posts'),
-                              selected: !_showMineOnly,
-                              onSelected: (_) =>
-                                  setState(() => _showMineOnly = false),
-                            ),
-                            const SizedBox(width: 8),
-                            ChoiceChip(
-                              label: const Text('My posts'),
-                              selected: _showMineOnly,
-                              onSelected: (_) =>
-                                  setState(() => _showMineOnly = true),
-                            ),
-                          ],
                         ),
                     ],
                   ),
@@ -1160,7 +1097,7 @@ class _ForumListView extends StatelessWidget {
                         size: 62,
                         color: secondaryText,
                       ),
-                      SizedBox(height: 12),
+                      const SizedBox(height: 12),
                       Text(
                         'No posts yet',
                         style: TextStyle(
@@ -1169,7 +1106,7 @@ class _ForumListView extends StatelessWidget {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      SizedBox(height: 4),
+                      const SizedBox(height: 4),
                       Text(
                         'Tap + to share the first supportive post.',
                         style: TextStyle(color: secondaryText, fontSize: 13),
@@ -1207,126 +1144,14 @@ class _ForumListView extends StatelessWidget {
                   },
                 ),
         ),
-        if (fabExpanded && onCreatePost != null)
-          Positioned.fill(
-            child: GestureDetector(
-              onTap: onCollapseFab,
-              child: Container(color: Colors.transparent),
-            ),
-          ),
         if (onCreatePost != null)
           Positioned(
             bottom: 24,
             right: 18,
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 250),
-              child: fabExpanded
-                  ? Row(
-                      key: const ValueKey('fab-expanded'),
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Image.asset(
-                          'assets/doodle$companionId.png',
-                          width: 72,
-                          height: 72,
-                          errorBuilder: (context, error, stackTrace) =>
-                              const SizedBox(),
-                        ),
-                        const SizedBox(width: 8),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 8,
-                              ),
-                              decoration: BoxDecoration(
-                                color: context.mdSecondarySurface,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                'Let\'s support someone today!',
-                                style: TextStyle(
-                                  color: primaryText,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            Row(
-                              children: [
-                                GestureDetector(
-                                  onTap: onCollapseFab,
-                                  child: Container(
-                                    width: 32,
-                                    height: 32,
-                                    decoration: const BoxDecoration(
-                                      color: Color(0xFFEF4444),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(
-                                      Icons.close,
-                                      color: Colors.white,
-                                      size: 18,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                GestureDetector(
-                                  onTap: onCreatePost,
-                                  child: Container(
-                                    width: 54,
-                                    height: 54,
-                                    decoration: BoxDecoration(
-                                      color: context.mdSurface,
-                                      shape: BoxShape.circle,
-                                      boxShadow: const [
-                                        BoxShadow(
-                                          color: Color(0x22000000),
-                                          blurRadius: 10,
-                                          offset: Offset(0, 2),
-                                        ),
-                                      ],
-                                    ),
-                                    child: Icon(
-                                      Icons.add,
-                                      color: primaryText,
-                                      size: 30,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ],
-                    )
-                  : GestureDetector(
-                      key: const ValueKey('fab-main'),
-                      onTap: onExpandFab,
-                      child: Container(
-                        width: 64,
-                        height: 64,
-                        decoration: const BoxDecoration(
-                          color: _kPurple,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Color(0x44A076F9),
-                              blurRadius: 12,
-                              offset: Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: const Icon(
-                          Icons.add,
-                          color: Colors.white,
-                          size: 34,
-                        ),
-                      ),
-                    ),
+            child: FloatingActionButton(
+              onPressed: onCreatePost,
+              backgroundColor: _kPurple,
+              child: const Icon(Icons.add, color: Colors.white),
             ),
           ),
       ],

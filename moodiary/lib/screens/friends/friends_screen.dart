@@ -182,9 +182,12 @@ class _FriendsScreenState extends State<FriendsScreen> {
     final type = payload['type'];
     if (type == 'friend_removed') {
       final friendshipId = payload['friendshipId']?.toString();
-      if (friendshipId == null) return;
+      final targetUserId = payload['targetUserId']?.toString();
+      if (friendshipId == null && targetUserId == null) return;
       setState(() {
-        _friends.removeWhere((f) => f.id == friendshipId);
+        _friends.removeWhere(
+          (f) => f.id == friendshipId || f.friendUserId == targetUserId,
+        );
       });
       return;
     }

@@ -27,6 +27,10 @@ class RealtimeNotifications {
 
   Stream<Map<String, dynamic>> get stream => _controller.stream;
 
+  void emitLocal(Map<String, dynamic> payload) {
+    _controller.add(payload);
+  }
+
   Future<void> ensureConnected({String? token}) async {
     final resolvedToken = token ?? _token ?? await _loadToken();
     if (resolvedToken == null) {

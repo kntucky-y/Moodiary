@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/auth_service.dart';
+import '../services/realtime_notifications.dart';
 import '../utils/avatar_utils.dart';
 
 Future<String?> showUserProfilePopup(
@@ -825,6 +826,7 @@ class _BlockToggleButtonState extends State<_BlockToggleButton> {
     if (_submitting || _selfUserId.isEmpty || _authToken.isEmpty) return;
     setState(() => _submitting = true);
     try {
+      final wasBlocked = _isBlocked;
       if (_isBlocked) {
         await AuthService.instance.unblockUser(
           userId: _selfUserId,
@@ -839,6 +841,12 @@ class _BlockToggleButtonState extends State<_BlockToggleButton> {
         );
       }
       if (!mounted) return;
+      if (!wasBlocked) {
+        RealtimeNotifications.instance.emitLocal({
+          'type': 'friend_removed',
+          'targetUserId': widget.targetUserId,
+        });
+      }
       setState(() => _isBlocked = !_isBlocked);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(_isBlocked ? 'User blocked' : 'User unblocked')),
