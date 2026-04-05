@@ -10,8 +10,8 @@ import '../../services/realtime_notifications.dart';
 import '../../theme/moodiary_colors.dart';
 import '../../utils/transitions.dart';
 import '../../utils/user_cache.dart';
+import '../app_shell.dart';
 import '../companion/companion_screen.dart';
-import '../home/home_screen.dart';
 import '../profile/mbti_test_screen.dart';
 import 'reset_password_screen.dart';
 
@@ -103,10 +103,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 initialCompanionName: companionName,
               )
             : companionId != null && companionName != null
-            ? HomeScreen(
+            ? MoodiaryShell(
                 userName: userName,
                 companionId: companionId,
                 companionName: companionName,
+                initialTab: MoodiaryTab.home,
               )
             : CompanionScreen(userName: userName),
       ),

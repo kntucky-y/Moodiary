@@ -649,6 +649,73 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                           ),
                         ),
                         const SizedBox(height: 16),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: cs.surfaceContainer,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(Icons.calendar_month_outlined),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Calendar Preview',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .labelLarge
+                                        ?.copyWith(fontWeight: FontWeight.w700),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Today: $_currentMoodLabel',
+                                style: Theme.of(context).textTheme.bodyMedium,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Mood score: $_todayMoodScore • Streak: $_streakCount ${_streakCount == 1 ? 'day' : 'days'}',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: OutlinedButton(
+                                      onPressed: () => _openScreen(
+                                        CalendarScreen(
+                                          userName: _currentUserName,
+                                          companionId: _companionId,
+                                          companionName: _companionName,
+                                        ),
+                                      ),
+                                      child: const Text('Open Calendar'),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: OutlinedButton(
+                                      onPressed: () => _openScreen(
+                                        JournalScreen(
+                                          userName: _currentUserName,
+                                          companionId: _companionId,
+                                          companionName: _companionName,
+                                        ),
+                                      ),
+                                      child: const Text('Open Journal'),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 10),
                         Text(
                           'Public Posts (Forums)',
                           style: Theme.of(context).textTheme.titleMedium

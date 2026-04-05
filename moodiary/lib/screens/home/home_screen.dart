@@ -9,6 +9,7 @@ import '../calendar/calendar_screen.dart';
 import '../journal/journal_screen.dart';
 import '../forums/forums_screen.dart';
 import '../friends/friends_screen.dart';
+import '../app_shell.dart';
 import '../profile/user_profile_screen.dart';
 import '../../services/local_notifications_service.dart';
 import '../../services/theme_controller.dart';
@@ -17,7 +18,6 @@ import '../../utils/transitions.dart';
 import '../../widgets/app_sidebar.dart';
 import '../../services/realtime_notifications.dart';
 import '../settings/settings_screen.dart';
-import '../resources/resources_screen.dart';
 import '../../utils/avatar_utils.dart';
 import '../../utils/streak_utils.dart';
 
@@ -186,6 +186,7 @@ class HomeScreen extends StatefulWidget {
   final int companionId;
   final String companionName;
   final String? initialProfileAvatarUrl;
+  final bool showBottomNav;
 
   const HomeScreen({
     super.key,
@@ -193,6 +194,7 @@ class HomeScreen extends StatefulWidget {
     required this.companionId,
     required this.companionName,
     this.initialProfileAvatarUrl,
+    this.showBottomNav = true,
   });
 
   @override
@@ -963,11 +965,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
         ],
       ),
-      bottomNavigationBar: _BottomNav(
-        userName: widget.userName,
-        companionId: widget.companionId,
-        companionName: widget.companionName,
-      ),
+      bottomNavigationBar: widget.showBottomNav
+          ? _BottomNav(
+              userName: widget.userName,
+              companionId: widget.companionId,
+              companionName: widget.companionName,
+            )
+          : null,
     );
   }
 }
@@ -1506,63 +1510,54 @@ class _BottomNav extends StatelessWidget {
   Widget build(BuildContext context) {
     final items = [
       _NavItem(
-        Icons.calendar_month_outlined,
-        'Calendar',
+        Icons.account_circle_outlined,
+        'Profile',
         onTap: () {
-          Navigator.of(context).push(
+          Navigator.of(context).pushAndRemoveUntil(
             FadeSlideRoute(
-              page: CalendarScreen(
+              page: MoodiaryShell(
                 userName: userName,
                 companionId: companionId,
                 companionName: companionName,
+                initialTab: MoodiaryTab.profile,
               ),
             ),
+            (_) => false,
           );
         },
       ),
       _NavItem(
-        Icons.book_outlined,
-        'Journal',
+        Icons.people_alt_rounded,
+        'Buddies',
         onTap: () {
-          Navigator.of(context).push(
+          Navigator.of(context).pushAndRemoveUntil(
             FadeSlideRoute(
-              page: JournalScreen(
+              page: MoodiaryShell(
                 userName: userName,
                 companionId: companionId,
                 companionName: companionName,
+                initialTab: MoodiaryTab.buddies,
               ),
             ),
+            (_) => false,
           );
         },
       ),
       _NavItem(Icons.home_rounded, 'Home', active: true, onTap: () {}),
       _NavItem(
-        Icons.people_alt_rounded,
-        'Buddies',
-        onTap: () {
-          Navigator.of(context).push(
-            FadeSlideRoute(
-              page: FriendsScreen(
-                userName: userName,
-                companionId: companionId,
-                companionName: companionName,
-              ),
-            ),
-          );
-        },
-      ),
-      _NavItem(
         Icons.chat_bubble_outline,
         'Forums',
         onTap: () {
-          Navigator.of(context).push(
+          Navigator.of(context).pushAndRemoveUntil(
             FadeSlideRoute(
-              page: ForumsScreen(
+              page: MoodiaryShell(
                 userName: userName,
                 companionId: companionId,
                 companionName: companionName,
+                initialTab: MoodiaryTab.forums,
               ),
             ),
+            (_) => false,
           );
         },
       ),
@@ -1570,9 +1565,17 @@ class _BottomNav extends StatelessWidget {
         Icons.folder_outlined,
         'Resources',
         onTap: () {
-          Navigator.of(
-            context,
-          ).push(FadeSlideRoute(page: const ResourcesScreen()));
+          Navigator.of(context).pushAndRemoveUntil(
+            FadeSlideRoute(
+              page: MoodiaryShell(
+                userName: userName,
+                companionId: companionId,
+                companionName: companionName,
+                initialTab: MoodiaryTab.resources,
+              ),
+            ),
+            (_) => false,
+          );
         },
       ),
     ];

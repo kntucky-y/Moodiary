@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../home/home_screen.dart';
+import '../app_shell.dart';
 import '../profile/mbti_test_screen.dart';
 import '../../theme/moodiary_colors.dart';
 import '../../utils/transitions.dart';
@@ -104,10 +104,11 @@ class CompanionScreen extends StatelessWidget {
     if (!context.mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
       FadeSlideRoute(
-        page: HomeScreen(
+        page: MoodiaryShell(
           userName: userName,
           companionId: companion.id,
           companionName: companion.name,
+          initialTab: MoodiaryTab.home,
         ),
       ),
       (_) => false,
@@ -211,8 +212,9 @@ class CompanionScreen extends StatelessWidget {
                       ),
                     );
                   },
-                  const SizedBox(height: 20),
+                ),
               ),
+              const SizedBox(height: 20),
               SizedBox(height: MediaQuery.of(context).padding.bottom + 16),
             ],
           ),
@@ -254,10 +256,11 @@ class _CompanionModal extends StatelessWidget {
     if (context.mounted) {
       Navigator.of(context).pushAndRemoveUntil(
         FadeSlideRoute(
-          page: HomeScreen(
+          page: MoodiaryShell(
             userName: userName,
             companionId: companion.id,
             companionName: companion.name,
+            initialTab: MoodiaryTab.home,
           ),
         ),
         (_) => false,

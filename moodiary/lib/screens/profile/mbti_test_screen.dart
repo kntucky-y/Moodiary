@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../services/auth_service.dart';
 import '../../utils/transitions.dart';
-import '../home/home_screen.dart';
+import '../app_shell.dart';
 
 class MbtiTestScreen extends StatefulWidget {
   final String userName;
@@ -159,10 +159,11 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
       FadeSlideRoute(
-        page: HomeScreen(
+        page: MoodiaryShell(
           userName: widget.userName,
           companionId: companionId,
           companionName: companionName,
+          initialTab: MoodiaryTab.home,
         ),
       ),
       (_) => false,
@@ -175,10 +176,11 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
         widget.initialCompanionName != null) {
       Navigator.of(context).pushAndRemoveUntil(
         FadeSlideRoute(
-          page: HomeScreen(
+          page: MoodiaryShell(
             userName: widget.userName,
             companionId: widget.initialCompanionId!,
             companionName: widget.initialCompanionName!,
+            initialTab: MoodiaryTab.home,
           ),
         ),
         (_) => false,
@@ -215,10 +217,11 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
       FadeSlideRoute(
-        page: HomeScreen(
+        page: MoodiaryShell(
           userName: widget.userName,
           companionId: companionId,
           companionName: companionName,
+          initialTab: MoodiaryTab.home,
         ),
       ),
       (_) => false,
