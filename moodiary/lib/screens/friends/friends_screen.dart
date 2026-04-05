@@ -8,8 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../calendar/calendar_screen.dart';
 import '../journal/journal_screen.dart';
 import '../forums/forums_screen.dart';
-import '../home/home_screen.dart';
-import '../profile/user_profile_screen.dart';
+import '../app_shell.dart';
 import '../companion/companion_screen.dart';
 import '../onboarding/onboarding_screen.dart';
 import '../settings/settings_screen.dart';
@@ -126,16 +125,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
           .map(
             (friend) => {
               'id': friend.id,
-              'friend': {
-                'id': friend.friendUserId,
-                'name': friend.name,
-                'email': friend.email,
-                'avatarUrl': friend.avatarUrl,
-              },
-              'currentMood': {
-                'label': friend.currentMoodLabel,
-                'asset': friend.currentMoodAsset,
-              },
+              'friend': {},
               'lastMessage': friend.lastMessage == null
                   ? null
                   : {
@@ -165,16 +155,6 @@ class _FriendsScreenState extends State<FriendsScreen> {
           .toList(),
     };
     await prefs.setString(_kFriendsCacheKey, jsonEncode(cache));
-  }
-
-  Future<void> _refreshUserNameFromPrefs() async {
-    final prefs = await SharedPreferences.getInstance();
-    final latestName = prefs.getString('user_name')?.trim();
-    if (!mounted || latestName == null || latestName.isEmpty) return;
-    if (latestName == _currentUserName) return;
-    setState(() {
-      _currentUserName = latestName;
-    });
   }
 
   void _handleNotification(Map<String, dynamic> payload) {
@@ -398,6 +378,21 @@ class _FriendsScreenState extends State<FriendsScreen> {
     Navigator.of(context).push(FadeSlideRoute(page: page));
   }
 
+  void _openShellTab(MoodiaryTab tab) {
+    _closeSidebar();
+    Navigator.of(context).pushAndRemoveUntil(
+      FadeSlideRoute(
+        page: MoodiaryShell(
+          userName: _currentUserName,
+          companionId: widget.companionId,
+          companionName: widget.companionName,
+          initialTab: tab,
+        ),
+      ),
+      (_) => false,
+    );
+  }
+
   Future<void> _logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('token');
@@ -587,26 +582,8 @@ class _FriendsScreenState extends State<FriendsScreen> {
               userName: _currentUserName,
               activeSection: SidebarSection.friends,
               onClose: _closeSidebar,
-              onNavigateHome: () async {
-                final prefs = await SharedPreferences.getInstance();
-                final avatarUrl = prefs.getString('user_avatar_url');
-                if (!mounted) return;
-                _openScreen(
-                  HomeScreen(
-                    userName: _currentUserName,
-                    companionId: widget.companionId,
-                    companionName: widget.companionName,
-                    initialProfileAvatarUrl: avatarUrl,
-                  ),
-                );
-              },
-              onNavigateUserProfile: () async {
-                _closeSidebar();
-                await Navigator.of(
-                  context,
-                ).push(FadeSlideRoute(page: const UserProfileScreen()));
-                await _refreshUserNameFromPrefs();
-              },
+              onNavigateHome: () => _openShellTab(MoodiaryTab.home),
+              onNavigateUserProfile: () => _openShellTab(MoodiaryTab.profile),
               onNavigateCalendar: () => _openScreen(
                 CalendarScreen(
                   userName: _currentUserName,
@@ -622,13 +599,8 @@ class _FriendsScreenState extends State<FriendsScreen> {
                 ),
               ),
               onNavigateFriends: _closeSidebar,
-              onNavigateForums: () => _openScreen(
-                ForumsScreen(
-                  userName: _currentUserName,
-                  companionId: widget.companionId,
-                  companionName: widget.companionName,
-                ),
-              ),
+              onNavigateForums: () => _openShellTab(MoodiaryTab.forums),
+              onNavigateResources: () => _openShellTab(MoodiaryTab.resources),
               onNavigateSettings: () =>
                   _openScreen(SettingsScreen(userName: _currentUserName)),
               onChangeCompanion: () =>

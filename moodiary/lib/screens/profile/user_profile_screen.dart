@@ -16,9 +16,7 @@ import '../../utils/user_cache.dart';
 import '../../widgets/app_sidebar.dart';
 import '../calendar/calendar_screen.dart';
 import '../companion/companion_screen.dart';
-import '../forums/forums_screen.dart';
-import '../friends/friends_screen.dart';
-import '../home/home_screen.dart';
+import '../app_shell.dart';
 import '../journal/journal_screen.dart';
 import '../onboarding/onboarding_screen.dart';
 import '../settings/settings_screen.dart';
@@ -264,6 +262,22 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   void _openScreen(Widget page) {
     setState(() => _sidebarOpen = false);
     Navigator.of(context).push(FadeSlideRoute(page: page));
+  }
+
+  void _openShellTab(MoodiaryTab tab) {
+    setState(() => _sidebarOpen = false);
+    Navigator.of(context).pushAndRemoveUntil(
+      FadeSlideRoute(
+        page: MoodiaryShell(
+          userName: _currentUserName,
+          companionId: _companionId,
+          companionName: _companionName,
+          initialProfileAvatarUrl: _selectedAvatarDataUrl ?? _currentAvatarUrl,
+          initialTab: tab,
+        ),
+      ),
+      (_) => false,
+    );
   }
 
   Future<void> _logout() async {
@@ -919,15 +933,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               userName: _currentUserName,
               activeSection: SidebarSection.userProfile,
               onClose: () => setState(() => _sidebarOpen = false),
-              onNavigateHome: () => _openScreen(
-                HomeScreen(
-                  userName: _currentUserName,
-                  companionId: _companionId,
-                  companionName: _companionName,
-                  initialProfileAvatarUrl:
-                      _selectedAvatarDataUrl ?? _currentAvatarUrl,
-                ),
-              ),
+              onNavigateHome: () => _openShellTab(MoodiaryTab.home),
               onNavigateUserProfile: () => setState(() => _sidebarOpen = false),
               onNavigateCalendar: () => _openScreen(
                 CalendarScreen(
@@ -943,20 +949,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   companionName: _companionName,
                 ),
               ),
-              onNavigateFriends: () => _openScreen(
-                FriendsScreen(
-                  userName: _currentUserName,
-                  companionId: _companionId,
-                  companionName: _companionName,
-                ),
-              ),
-              onNavigateForums: () => _openScreen(
-                ForumsScreen(
-                  userName: _currentUserName,
-                  companionId: _companionId,
-                  companionName: _companionName,
-                ),
-              ),
+              onNavigateFriends: () => _openShellTab(MoodiaryTab.buddies),
+              onNavigateForums: () => _openShellTab(MoodiaryTab.forums),
+              onNavigateResources: () => _openShellTab(MoodiaryTab.resources),
               onNavigateSettings: () =>
                   _openScreen(SettingsScreen(userName: _currentUserName)),
               onChangeCompanion: () =>

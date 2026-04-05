@@ -7,8 +7,6 @@ import '../onboarding/onboarding_screen.dart';
 import '../companion/companion_screen.dart';
 import '../calendar/calendar_screen.dart';
 import '../journal/journal_screen.dart';
-import '../forums/forums_screen.dart';
-import '../friends/friends_screen.dart';
 import '../app_shell.dart';
 import '../profile/user_profile_screen.dart';
 import '../../services/local_notifications_service.dart';
@@ -890,6 +888,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               activeSection: SidebarSection.home,
               onClose: () => setState(() => _sidebarOpen = false),
               onNavigateHome: () => setState(() => _sidebarOpen = false),
+              onNavigateUserProfile: () {
+                setState(() => _sidebarOpen = false);
+                Navigator.of(context).pushAndRemoveUntil(
+                  FadeSlideRoute(
+                    page: MoodiaryShell(
+                      userName: widget.userName,
+                      companionId: widget.companionId,
+                      companionName: widget.companionName,
+                      initialTab: MoodiaryTab.profile,
+                    ),
+                  ),
+                  (_) => false,
+                );
+              },
               onNavigateCalendar: () {
                 setState(() => _sidebarOpen = false);
                 Navigator.of(context).push(
@@ -901,12 +913,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     ),
                   ),
                 );
-              },
-              onNavigateUserProfile: () {
-                setState(() => _sidebarOpen = false);
-                Navigator.of(
-                  context,
-                ).push(FadeSlideRoute(page: const UserProfileScreen()));
               },
               onNavigateJournal: () {
                 setState(() => _sidebarOpen = false);
@@ -922,26 +928,44 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               },
               onNavigateFriends: () {
                 setState(() => _sidebarOpen = false);
-                Navigator.of(context).push(
+                Navigator.of(context).pushAndRemoveUntil(
                   FadeSlideRoute(
-                    page: FriendsScreen(
+                    page: MoodiaryShell(
                       userName: widget.userName,
                       companionId: widget.companionId,
                       companionName: widget.companionName,
+                      initialTab: MoodiaryTab.buddies,
                     ),
                   ),
+                  (_) => false,
                 );
               },
               onNavigateForums: () {
                 setState(() => _sidebarOpen = false);
-                Navigator.of(context).push(
+                Navigator.of(context).pushAndRemoveUntil(
                   FadeSlideRoute(
-                    page: ForumsScreen(
+                    page: MoodiaryShell(
                       userName: widget.userName,
                       companionId: widget.companionId,
                       companionName: widget.companionName,
+                      initialTab: MoodiaryTab.forums,
                     ),
                   ),
+                  (_) => false,
+                );
+              },
+              onNavigateResources: () {
+                setState(() => _sidebarOpen = false);
+                Navigator.of(context).pushAndRemoveUntil(
+                  FadeSlideRoute(
+                    page: MoodiaryShell(
+                      userName: widget.userName,
+                      companionId: widget.companionId,
+                      companionName: widget.companionName,
+                      initialTab: MoodiaryTab.resources,
+                    ),
+                  ),
+                  (_) => false,
                 );
               },
               onNavigateSettings: () {

@@ -4,10 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../calendar/calendar_screen.dart';
-import '../home/home_screen.dart';
-import '../friends/friends_screen.dart';
-import '../forums/forums_screen.dart';
-import '../profile/user_profile_screen.dart';
+import '../app_shell.dart';
 import '../companion/companion_screen.dart';
 import '../onboarding/onboarding_screen.dart';
 import '../settings/settings_screen.dart';
@@ -169,6 +166,21 @@ class _JournalScreenState extends State<JournalScreen> {
   void _openScreen(Widget page) {
     _closeSidebar();
     Navigator.of(context).push(FadeSlideRoute(page: page));
+  }
+
+  void _openShellTab(MoodiaryTab tab) {
+    _closeSidebar();
+    Navigator.of(context).pushAndRemoveUntil(
+      FadeSlideRoute(
+        page: MoodiaryShell(
+          userName: widget.userName,
+          companionId: widget.companionId,
+          companionName: widget.companionName,
+          initialTab: tab,
+        ),
+      ),
+      (_) => false,
+    );
   }
 
   Future<void> _logout() async {
@@ -568,21 +580,8 @@ class _JournalScreenState extends State<JournalScreen> {
               userName: widget.userName,
               activeSection: SidebarSection.journal,
               onClose: _closeSidebar,
-              onNavigateHome: () async {
-                final prefs = await SharedPreferences.getInstance();
-                final avatarUrl = prefs.getString('user_avatar_url');
-                if (!mounted) return;
-                _openScreen(
-                  HomeScreen(
-                    userName: widget.userName,
-                    companionId: widget.companionId,
-                    companionName: widget.companionName,
-                    initialProfileAvatarUrl: avatarUrl,
-                  ),
-                );
-              },
-              onNavigateUserProfile: () =>
-                  _openScreen(const UserProfileScreen()),
+              onNavigateHome: () => _openShellTab(MoodiaryTab.home),
+              onNavigateUserProfile: () => _openShellTab(MoodiaryTab.profile),
               onNavigateCalendar: () => _openScreen(
                 CalendarScreen(
                   userName: widget.userName,
@@ -591,20 +590,9 @@ class _JournalScreenState extends State<JournalScreen> {
                 ),
               ),
               onNavigateJournal: _closeSidebar,
-              onNavigateFriends: () => _openScreen(
-                FriendsScreen(
-                  userName: widget.userName,
-                  companionId: widget.companionId,
-                  companionName: widget.companionName,
-                ),
-              ),
-              onNavigateForums: () => _openScreen(
-                ForumsScreen(
-                  userName: widget.userName,
-                  companionId: widget.companionId,
-                  companionName: widget.companionName,
-                ),
-              ),
+              onNavigateFriends: () => _openShellTab(MoodiaryTab.buddies),
+              onNavigateForums: () => _openShellTab(MoodiaryTab.forums),
+              onNavigateResources: () => _openShellTab(MoodiaryTab.resources),
               onNavigateSettings: () =>
                   _openScreen(SettingsScreen(userName: widget.userName)),
               onChangeCompanion: () =>

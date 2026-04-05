@@ -27,6 +27,7 @@ class AppSidebar extends StatelessWidget {
   final VoidCallback? onNavigateJournal;
   final VoidCallback? onNavigateFriends;
   final VoidCallback? onNavigateForums;
+  final VoidCallback? onNavigateResources;
   final VoidCallback? onNavigateSettings;
   final VoidCallback? onChangeCompanion;
   final VoidCallback? onLogout;
@@ -42,6 +43,7 @@ class AppSidebar extends StatelessWidget {
     this.onNavigateJournal,
     this.onNavigateFriends,
     this.onNavigateForums,
+    this.onNavigateResources,
     this.onNavigateSettings,
     this.onChangeCompanion,
     this.onLogout,
@@ -93,7 +95,7 @@ class AppSidebar extends StatelessWidget {
         section: SidebarSection.resources,
         icon: Icons.folder_outlined,
         label: 'Resources',
-        onTap: null,
+        onTap: onNavigateResources,
       ),
       _SidebarEntry(
         section: SidebarSection.settings,
