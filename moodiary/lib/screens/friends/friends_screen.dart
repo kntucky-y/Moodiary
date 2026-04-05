@@ -173,41 +173,6 @@ class _FriendsScreenState extends State<FriendsScreen> {
     }
   }
 
-  Future<void> _sendRequest(String email) async {
-    if (_token == null) return;
-    try {
-      final resp = await http.post(
-        Uri.parse('$_kBaseUrl/api/friends/request'),
-        headers: {
-          'Authorization': 'Bearer $_token',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({'email': email}),
-      );
-      if (resp.statusCode == 201) {
-        if (!mounted) return;
-        Navigator.of(context).pop();
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Friend request sent!')));
-        await _loadFriends();
-      } else {
-        final message = _responseErrorMessage(resp, fallback: 'Request failed');
-        if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(message)));
-      }
-    } catch (err) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not send friend request. Please try again.'),
-        ),
-      );
-    }
-  }
-
   Future<void> _acceptRequest(String id) async {
     if (_token == null) return;
     final resp = await http.post(

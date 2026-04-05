@@ -199,7 +199,8 @@ class _UserDiscoveryScreenState extends State<UserDiscoveryScreen> {
                 : ListView.separated(
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                     itemCount: displayList.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 12),
                     itemBuilder: (context, index) {
                       final user = displayList[index];
                       final userId = user['id']?.toString() ?? '';
@@ -234,7 +235,8 @@ class _UserDiscoveryScreenState extends State<UserDiscoveryScreen> {
                                         context,
                                         userId: userId,
                                       );
-                                  if (selectedPostId == null || !mounted) {
+                                  if (!context.mounted ||
+                                      selectedPostId == null) {
                                     return;
                                   }
                                   Navigator.of(context).push(

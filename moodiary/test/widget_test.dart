@@ -20,7 +20,13 @@ void main() {
     final controller = ThemeController.instance;
     await controller.load();
 
-    await tester.pumpWidget(MoodiaryApp(themeController: controller));
+    await tester.pumpWidget(
+      MoodiaryApp(
+        themeController: controller,
+        showResetPasswordScreen: false,
+        initialResetToken: null,
+      ),
+    );
 
     expect(find.byType(OnboardingScreen), findsOneWidget);
   });

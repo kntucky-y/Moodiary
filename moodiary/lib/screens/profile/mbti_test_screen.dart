@@ -45,6 +45,8 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
   String? _error;
   Map<String, dynamic>? _selectedCompanion;
 
+  static const _optionGroups = ['E/I', 'S/N', 'T/F', 'J/P'];
+
   void _showReferencesDialog() {
     showDialog<void>(
       context: context,
@@ -285,6 +287,7 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
     final cs = Theme.of(context).colorScheme;
     final done = _answers.where((a) => a != 0).length;
     final question = _questions[_index];
+    final answeredValue = _answers[_index];
 
     return Scaffold(
       appBar: AppBar(title: const Text('MBTI Questions')),
@@ -317,16 +320,57 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
             const SizedBox(height: 14),
             ...List.generate(5, (i) {
               final value = i + 1;
+              final groupIndex = _index ~/ 15;
+              final isSelected = answeredValue == value;
               return Padding(
                 padding: const EdgeInsets.only(bottom: 8),
-                child: RadioListTile<int>(
-                  value: value,
-                  groupValue: _answers[_index],
-                  onChanged: (v) {
-                    if (v == null) return;
-                    setState(() => _answers[_index] = v);
-                  },
-                  title: Text(_scaleLabels[i]),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () => setState(() => _answers[_index] = value),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? cs.primaryContainer
+                          : cs.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isSelected ? cs.primary : Colors.transparent,
+                        width: 1.1,
+                      ),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          isSelected
+                              ? Icons.radio_button_checked
+                              : Icons.radio_button_off,
+                          color: isSelected ? cs.primary : cs.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(_scaleLabels[i]),
+                              if (groupIndex < _optionGroups.length && i == 0)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: Text(
+                                    'Dimension: ${_optionGroups[groupIndex]}',
+                                    style: Theme.of(context).textTheme.bodySmall
+                                        ?.copyWith(color: cs.onSurfaceVariant),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               );
             }),
@@ -410,7 +454,7 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
         (_result!['suggestedCompanions'] as List<dynamic>? ?? const [])
             .cast<Map<String, dynamic>>();
 
-    int _companionIdOf(Map<String, dynamic> companion) {
+    int companionIdOf(Map<String, dynamic> companion) {
       final raw = companion['id'];
       if (raw is num) return raw.toInt();
       return int.tryParse(raw?.toString() ?? '') ?? 0;
@@ -458,48 +502,45 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
             ),
           ),
           const SizedBox(height: 10),
-          ...suggested.map(
-            (companion) {
-              final companionId = _companionIdOf(companion);
-              final isSelected = _selectedCompanion?['id'] == companion['id'];
-              return Card(
-                color: isSelected ? cs.primaryContainer : null,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(
-                    color: isSelected ? cs.primary : Colors.transparent,
-                    width: 1.2,
-                  ),
+          ...suggested.map((companion) {
+            final companionId = companionIdOf(companion);
+            final isSelected = _selectedCompanion?['id'] == companion['id'];
+            return Card(
+              color: isSelected ? cs.primaryContainer : null,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(
+                  color: isSelected ? cs.primary : Colors.transparent,
+                  width: 1.2,
                 ),
-                child: ListTile(
-                  selected: isSelected,
-                  leading: CircleAvatar(
-                    backgroundColor: Colors.white,
-                    child: Image.asset(
-                      'assets/doodle$companionId.png',
-                      width: 30,
-                      height: 30,
-                      fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) => const Icon(
-                        Icons.sentiment_satisfied_alt_rounded,
-                        size: 20,
-                      ),
+              ),
+              child: ListTile(
+                selected: isSelected,
+                leading: CircleAvatar(
+                  backgroundColor: Colors.white,
+                  child: Image.asset(
+                    'assets/doodle$companionId.png',
+                    width: 30,
+                    height: 30,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) => const Icon(
+                      Icons.sentiment_satisfied_alt_rounded,
+                      size: 20,
                     ),
                   ),
-                  trailing: Icon(
-                    isSelected
-                        ? Icons.radio_button_checked
-                        : Icons.radio_button_off,
-                    color: isSelected ? cs.primary : cs.onSurfaceVariant,
-                  ),
-                  title: Text((companion['name'] ?? 'Companion').toString()),
-                  subtitle: Text((companion['description'] ?? '').toString()),
-                  onTap: () => setState(() => _selectedCompanion = companion),
                 ),
-              );
-            },
+                trailing: Icon(
+                  isSelected
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_off,
+                  color: isSelected ? cs.primary : cs.onSurfaceVariant,
+                ),
+                title: Text((companion['name'] ?? 'Companion').toString()),
+                subtitle: Text((companion['description'] ?? '').toString()),
+                onTap: () => setState(() => _selectedCompanion = companion),
               ),
-          ),
+            );
+          }),
           const SizedBox(height: 8),
           if (_selectedCompanion != null)
             Card(
@@ -515,7 +556,7 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
                           radius: 16,
                           backgroundColor: Colors.white,
                           child: Image.asset(
-                            'assets/doodle${_companionIdOf(_selectedCompanion!)}.png',
+                            'assets/doodle${companionIdOf(_selectedCompanion!)}.png',
                             width: 20,
                             height: 20,
                             fit: BoxFit.contain,
@@ -530,11 +571,8 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
                         Expanded(
                           child: Text(
                             "You're matched with ${_selectedCompanion!['name']}!",
-                            style: Theme.of(
-                              context,
-                            ).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w800,
-                            ),
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w800),
                           ),
                         ),
                       ],

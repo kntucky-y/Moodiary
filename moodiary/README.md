@@ -7,15 +7,23 @@ Flutter + Node/Express stack for journaling, moods, and social chat. This fork n
 Create `backend/.env` with the existing values plus the following additions:
 
 ```
-MAIL_HOST=smtp.example.com
-MAIL_PORT=587
-MAIL_USER=your-user
-MAIL_PASS=your-pass
-MAIL_FROM="Moodiary <no-reply@moodiary.app>"
-PASSWORD_RESET_URL=https://your-app/reset-password
+# Recommended for a dedicated Gmail sender account
+MAIL_SERVICE=gmail
+MAIL_USER=your-app-account@gmail.com
+MAIL_PASS=your-gmail-app-password
+MAIL_FROM="Moodiary <your-app-account@gmail.com>"
+
+# Optional custom SMTP settings instead of MAIL_SERVICE
+# MAIL_HOST=smtp.example.com
+# MAIL_PORT=587
+# MAIL_SECURE=false
+
+# Use a web route that the Flutter app can open directly.
+# If you deploy with hash routing, keep this as /#/reset-password.
+PASSWORD_RESET_URL=https://your-app/#/reset-password
 ```
 
-The password reset endpoint hashes every token before persisting it. Emails are queued via Nodemailer; if mail creds are missing the server logs the reset link so you can test locally.
+The password reset endpoint hashes every token before persisting it. Emails are sent via Nodemailer using either a Gmail app-password setup or custom SMTP settings. The reset email opens the app directly on the reset screen and also includes the raw token so users can complete the reset inside the app if needed.
 
 ## Mobile configuration
 

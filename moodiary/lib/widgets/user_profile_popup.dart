@@ -909,7 +909,7 @@ class _ReportUserSheetState extends State<_ReportUserSheet> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
-              value: _selectedReason,
+              initialValue: _selectedReason,
               decoration: const InputDecoration(
                 labelText: 'Reason',
                 border: OutlineInputBorder(),
