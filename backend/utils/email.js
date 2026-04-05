@@ -18,7 +18,7 @@ const isGmailAccount = (email) => /@gmail\.com$/i.test(email);
 const getMailConfig = () => {
   const user = readEnv(['MAIL_USER', 'GMAIL_USER']);
   const pass = readEnv(['MAIL_PASS', 'GMAIL_APP_PASSWORD']);
-  const service = readEnv(['MAIL_SERVICE']);
+  const service = readEnv(['MAIL_SERVICE']).toLowerCase();
   const host = readEnv(['MAIL_HOST']);
   const port = Number(readEnv(['MAIL_PORT']) || 587);
   const secureEnv = readEnv(['MAIL_SECURE']);
@@ -26,6 +26,25 @@ const getMailConfig = () => {
 
   if (!user || !pass) {
     return null;
+  }
+
+  if (service === 'gmail') {
+    const gmailPort = Number(readEnv(['MAIL_PORT']) || 465);
+    const gmailSecure =
+      secureEnv === 'true' || (secureEnv === '' && gmailPort === 465);
+    return {
+      transport: {
+        host: 'smtp.gmail.com',
+        port: gmailPort,
+        secure: gmailSecure,
+        requireTLS: !gmailSecure,
+        connectionTimeout: MAIL_SEND_TIMEOUT_MS,
+        greetingTimeout: MAIL_SEND_TIMEOUT_MS,
+        socketTimeout: MAIL_SEND_TIMEOUT_MS,
+        auth: { user, pass },
+      },
+      from: from || `Moodiary <${user}>`,
+    };
   }
 
   if (service) {
@@ -58,9 +77,15 @@ const getMailConfig = () => {
   }
 
   if (isGmailAccount(user)) {
+    const gmailPort = Number(readEnv(['MAIL_PORT']) || 465);
+    const gmailSecure =
+      secureEnv === 'true' || (secureEnv === '' && gmailPort === 465);
     return {
       transport: {
-        service: 'gmail',
+        host: 'smtp.gmail.com',
+        port: gmailPort,
+        secure: gmailSecure,
+        requireTLS: !gmailSecure,
         connectionTimeout: MAIL_SEND_TIMEOUT_MS,
         greetingTimeout: MAIL_SEND_TIMEOUT_MS,
         socketTimeout: MAIL_SEND_TIMEOUT_MS,
