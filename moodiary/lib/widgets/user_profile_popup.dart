@@ -663,6 +663,7 @@ class _MuteToggleButtonState extends State<_MuteToggleButton> {
   String _selfUserId = '';
   String _authToken = '';
   bool _isMuted = false;
+  bool _isFriend = false;
   bool _loading = true;
   bool _submitting = false;
 
@@ -685,16 +686,29 @@ class _MuteToggleButtonState extends State<_MuteToggleButton> {
     }
 
     try {
-      final muted = await AuthService.instance.getMutedUsers(
+      final mutedFuture = AuthService.instance.getMutedUsers(
         userId: _selfUserId,
         authToken: _authToken,
       );
+      final connectedFuture = AuthService.instance.getConnectedUserIds(
+        authToken: _authToken,
+      );
+
+      final muted = await mutedFuture;
+      Set<String> connectedIds = const {};
+      try {
+        connectedIds = await connectedFuture;
+      } catch (_) {
+        // If friend lookup fails, keep mute state lookup functional.
+      }
+
       final isMuted = muted.any(
         (u) => (u['_id'] ?? u['id']).toString() == widget.targetUserId,
       );
       if (!mounted) return;
       setState(() {
         _isMuted = isMuted;
+        _isFriend = connectedIds.contains(widget.targetUserId);
         _loading = false;
       });
     } catch (_) {
@@ -740,12 +754,16 @@ class _MuteToggleButtonState extends State<_MuteToggleButton> {
     if (_loading || _selfUserId == widget.targetUserId) {
       return const SizedBox.shrink();
     }
+
+    final canToggle = _isMuted || _isFriend;
     return OutlinedButton.icon(
-      onPressed: _submitting ? null : _toggleMute,
+      onPressed: (_submitting || !canToggle) ? null : _toggleMute,
       icon: Icon(
         _isMuted ? Icons.volume_up_outlined : Icons.volume_off_outlined,
       ),
-      label: Text(_isMuted ? 'Unmute' : 'Mute'),
+      label: Text(
+        _isMuted ? 'Unmute' : (_isFriend ? 'Mute' : 'Mute (Friends only)'),
+      ),
     );
   }
 }

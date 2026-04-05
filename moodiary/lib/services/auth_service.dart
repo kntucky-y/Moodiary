@@ -234,6 +234,49 @@ class AuthService {
     );
   }
 
+  Future<Set<String>> getConnectedUserIds({required String authToken}) async {
+    final uri = Uri.parse('$kBackendBaseUrl/api/friends');
+    try {
+      final response = await _client
+          .get(uri, headers: {'Authorization': 'Bearer $authToken'})
+          .timeout(_requestTimeout);
+
+      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw AuthException(decoded['error']?.toString() ?? 'Request failed');
+      }
+
+      final connected = <String>{};
+      final friends = decoded['friends'] as List<dynamic>? ?? const [];
+      for (final item in friends) {
+        final map = item as Map<String, dynamic>;
+        final friend = map['friend'] as Map<String, dynamic>?;
+        final id = (friend?['id'] ?? friend?['_id'])?.toString() ?? '';
+        if (id.isNotEmpty) connected.add(id);
+      }
+
+      final pending = decoded['pending'] as Map<String, dynamic>? ?? const {};
+      final incoming = pending['incoming'] as List<dynamic>? ?? const [];
+      final outgoing = pending['outgoing'] as List<dynamic>? ?? const [];
+      for (final item in [...incoming, ...outgoing]) {
+        final map = item as Map<String, dynamic>;
+        final friend = map['friend'] as Map<String, dynamic>?;
+        final id = (friend?['id'] ?? friend?['_id'])?.toString() ?? '';
+        if (id.isNotEmpty) connected.add(id);
+      }
+
+      return connected;
+    } catch (error) {
+      if (error is AuthException) {
+        rethrow;
+      }
+      if (error is TimeoutException) {
+        throw AuthException('Request timed out. Please try again.');
+      }
+      throw AuthException('Cannot reach the server. Please try again.');
+    }
+  }
+
   Future<void> reportUser({
     required String authToken,
     required String targetUserId,

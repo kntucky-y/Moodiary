@@ -49,17 +49,30 @@ class _UserDiscoveryScreenState extends State<UserDiscoveryScreen> {
     if (_authToken.isEmpty) return;
     setState(() => _loadingSuggested = true);
     try {
-      final users = await AuthService.instance.getSuggestedUsers(
+      final usersFuture = AuthService.instance.getSuggestedUsers(
         authToken: _authToken,
         limit: 12,
       );
+      final connectedFuture = AuthService.instance.getConnectedUserIds(
+        authToken: _authToken,
+      );
+
+      final users = await usersFuture;
+      Set<String> connectedIds = const {};
+      try {
+        connectedIds = await connectedFuture;
+      } catch (_) {
+        // If connected user fetch fails, keep suggestions usable.
+      }
+
       if (!mounted) return;
       setState(() {
         _suggested = users.where((user) {
           final id = user['id']?.toString() ?? '';
           final name = user['name']?.toString() ?? '';
           final email = user['email']?.toString() ?? '';
-          return id.isNotEmpty && (name.isNotEmpty || email.isNotEmpty);
+          if (id.isEmpty || connectedIds.contains(id)) return false;
+          return name.isNotEmpty || email.isNotEmpty;
         }).toList();
       });
     } catch (_) {
