@@ -510,50 +510,46 @@ class AuthService {
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
         return decoded;
-
-        Future<Map<String, dynamic>> getNearbyClinics({
-          required double latitude,
-          required double longitude,
-          int radiusMeters = 5000,
-          int limit = 25,
-        }) async {
-          final uri = Uri.parse('$kBackendBaseUrl/api/resources/clinics/nearby')
-              .replace(
-                queryParameters: {
-                  'lat': latitude.toString(),
-                  'lng': longitude.toString(),
-                  'radius': radiusMeters.toString(),
-                  'limit': limit.toString(),
-                },
-              );
-
-          try {
-            final response = await _client.get(uri);
-            final decoded = jsonDecode(response.body) as Map<String, dynamic>;
-
-            if (response.statusCode >= 200 && response.statusCode < 300) {
-              final clinics =
-                  (decoded['clinics'] as List<dynamic>? ?? const []);
-              return {
-                ...decoded,
-                'clinics': clinics.cast<Map<String, dynamic>>(),
-              };
-            }
-
-            throw AuthException(
-              decoded['error']?.toString() ?? 'Failed to load nearby clinics',
-            );
-          } catch (error) {
-            if (error is AuthException) {
-              rethrow;
-            }
-            throw AuthException('Cannot reach the server. Please try again.');
-          }
-        }
       }
 
       throw AuthException(
         decoded['error']?.toString() ?? 'Failed to fetch resources',
+      );
+    } catch (error) {
+      if (error is AuthException) {
+        rethrow;
+      }
+      throw AuthException('Cannot reach the server. Please try again.');
+    }
+  }
+
+  Future<Map<String, dynamic>> getNearbyClinics({
+    required double latitude,
+    required double longitude,
+    int radiusMeters = 5000,
+    int limit = 25,
+  }) async {
+    final uri = Uri.parse('$kBackendBaseUrl/api/resources/clinics/nearby')
+        .replace(
+          queryParameters: {
+            'lat': latitude.toString(),
+            'lng': longitude.toString(),
+            'radius': radiusMeters.toString(),
+            'limit': limit.toString(),
+          },
+        );
+
+    try {
+      final response = await _client.get(uri).timeout(_requestTimeout);
+      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final clinics = (decoded['clinics'] as List<dynamic>? ?? const []);
+        return {...decoded, 'clinics': clinics.cast<Map<String, dynamic>>()};
+      }
+
+      throw AuthException(
+        decoded['error']?.toString() ?? 'Failed to load nearby clinics',
       );
     } catch (error) {
       if (error is AuthException) {
