@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
@@ -18,11 +16,11 @@ class ResourcesScreen extends StatefulWidget {
 class _ResourcesScreenState extends State<ResourcesScreen> {
   late Future<Map<String, dynamic>> _resourcesFuture;
   late Future<void> _locationBootstrapFuture;
-  String _selectedCategory = 'All';
+
   final MapController _mapController = MapController();
   final Distance _distance = const Distance();
-  Timer? _refreshDebounce;
 
+  String _selectedCategory = 'All';
   LatLng? _currentCenter;
   List<Map<String, dynamic>> _clinics = const [];
   Map<String, dynamic>? _selectedClinic;
@@ -47,15 +45,11 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
     _locationBootstrapFuture = _bootstrapNearbyClinics();
   }
 
-  @override
-  void dispose() {
-    _refreshDebounce?.cancel();
-    super.dispose();
-  }
-
   Future<void> _launchUrl(String url) async {
-    if (await canLaunchUrl(Uri.parse(url))) {
-      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    if (url.trim().isEmpty) return;
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
   }
 
@@ -68,7 +62,7 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
     }
   }
 
-  Future<LatLng?> _getCurrentLocation() async {
+  Future<LatLng> _getCurrentLocation() async {
     if (!await Geolocator.isLocationServiceEnabled()) {
       throw Exception('Location services are disabled on this device.');
     }
@@ -91,7 +85,7 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
     }
 
     final position = await Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.high,
+      locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
     );
     return LatLng(position.latitude, position.longitude);
   }
@@ -149,13 +143,6 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
     }
   }
 
-  void _scheduleRefresh() {
-    _refreshDebounce?.cancel();
-    _refreshDebounce = Timer(const Duration(milliseconds: 350), () {
-      _loadNearbyClinics();
-    });
-  }
-
   Future<void> _centerOnCurrentLocation() async {
     try {
       final current = await _getCurrentLocation();
@@ -183,8 +170,7 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
   double _distanceKm(Map<String, dynamic> clinic) {
     final current = _currentCenter;
     if (current == null) return 0;
-    final point = _clinicPoint(clinic);
-    return _distance.as(LengthUnit.Kilometer, current, point);
+    return _distance.as(LengthUnit.Kilometer, current, _clinicPoint(clinic));
   }
 
   String _formatDistance(double km) {
@@ -245,8 +231,7 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
                       child: FilledButton.icon(
                         onPressed: () {
                           Navigator.of(context).pop();
-                          final phone = clinic['phone'] as String? ?? '';
-                          _launchPhone(phone);
+                          _launchPhone(clinic['phone'] as String? ?? '');
                         },
                         icon: const Icon(Icons.call),
                         label: const Text('Call'),
@@ -257,10 +242,7 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
                       child: OutlinedButton.icon(
                         onPressed: () {
                           Navigator.of(context).pop();
-                          final website = clinic['website'] as String? ?? '';
-                          if (website.isNotEmpty) {
-                            _launchUrl(website);
-                          }
+                          _launchUrl(clinic['website'] as String? ?? '');
                         },
                         icon: const Icon(Icons.public),
                         label: const Text('Website'),
@@ -274,6 +256,15 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
         );
       },
     );
+  }
+
+  Future<void> _filterByCategory(String category) async {
+    setState(() {
+      _selectedCategory = category;
+      _resourcesFuture = category == 'All'
+          ? AuthService.instance.getResources()
+          : AuthService.instance.getResources(category: category);
+    });
   }
 
   Widget _buildResourcesTab() {
@@ -290,9 +281,7 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
                 child: FilterChip(
                   label: Text(category),
                   selected: isSelected,
-                  onSelected: (selected) {
-                    _filterByCategory(category);
-                  },
+                  onSelected: (_) => _filterByCategory(category),
                   backgroundColor: Colors.grey[200],
                   selectedColor: Theme.of(
                     context,
@@ -353,7 +342,7 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
                     ),
                     child: InkWell(
                       onTap: () {
-                        _launchUrl(resource['url'] as String);
+                        _launchUrl(resource['url'] as String? ?? '');
                       },
                       borderRadius: BorderRadius.circular(12),
                       child: Padding(
@@ -444,24 +433,50 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
 
   Widget _buildClinicsTab() {
     final center = _currentCenter;
-    final mapMarkers = <Marker>[];
 
-    if (center != null) {
-      mapMarkers.add(
-        Marker(
-          point: center,
-          width: 44,
-          height: 44,
-          child: const Icon(Icons.my_location, color: Colors.blue, size: 28),
+    if (_clinicError != null && center == null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.location_off_outlined, size: 48),
+              const SizedBox(height: 12),
+              Text(_clinicError!, textAlign: TextAlign.center),
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: _bootstrapNearbyClinics,
+                child: const Text('Try again'),
+              ),
+            ],
+          ),
         ),
       );
     }
 
-    for (final clinic in _clinics) {
-      final point = _clinicPoint(clinic);
-      mapMarkers.add(
-        Marker(
-          point: point,
+    if (center == null) {
+      return FutureBuilder<void>(
+        future: _locationBootstrapFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          return const Center(child: Text('No location available yet.'));
+        },
+      );
+    }
+
+    final mapMarkers = <Marker>[
+      Marker(
+        point: center,
+        width: 44,
+        height: 44,
+        child: const Icon(Icons.my_location, color: Colors.blue, size: 28),
+      ),
+      ..._clinics.map(
+        (clinic) => Marker(
+          point: _clinicPoint(clinic),
           width: 44,
           height: 44,
           child: GestureDetector(
@@ -480,239 +495,166 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
             ),
           ),
         ),
-      );
-    }
+      ),
+    ];
 
-    return FutureBuilder<void>(
-      future: _locationBootstrapFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting &&
-            _currentCenter == null) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        if (_clinicError != null && _currentCenter == null) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.location_off_outlined, size: 48),
-                  const SizedBox(height: 12),
-                  Text(_clinicError!, textAlign: TextAlign.center),
-                  const SizedBox(height: 16),
-                  FilledButton(
-                    onPressed: _bootstrapNearbyClinics,
-                    child: const Text('Try again'),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }
-
-        if (center == null) {
-          return const Center(child: Text('No location available yet.'));
-        }
-
-        return Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      _loadingClinics
-                          ? 'Finding nearby clinics...'
-                          : '${_clinics.length} nearby clinics',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    tooltip: 'Recenter',
-                    onPressed: _centerOnCurrentLocation,
-                    icon: const Icon(Icons.my_location_outlined),
-                  ),
-                  PopupMenuButton<int>(
-                    tooltip: 'Search radius',
-                    initialValue: _radiusMeters,
-                    onSelected: (value) {
-                      setState(() {
-                        _radiusMeters = value;
-                      });
-                      _loadNearbyClinics();
-                    },
-                    itemBuilder: (context) => _radiusOptions
-                        .map(
-                          (radius) => PopupMenuItem<int>(
-                            value: radius,
-                            child: Text('${radius ~/ 1000} km radius'),
-                          ),
-                        )
-                        .toList(),
-                    child: Chip(
-                      label: Text('${_radiusMeters ~/ 1000} km'),
-                      avatar: const Icon(Icons.tune, size: 18),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (_clinicError != null)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Card(
-                  color: Theme.of(context).colorScheme.errorContainer,
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.warning_amber_rounded),
-                        const SizedBox(width: 12),
-                        Expanded(child: Text(_clinicError!)),
-                        TextButton(
-                          onPressed: _loadNearbyClinics,
-                          child: const Text('Retry'),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(20),
-                child: SizedBox(
-                  height: 320,
-                  child: FlutterMap(
-                    mapController: _mapController,
-                    options: MapOptions(
-                      initialCenter: center,
-                      initialZoom: 13,
-                      interactionOptions: const InteractionOptions(
-                        flags: InteractiveFlag.all,
-                      ),
-                    ),
-                    children: [
-                      TileLayer(
-                        urlTemplate:
-                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                        userAgentPackageName: 'com.moodiary.app',
-                      ),
-                      MarkerLayer(markers: mapMarkers),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Align(
-                alignment: Alignment.centerLeft,
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child: Row(
+            children: [
+              Expanded(
                 child: Text(
-                  'Tap a marker or clinic card for details.',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(color: Colors.grey[700]),
+                  _loadingClinics
+                      ? 'Finding nearby clinics...'
+                      : '${_clinics.length} nearby clinics',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 12),
-            Expanded(
-              child: _clinics.isEmpty && !_loadingClinics
-                  ? const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(24),
-                        child: Text(
-                          'No mental health clinics were found in this area. Try a larger radius or a different location.',
-                          textAlign: TextAlign.center,
-                        ),
+              IconButton(
+                tooltip: 'Recenter',
+                onPressed: _centerOnCurrentLocation,
+                icon: const Icon(Icons.my_location_outlined),
+              ),
+              PopupMenuButton<int>(
+                tooltip: 'Search radius',
+                initialValue: _radiusMeters,
+                onSelected: (value) {
+                  setState(() {
+                    _radiusMeters = value;
+                  });
+                  _loadNearbyClinics();
+                },
+                itemBuilder: (context) => _radiusOptions
+                    .map(
+                      (radius) => PopupMenuItem<int>(
+                        value: radius,
+                        child: Text('${radius ~/ 1000} km radius'),
                       ),
                     )
-                  : ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                      itemCount: _clinics.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 12),
-                      itemBuilder: (context, index) {
-                        final clinic = _clinics[index];
-                        final selected = _selectedClinic == clinic;
-                        final distance = _distanceKm(clinic);
-
-                        return Card(
-                          elevation: selected ? 3 : 1,
-                          child: ListTile(
-                            selected: selected,
-                            leading: const Icon(Icons.local_hospital_outlined),
-                            title: Text(clinic['name'] as String? ?? 'Clinic'),
-                            subtitle: Text(
-                              [
-                                    clinic['address'] as String? ?? '',
-                                    _formatDistance(distance),
-                                  ]
-                                  .where((value) => value.trim().isNotEmpty)
-                                  .join(' • '),
-                            ),
-                            trailing: const Icon(Icons.chevron_right),
-                            onTap: () {
-                              setState(() {
-                                _selectedClinic = clinic;
-                              });
-                              _mapController.move(_clinicPoint(clinic), 15);
-                              _showClinicDetails(clinic);
-                            },
-                          ),
-                        );
-                      },
-                    ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Future<void> _filterByCategory(String category) async {
-    setState(() {
-      _selectedCategory = category;
-      if (category == 'All') {
-        _resourcesFuture = AuthService.instance.getResources();
-      } else {
-        _resourcesFuture = AuthService.instance.getResources(
-          category: category,
-        );
-      }
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Mental Health Resources'),
-        elevation: 0,
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        bottom: const TabBar(
-          tabs: [
-            Tab(text: 'Guides'),
-            Tab(text: 'Nearby Clinics'),
-          ],
+                    .toList(),
+                child: Chip(
+                  label: Text('${_radiusMeters ~/ 1000} km'),
+                  avatar: const Icon(Icons.tune, size: 18),
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
-      body: TabBarView(children: [_buildResourcesTab(), _buildClinicsTab()]),
+        if (_clinicError != null)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Card(
+              color: Theme.of(context).colorScheme.errorContainer,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Row(
+                  children: [
+                    const Icon(Icons.warning_amber_rounded),
+                    const SizedBox(width: 12),
+                    Expanded(child: Text(_clinicError!)),
+                    TextButton(
+                      onPressed: _loadNearbyClinics,
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: SizedBox(
+              height: 320,
+              child: FlutterMap(
+                mapController: _mapController,
+                options: MapOptions(
+                  initialCenter: center,
+                  initialZoom: 13,
+                  interactionOptions: const InteractionOptions(
+                    flags: InteractiveFlag.all,
+                  ),
+                ),
+                children: [
+                  TileLayer(
+                    urlTemplate:
+                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    userAgentPackageName: 'com.moodiary.app',
+                  ),
+                  MarkerLayer(markers: mapMarkers),
+                ],
+              ),
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'Tap a marker or clinic card for details.',
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: Colors.grey[700]),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Expanded(
+          child: _clinics.isEmpty && !_loadingClinics
+              ? const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Text(
+                      'No mental health clinics were found in this area. Try a larger radius or a different location.',
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                )
+              : ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  itemCount: _clinics.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  itemBuilder: (context, index) {
+                    final clinic = _clinics[index];
+                    final selected = _selectedClinic == clinic;
+                    final distance = _distanceKm(clinic);
+
+                    return Card(
+                      elevation: selected ? 3 : 1,
+                      child: ListTile(
+                        selected: selected,
+                        leading: const Icon(Icons.local_hospital_outlined),
+                        title: Text(clinic['name'] as String? ?? 'Clinic'),
+                        subtitle: Text(
+                          [
+                                clinic['address'] as String? ?? '',
+                                _formatDistance(distance),
+                              ]
+                              .where((value) => value.trim().isNotEmpty)
+                              .join(' • '),
+                        ),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () {
+                          setState(() {
+                            _selectedClinic = clinic;
+                          });
+                          _mapController.move(_clinicPoint(clinic), 15);
+                          _showClinicDetails(clinic);
+                        },
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ],
     );
   }
-}
-
-class _InfoRow extends StatelessWidget {
-  final IconData icon;
-  final String text;
-
-  const _InfoRow({required this.icon, required this.text});
 
   @override
   Widget build(BuildContext context) {
@@ -730,10 +672,30 @@ class _InfoRow extends StatelessWidget {
             ],
           ),
         ),
-        body: TabBarView(
-          children: [
-            _buildResourcesTab(),
-            _buildClinicsTab(),
-          ],
-        ),
+        body: TabBarView(children: [_buildResourcesTab(), _buildClinicsTab()]),
       ),
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  final IconData icon;
+  final String text;
+
+  const _InfoRow({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 18),
+          const SizedBox(width: 10),
+          Expanded(child: Text(text)),
+        ],
+      ),
+    );
+  }
+}
