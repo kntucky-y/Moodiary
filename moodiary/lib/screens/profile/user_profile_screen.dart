@@ -14,6 +14,7 @@ import '../../utils/streak_utils.dart';
 import '../../utils/transitions.dart';
 import '../../utils/user_cache.dart';
 import '../../widgets/app_sidebar.dart';
+import '../../widgets/user_profile_popup.dart';
 import '../calendar/calendar_screen.dart';
 import '../companion/companion_screen.dart';
 import '../app_shell.dart';
@@ -44,7 +45,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   int _todayMoodScore = 0;
   String _currentMoodLabel = 'No mood logged';
   String _currentMoodAsset = 'assets/okay.png';
-
   final _nameController = TextEditingController();
   final _bioController = TextEditingController();
   final _emailController = TextEditingController();
@@ -584,62 +584,75 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                         ),
                         if (partner != null) ...[
                           const SizedBox(height: 10),
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: cs.surfaceContainer,
+                          Material(
+                            color: cs.surfaceContainer,
+                            borderRadius: BorderRadius.circular(12),
+                            child: InkWell(
                               borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Row(
-                              children: [
-                                CircleAvatar(
-                                  radius: 18,
-                                  backgroundImage: avatarImageProvider(
-                                    partner['avatarUrl'] as String?,
-                                  ),
-                                  child:
-                                      avatarImageProvider(
-                                            partner['avatarUrl'] as String?,
-                                          ) ==
-                                          null
-                                      ? const Icon(Icons.favorite_outline)
-                                      : null,
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Partner',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .labelSmall
-                                            ?.copyWith(
-                                              fontWeight: FontWeight.w700,
-                                            ),
+                              onTap: () async {
+                                final partnerId = partner['id']?.toString();
+                                if (partnerId == null || partnerId.isEmpty) {
+                                  return;
+                                }
+                                await showUserProfilePopup(
+                                  context,
+                                  userId: partnerId,
+                                );
+                              },
+                              child: Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(12),
+                                child: Row(
+                                  children: [
+                                    CircleAvatar(
+                                      radius: 18,
+                                      backgroundImage: avatarImageProvider(
+                                        partner['avatarUrl'] as String?,
                                       ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        (partner['name'] as String?) ??
+                                      child:
+                                          avatarImageProvider(
+                                                partner['avatarUrl'] as String?,
+                                              ) ==
+                                              null
+                                          ? const Icon(Icons.favorite_outline)
+                                          : null,
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
                                             'Partner',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodyMedium
-                                            ?.copyWith(
-                                              fontWeight: FontWeight.w800,
-                                            ),
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .labelSmall
+                                                ?.copyWith(
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            (partner['name'] as String?) ??
+                                                'Partner',
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .bodyMedium
+                                                ?.copyWith(
+                                                  fontWeight: FontWeight.w800,
+                                                ),
+                                          ),
+                                        ],
                                       ),
-                                    ],
-                                  ),
+                                    ),
+                                    const Icon(
+                                      Icons.chevron_right_rounded,
+                                      color: Color(0xFFEC4899),
+                                    ),
+                                  ],
                                 ),
-                                const Icon(
-                                  Icons.favorite_rounded,
-                                  color: Color(0xFFEC4899),
-                                ),
-                              ],
+                              ),
                             ),
                           ),
                         ],

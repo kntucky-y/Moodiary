@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 
+const { getNearbyMentalHealthClinics } = require('../utils/clinic_search');
+
 // GET /api/resources - Get curated mental health resources
 router.get('/', async (req, res) => {
   try {
@@ -113,6 +115,23 @@ router.get('/categories/list', async (req, res) => {
   } catch (err) {
     console.error('Get categories error', err);
     res.status(500).json({ error: 'Unable to fetch categories' });
+  }
+});
+
+// GET /api/resources/clinics/nearby - Get nearby mental health clinics from live map data
+router.get('/clinics/nearby', async (req, res) => {
+  try {
+    const payload = await getNearbyMentalHealthClinics({
+      lat: req.query.lat,
+      lng: req.query.lng,
+      radius: req.query.radius,
+      limit: req.query.limit,
+    });
+
+    res.json(payload);
+  } catch (err) {
+    console.error('Get nearby clinics error', err);
+    res.status(400).json({ error: err.message || 'Unable to fetch nearby clinics' });
   }
 });
 
