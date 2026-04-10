@@ -619,7 +619,8 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
               : ListView.separated(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                   itemCount: _clinics.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: 12),
                   itemBuilder: (context, index) {
                     final clinic = _clinics[index];
                     final selected = _selectedClinic == clinic;
