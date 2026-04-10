@@ -1,13 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import 'screens/auth/login_screen.dart';
 import 'screens/auth/reset_password_screen.dart';
+import 'screens/companion/companion_screen.dart';
+import 'screens/profile/mbti_test_screen.dart';
 import 'screens/onboarding/onboarding_screen.dart';
+import 'screens/app_shell.dart';
+import 'services/auth_service.dart';
 import 'services/local_notifications_service.dart';
 import 'services/push_notifications_service.dart';
+import 'services/realtime_notifications.dart';
 import 'services/theme_controller.dart';
 import 'utils/transitions.dart';
 import 'utils/in_app_notifications.dart';
+import 'utils/user_cache.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -80,7 +88,7 @@ class MoodiaryApp extends StatelessWidget {
           darkTheme: _buildDarkTheme(),
           home: showResetPasswordScreen
               ? ResetPasswordScreen(initialToken: initialResetToken)
-              : const OnboardingScreen(),
+              : const StartupGate(),
         );
       },
     );
@@ -110,6 +118,139 @@ class MoodiaryApp extends StatelessWidget {
     return base.copyWith(
       scaffoldBackgroundColor: const Color(0xFF0F1119),
       cardColor: const Color(0xFF1B1E2C),
+    );
+  }
+}
+
+class StartupGate extends StatefulWidget {
+  const StartupGate({super.key});
+
+  @override
+  State<StartupGate> createState() => _StartupGateState();
+}
+
+class _StartupGateState extends State<StartupGate> {
+  late final Future<Widget> _startupFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _startupFuture = _resolveStartupScreen();
+  }
+
+  Future<Widget> _resolveStartupScreen() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token')?.trim() ?? '';
+
+    if (token.isEmpty) {
+      return const OnboardingScreen();
+    }
+
+    try {
+      await AuthService.instance.getConnectedUserIds(authToken: token);
+      await RealtimeNotifications.instance.ensureConnected(token: token);
+    } catch (_) {
+      await _clearStoredSession(prefs);
+      return const OnboardingScreen();
+    }
+
+    final userName = prefs.getString('user_name')?.trim();
+    final mbtiLatestType = prefs.getString('mbti_latest_type')?.trim();
+    final companionId = prefs.getInt('companion_id');
+    final companionName = prefs.getString('companion_name')?.trim();
+
+    final resolvedUserName = userName == null || userName.isEmpty
+        ? 'Friend'
+        : userName;
+    final hasMbti = mbtiLatestType != null && mbtiLatestType.isNotEmpty;
+    final hasCompanion =
+        companionId != null &&
+        companionName != null &&
+        companionName.isNotEmpty;
+
+    if (!hasMbti) {
+      return MbtiTestScreen(
+        userName: resolvedUserName,
+        requireCompanionSelection: !hasCompanion,
+        forceHomeOnComplete: hasCompanion,
+        initialCompanionId: companionId,
+        initialCompanionName: companionName,
+      );
+    }
+
+    if (!hasCompanion) {
+      return CompanionScreen(userName: resolvedUserName);
+    }
+
+    return MoodiaryShell(
+      userName: resolvedUserName,
+      companionId: companionId,
+      companionName: companionName,
+      initialTab: MoodiaryTab.home,
+    );
+  }
+
+  Future<void> _clearStoredSession(SharedPreferences prefs) async {
+    await prefs.remove('token');
+    await prefs.remove('user_name');
+    await prefs.remove('user_id');
+    await prefs.remove('last_user_id');
+    await prefs.remove('user_avatar_url');
+    await prefs.remove('mbti_latest_type');
+    RealtimeNotifications.instance.disconnect();
+    await UserCache.clear(prefs);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<Widget>(
+      future: _startupFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        if (snapshot.hasError) {
+          return Scaffold(
+            body: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.error_outline, size: 40),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Unable to restore your session.',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Please log in again.',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 16),
+                    FilledButton(
+                      onPressed: () {
+                        Navigator.of(context).pushReplacement(
+                          FadeSlideRoute(page: const LoginScreen()),
+                        );
+                      },
+                      child: const Text('Go to login'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
+
+        return snapshot.data ?? const OnboardingScreen();
+      },
     );
   }
 }
