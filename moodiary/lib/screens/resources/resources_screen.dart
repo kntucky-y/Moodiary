@@ -5,6 +5,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../services/auth_service.dart';
+import '../../theme/moodiary_colors.dart';
 
 class ResourcesScreen extends StatefulWidget {
   const ResourcesScreen({super.key});
@@ -14,19 +15,10 @@ class ResourcesScreen extends StatefulWidget {
 }
 
 class _ResourcesScreenState extends State<ResourcesScreen> {
-  late Future<Map<String, dynamic>> _resourcesFuture;
   late Future<void> _locationBootstrapFuture;
 
   final MapController _mapController = MapController();
   final Distance _distance = const Distance();
-
-  String _selectedCategory = 'All';
-  LatLng? _currentCenter;
-  List<Map<String, dynamic>> _clinics = const [];
-  Map<String, dynamic>? _selectedClinic;
-  bool _loadingClinics = false;
-  String? _clinicError;
-  int _radiusMeters = 5000;
 
   final List<String> _categories = [
     'All',
@@ -35,14 +27,52 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
     'Wellness',
     'Social',
   ];
-
   final List<int> _radiusOptions = [2000, 5000, 10000, 20000];
+
+  String _selectedCategory = 'All';
+  int _radiusMeters = 5000;
+  bool _loadingResources = false;
+  bool _loadingClinics = false;
+  String? _resourcesError;
+  String? _clinicError;
+  LatLng? _currentCenter;
+  List<Map<String, dynamic>> _resources = const [];
+  List<Map<String, dynamic>> _clinics = const [];
+  Map<String, dynamic>? _selectedClinic;
 
   @override
   void initState() {
     super.initState();
-    _resourcesFuture = AuthService.instance.getResources();
+    _loadResources();
     _locationBootstrapFuture = _bootstrapNearbyClinics();
+  }
+
+  Future<void> _loadResources() async {
+    setState(() {
+      _loadingResources = true;
+      _resourcesError = null;
+    });
+
+    try {
+      final payload = await AuthService.instance.getResources();
+      final rawResources = payload['resources'] as List<dynamic>? ?? const [];
+      if (!mounted) return;
+      setState(() {
+        _resources = rawResources.cast<Map<String, dynamic>>();
+        _loadingResources = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _resourcesError = error.toString();
+        _resources = const [];
+        _loadingResources = false;
+      });
+    }
+  }
+
+  Future<void> _refreshAll() async {
+    await Future.wait([_loadResources(), _bootstrapNearbyClinics()]);
   }
 
   Future<void> _launchUrl(String url) async {
@@ -104,6 +134,8 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
       if (!mounted) return;
       setState(() {
         _clinicError = error.toString();
+        _clinics = const [];
+        _selectedClinic = null;
       });
     }
   }
@@ -258,200 +290,91 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
     );
   }
 
-  Future<void> _filterByCategory(String category) async {
-    setState(() {
-      _selectedCategory = category;
-      _resourcesFuture = category == 'All'
-          ? AuthService.instance.getResources()
-          : AuthService.instance.getResources(category: category);
-    });
+  List<Map<String, dynamic>> get _filteredResources {
+    if (_selectedCategory == 'All') return _resources;
+    return _resources.where((resource) {
+      final category = resource['category']?.toString() ?? '';
+      return category.toLowerCase() == _selectedCategory.toLowerCase();
+    }).toList();
   }
 
-  Widget _buildResourcesTab() {
-    return Column(
-      children: [
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: _categories.map((category) {
-              final isSelected = _selectedCategory == category;
-              return Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: FilterChip(
-                  label: Text(category),
-                  selected: isSelected,
-                  onSelected: (_) => _filterByCategory(category),
-                  backgroundColor: Colors.grey[200],
-                  selectedColor: Theme.of(
-                    context,
-                  ).colorScheme.primary.withValues(alpha: 0.3),
-                ),
-              );
-            }).toList(),
-          ),
-        ),
-        Expanded(
-          child: FutureBuilder<Map<String, dynamic>>(
-            future: _resourcesFuture,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
+  List<Map<String, dynamic>> get _featuredResources {
+    return _filteredResources
+        .where((resource) => resource['featured'] as bool? ?? false)
+        .toList();
+  }
 
-              if (snapshot.hasError) {
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text('Error: ${snapshot.error}'),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: () {
-                          setState(() {
-                            _resourcesFuture = AuthService.instance
-                                .getResources();
-                          });
-                        },
-                        child: const Text('Retry'),
-                      ),
-                    ],
-                  ),
-                );
-              }
+  Future<void> _setCategory(String category) async {
+    setState(() => _selectedCategory = category);
+  }
 
-              final resources = snapshot.data?['resources'] as List? ?? [];
-
-              if (resources.isEmpty) {
-                return const Center(
-                  child: Text('No resources available in this category'),
-                );
-              }
-
-              return ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: resources.length,
-                itemBuilder: (context, index) {
-                  final resource = resources[index] as Map<String, dynamic>;
-                  final isFeatured = resource['featured'] as bool? ?? false;
-
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: InkWell(
-                      onTap: () {
-                        _launchUrl(resource['url'] as String? ?? '');
-                      },
-                      borderRadius: BorderRadius.circular(12),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      if (isFeatured)
-                                        Padding(
-                                          padding: const EdgeInsets.only(
-                                            bottom: 8,
-                                          ),
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 8,
-                                              vertical: 4,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: Theme.of(context)
-                                                  .colorScheme
-                                                  .primary
-                                                  .withValues(alpha: 0.2),
-                                              borderRadius:
-                                                  BorderRadius.circular(4),
-                                            ),
-                                            child: Text(
-                                              'Featured',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.bold,
-                                                color: Theme.of(
-                                                  context,
-                                                ).colorScheme.primary,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      Text(
-                                        resource['title'] as String? ?? '',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .titleMedium
-                                            ?.copyWith(
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        resource['category'] as String? ?? '',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .labelSmall
-                                            ?.copyWith(color: Colors.grey),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const Icon(Icons.open_in_new, size: 20),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              resource['description'] as String? ?? '',
-                              style: Theme.of(context).textTheme.bodySmall,
-                              maxLines: 3,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              );
-            },
-          ),
-        ),
-      ],
+  Widget _buildCategoryChips() {
+    return SizedBox(
+      height: 48,
+      child: ListView.separated(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        scrollDirection: Axis.horizontal,
+        itemBuilder: (context, index) {
+          final category = _categories[index];
+          final isSelected = _selectedCategory == category;
+          return ChoiceChip(
+            label: Text(category),
+            selected: isSelected,
+            onSelected: (_) => _setCategory(category),
+            selectedColor: context.mdAccentPurple.withValues(alpha: 0.18),
+            backgroundColor: context.mdSurface,
+            labelStyle: TextStyle(
+              color: isSelected
+                  ? context.mdAccentPurple
+                  : context.mdPrimaryText,
+              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+            ),
+            side: BorderSide(
+              color: isSelected
+                  ? context.mdAccentPurple
+                  : context.mdInputBorder,
+            ),
+          );
+        },
+        separatorBuilder: (context, index) => const SizedBox(width: 8),
+        itemCount: _categories.length,
+      ),
     );
   }
 
-  Widget _buildClinicsTab() {
+  Widget _buildFeaturedGuidesSection() {
+    if (_featuredResources.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return SizedBox(
+      height: 176,
+      child: ListView.separated(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        scrollDirection: Axis.horizontal,
+        itemCount: _featuredResources.length,
+        separatorBuilder: (context, index) => const SizedBox(width: 12),
+        itemBuilder: (context, index) {
+          final resource = _featuredResources[index];
+          return _GuideCard(
+            resource: resource,
+            onTap: () => _launchUrl(resource['url'] as String? ?? ''),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildNearbyClinicsSection() {
     final center = _currentCenter;
 
     if (_clinicError != null && center == null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.location_off_outlined, size: 48),
-              const SizedBox(height: 12),
-              Text(_clinicError!, textAlign: TextAlign.center),
-              const SizedBox(height: 16),
-              FilledButton(
-                onPressed: _bootstrapNearbyClinics,
-                child: const Text('Try again'),
-              ),
-            ],
-          ),
-        ),
+      return _ErrorStateCard(
+        icon: Icons.location_off_outlined,
+        title: 'Nearby clinics unavailable',
+        message: _clinicError!,
+        actionLabel: 'Try again',
+        onAction: _bootstrapNearbyClinics,
       );
     }
 
@@ -460,14 +383,21 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
         future: _locationBootstrapFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const _LoadingCard();
           }
-          return const Center(child: Text('No location available yet.'));
+          return _ErrorStateCard(
+            icon: Icons.place_outlined,
+            title: 'Location not ready',
+            message:
+                'Enable location access to see nearby mental health clinics on the map.',
+            actionLabel: 'Try again',
+            onAction: _bootstrapNearbyClinics,
+          );
         },
       );
     }
 
-    final mapMarkers = <Marker>[
+    final markers = <Marker>[
       Marker(
         point: center,
         width: 44,
@@ -481,15 +411,13 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
           height: 44,
           child: GestureDetector(
             onTap: () {
-              setState(() {
-                _selectedClinic = clinic;
-              });
+              setState(() => _selectedClinic = clinic);
               _showClinicDetails(clinic);
             },
             child: Icon(
               Icons.location_pin,
               color: _selectedClinic == clinic
-                  ? Theme.of(context).colorScheme.primary
+                  ? context.mdAccentPurple
                   : Colors.redAccent,
               size: 34,
             ),
@@ -498,59 +426,96 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
       ),
     ];
 
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  _loadingClinics
-                      ? 'Finding nearby clinics...'
-                      : '${_clinics.length} nearby clinics',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
+    return Card(
+      elevation: 0,
+      color: context.mdSurface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(24),
+        side: BorderSide(color: context.mdInputBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Nearby clinics',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: context.mdPrimaryText,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _loadingClinics
+                            ? 'Finding the nearest support options now.'
+                            : 'Tap the map or a clinic card for details.',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: context.mdSecondaryText,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-              IconButton(
-                tooltip: 'Recenter',
-                onPressed: _centerOnCurrentLocation,
-                icon: const Icon(Icons.my_location_outlined),
-              ),
-              PopupMenuButton<int>(
-                tooltip: 'Search radius',
-                initialValue: _radiusMeters,
-                onSelected: (value) {
-                  setState(() {
-                    _radiusMeters = value;
-                  });
-                  _loadNearbyClinics();
-                },
-                itemBuilder: (context) => _radiusOptions
-                    .map(
-                      (radius) => PopupMenuItem<int>(
-                        value: radius,
-                        child: Text('${radius ~/ 1000} km radius'),
-                      ),
-                    )
-                    .toList(),
-                child: Chip(
-                  label: Text('${_radiusMeters ~/ 1000} km'),
-                  avatar: const Icon(Icons.tune, size: 18),
+                TextButton.icon(
+                  onPressed: _centerOnCurrentLocation,
+                  icon: const Icon(Icons.my_location_outlined),
+                  label: const Text('Recenter'),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-        if (_clinicError != null)
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Card(
-              color: Theme.of(context).colorScheme.errorContainer,
-              child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '${_clinics.length} clinics within ${_radiusMeters ~/ 1000} km',
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: context.mdSecondaryText,
+                    ),
+                  ),
+                ),
+                PopupMenuButton<int>(
+                  tooltip: 'Search radius',
+                  initialValue: _radiusMeters,
+                  onSelected: (value) {
+                    setState(() => _radiusMeters = value);
+                    _loadNearbyClinics();
+                  },
+                  itemBuilder: (context) => _radiusOptions
+                      .map(
+                        (radius) => PopupMenuItem<int>(
+                          value: radius,
+                          child: Text('${radius ~/ 1000} km radius'),
+                        ),
+                      )
+                      .toList(),
+                  child: Chip(
+                    label: Text('${_radiusMeters ~/ 1000} km'),
+                    avatar: const Icon(Icons.tune, size: 18),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (_clinicError != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: Container(
+                width: double.infinity,
                 padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.errorContainer,
+                  borderRadius: BorderRadius.circular(16),
+                ),
                 child: Row(
                   children: [
                     const Icon(Icons.warning_amber_rounded),
@@ -564,116 +529,558 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
                 ),
               ),
             ),
-          ),
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: SizedBox(
-              height: 320,
-              child: FlutterMap(
-                mapController: _mapController,
-                options: MapOptions(
-                  initialCenter: center,
-                  initialZoom: 13,
-                  interactionOptions: const InteractionOptions(
-                    flags: InteractiveFlag.all,
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: SizedBox(
+                height: 260,
+                child: FlutterMap(
+                  mapController: _mapController,
+                  options: MapOptions(
+                    initialCenter: center,
+                    initialZoom: 13,
+                    interactionOptions: const InteractionOptions(
+                      flags: InteractiveFlag.all,
+                    ),
                   ),
+                  children: [
+                    TileLayer(
+                      urlTemplate:
+                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      userAgentPackageName: 'com.moodiary.app',
+                    ),
+                    MarkerLayer(markers: markers),
+                  ],
                 ),
-                children: [
-                  TileLayer(
-                    urlTemplate:
-                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                    userAgentPackageName: 'com.moodiary.app',
-                  ),
-                  MarkerLayer(markers: mapMarkers),
-                ],
               ),
             ),
           ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Align(
-            alignment: Alignment.centerLeft,
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             child: Text(
-              'Tap a marker or clinic card for details.',
+              'Tap a pin or clinic card to open call, website, and address details.',
               style: Theme.of(
                 context,
-              ).textTheme.bodySmall?.copyWith(color: Colors.grey[700]),
+              ).textTheme.bodySmall?.copyWith(color: context.mdSecondaryText),
             ),
           ),
-        ),
-        const SizedBox(height: 12),
-        Expanded(
-          child: _clinics.isEmpty && !_loadingClinics
-              ? const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(24),
-                    child: Text(
-                      'No mental health clinics were found in this area. Try a larger radius or a different location.',
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                )
-              : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                  itemCount: _clinics.length,
-                  separatorBuilder: (context, index) =>
-                      const SizedBox(height: 12),
-                  itemBuilder: (context, index) {
-                    final clinic = _clinics[index];
-                    final selected = _selectedClinic == clinic;
-                    final distance = _distanceKm(clinic);
-
-                    return Card(
-                      elevation: selected ? 3 : 1,
-                      child: ListTile(
-                        selected: selected,
-                        leading: const Icon(Icons.local_hospital_outlined),
-                        title: Text(clinic['name'] as String? ?? 'Clinic'),
-                        subtitle: Text(
-                          [
-                                clinic['address'] as String? ?? '',
-                                _formatDistance(distance),
-                              ]
-                              .where((value) => value.trim().isNotEmpty)
-                              .join(' • '),
-                        ),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: () {
-                          setState(() {
-                            _selectedClinic = clinic;
-                          });
-                          _mapController.move(_clinicPoint(clinic), 15);
-                          _showClinicDetails(clinic);
-                        },
-                      ),
-                    );
-                  },
-                ),
-        ),
-      ],
+        ],
+      ),
     );
+  }
+
+  List<Widget> _buildResourceCards() {
+    if (_resourcesError != null) {
+      return [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: _ErrorStateCard(
+            icon: Icons.auto_stories_outlined,
+            title: 'Resources could not load',
+            message: _resourcesError!,
+            actionLabel: 'Retry',
+            onAction: () {
+              _loadResources();
+            },
+          ),
+        ),
+      ];
+    }
+
+    if (_loadingResources) {
+      return const [
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16),
+          child: _LoadingCard(),
+        ),
+      ];
+    }
+
+    final resources = _filteredResources;
+    if (resources.isEmpty) {
+      return [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: _EmptyStateCard(
+            icon: Icons.auto_stories_outlined,
+            title: 'No guides in this category',
+            message:
+                'Try a different filter to see more self-care articles and support links.',
+          ),
+        ),
+      ];
+    }
+
+    return resources
+        .map(
+          (resource) => Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: Card(
+              elevation: 0,
+              color: context.mdSurface,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+                side: BorderSide(color: context.mdInputBorder),
+              ),
+              child: InkWell(
+                onTap: () => _launchUrl(resource['url'] as String? ?? ''),
+                borderRadius: BorderRadius.circular(20),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (resource['featured'] as bool? ?? false)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 8),
+                                    child: _SummaryChip(
+                                      icon: Icons.star_rounded,
+                                      label: 'Featured',
+                                      compact: true,
+                                    ),
+                                  ),
+                                Text(
+                                  resource['title'] as String? ?? '',
+                                  style: Theme.of(context).textTheme.titleMedium
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.w700,
+                                        color: context.mdPrimaryText,
+                                      ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  resource['category'] as String? ?? '',
+                                  style: Theme.of(context).textTheme.labelSmall
+                                      ?.copyWith(
+                                        color: context.mdSecondaryText,
+                                      ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Icon(
+                            Icons.open_in_new,
+                            size: 20,
+                            color: context.mdSecondaryText,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        resource['description'] as String? ?? '',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: context.mdSecondaryText,
+                          height: 1.4,
+                        ),
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        )
+        .toList();
   }
 
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Mental Health Resources'),
-          elevation: 0,
-          backgroundColor: Theme.of(context).colorScheme.primary,
-          bottom: const TabBar(
-            tabs: [
-              Tab(text: 'Guides'),
-              Tab(text: 'Nearby Clinics'),
-            ],
+    return Scaffold(
+      backgroundColor: context.mdScaffold,
+      appBar: AppBar(
+        title: const Text('Resources'),
+        centerTitle: false,
+        backgroundColor: context.mdScaffold,
+        foregroundColor: context.mdPrimaryText,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+      ),
+      body: RefreshIndicator(
+        onRefresh: _refreshAll,
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverToBoxAdapter(
+              child: Container(
+                margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [context.mdSecondarySurface, context.mdSurface],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: context.mdCardGlow,
+                      blurRadius: 18,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                  border: Border.all(
+                    color: context.mdInputBorder.withValues(alpha: 0.5),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: context.mdAccentPurple.withValues(
+                              alpha: 0.14,
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Icon(
+                            Icons.auto_awesome_rounded,
+                            color: context.mdAccentPurple,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Support that feels close, useful, and calm.',
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  color: context.mdPrimaryText,
+                                ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Browse curated self-help guides or open the map to find nearby mental health clinics without leaving the app.',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: context.mdSecondaryText,
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _SummaryChip(
+                          icon: Icons.menu_book_outlined,
+                          label: '${_filteredResources.length} guides',
+                        ),
+                        _SummaryChip(
+                          icon: Icons.local_hospital_outlined,
+                          label: '${_clinics.length} clinics',
+                        ),
+                        _SummaryChip(
+                          icon: Icons.place_outlined,
+                          label: '${_radiusMeters ~/ 1000} km radius',
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            SliverToBoxAdapter(child: _buildCategoryChips()),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 18, 16, 0),
+                child: _SectionTitle(
+                  title: 'Featured guides',
+                  subtitle: 'Curated reads for quick support and coping tools.',
+                ),
+              ),
+            ),
+            SliverToBoxAdapter(child: _buildFeaturedGuidesSection()),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
+                child: _buildNearbyClinicsSection(),
+              ),
+            ),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+                child: _SectionTitle(
+                  title: 'All resources',
+                  subtitle: _selectedCategory == 'All'
+                      ? 'Everything available right now.'
+                      : 'Filtered to $_selectedCategory.',
+                ),
+              ),
+            ),
+            ..._buildResourceCards().map(
+              (child) => SliverToBoxAdapter(child: child),
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 24)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  final String title;
+  final String subtitle;
+
+  const _SectionTitle({required this.title, required this.subtitle});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: context.mdPrimaryText,
           ),
         ),
-        body: TabBarView(children: [_buildResourcesTab(), _buildClinicsTab()]),
+        const SizedBox(height: 4),
+        Text(
+          subtitle,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: context.mdSecondaryText,
+            height: 1.35,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SummaryChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool compact;
+
+  const _SummaryChip({
+    required this.icon,
+    required this.label,
+    this.compact = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 10 : 12,
+        vertical: compact ? 6 : 8,
+      ),
+      decoration: BoxDecoration(
+        color: context.mdAccentPurple.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: compact ? 14 : 16, color: context.mdAccentPurple),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              color: context.mdPrimaryText,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GuideCard extends StatelessWidget {
+  final Map<String, dynamic> resource;
+  final VoidCallback onTap;
+
+  const _GuideCard({required this.resource, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 250,
+      child: Card(
+        elevation: 0,
+        color: context.mdSurface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: context.mdInputBorder),
+        ),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(20),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const _SummaryChip(
+                  icon: Icons.star_rounded,
+                  label: 'Featured',
+                  compact: true,
+                ),
+                const Spacer(),
+                Text(
+                  resource['title'] as String? ?? '',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: context.mdPrimaryText,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  resource['description'] as String? ?? '',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: context.mdSecondaryText,
+                    height: 1.35,
+                  ),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LoadingCard extends StatelessWidget {
+  const _LoadingCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 0,
+      color: context.mdSurface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(color: context.mdInputBorder),
+      ),
+      child: const Padding(
+        padding: EdgeInsets.all(24),
+        child: Center(child: CircularProgressIndicator()),
+      ),
+    );
+  }
+}
+
+class _EmptyStateCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String message;
+
+  const _EmptyStateCard({
+    required this.icon,
+    required this.title,
+    required this.message,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 0,
+      color: context.mdSurface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(color: context.mdInputBorder),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, size: 28, color: context.mdAccentPurple),
+            const SizedBox(height: 12),
+            Text(
+              title,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: context.mdPrimaryText,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              message,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: context.mdSecondaryText,
+                height: 1.4,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ErrorStateCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String message;
+  final String actionLabel;
+  final VoidCallback onAction;
+
+  const _ErrorStateCard({
+    required this.icon,
+    required this.title,
+    required this.message,
+    required this.actionLabel,
+    required this.onAction,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 0,
+      color: context.mdSurface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(color: context.mdInputBorder),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, size: 28, color: context.mdAccentPurple),
+            const SizedBox(height: 12),
+            Text(
+              title,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: context.mdPrimaryText,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              message,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: context.mdSecondaryText,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 14),
+            FilledButton(onPressed: onAction, child: Text(actionLabel)),
+          ],
+        ),
       ),
     );
   }
