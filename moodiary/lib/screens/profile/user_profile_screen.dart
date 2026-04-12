@@ -8,6 +8,7 @@ import '../../services/auth_service.dart';
 import '../../services/local_notifications_service.dart';
 import '../../services/realtime_notifications.dart';
 import '../../services/theme_controller.dart';
+import '../../theme/moodiary_colors.dart';
 import '../../utils/avatar_file_picker.dart';
 import '../../utils/avatar_utils.dart';
 import '../../utils/streak_utils.dart';
@@ -333,13 +334,17 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: cs.surface,
+      backgroundColor: context.mdScaffold,
       appBar: AppBar(
+        backgroundColor: context.mdScaffold,
+        foregroundColor: context.mdPrimaryText,
+        surfaceTintColor: Colors.transparent,
         leading: IconButton(
           icon: const Icon(Icons.menu),
           onPressed: () => setState(() => _sidebarOpen = true),
         ),
         title: const Text('User Profile'),
+        centerTitle: false,
         elevation: 0,
         actions: [
           if (!_isEditing)
@@ -426,7 +431,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                           width: double.infinity,
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: cs.surfaceContainerHighest,
+                            color: context.mdSecondarySurface,
                             borderRadius: BorderRadius.circular(16),
                           ),
                           child: Column(

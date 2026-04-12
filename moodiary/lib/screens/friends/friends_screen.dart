@@ -903,67 +903,66 @@ class _FriendsHeader extends StatelessWidget {
 
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                GestureDetector(
-                  onTap: onOpenSidebar,
-                  child: Icon(Icons.menu, color: primaryText),
-                ),
-                const Spacer(),
-                Text(
-                  formatted,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: primaryText,
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+          decoration: BoxDecoration(
+            color: context.mdSecondarySurface,
+            borderRadius: BorderRadius.circular(22),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  GestureDetector(
+                    onTap: onOpenSidebar,
+                    child: Icon(Icons.menu, color: primaryText),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            RichText(
-              text: TextSpan(
+                  const Spacer(),
+                  Text(
+                    formatted,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: primaryText,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Buddies',
                 style: TextStyle(
-                  fontSize: 34,
+                  fontSize: 30,
                   fontWeight: FontWeight.bold,
                   color: primaryText,
                 ),
-                children: [
-                  TextSpan(text: 'Bu'),
-                  TextSpan(
-                    text: 'dd',
-                    style: TextStyle(color: Color(0xFF60A5FA)),
-                  ),
-                  TextSpan(text: 'ies'),
-                ],
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'See how your friends are feeling and give them support.',
-              style: TextStyle(color: secondaryText, fontSize: 13),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: onAddFriend,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: context.mdSurface,
-                  foregroundColor: _kPurple,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(50),
+              const SizedBox(height: 4),
+              Text(
+                'See how your friends are feeling and give them support.',
+                style: TextStyle(color: secondaryText, fontSize: 13),
+              ),
+              const SizedBox(height: 14),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: onAddFriend,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: context.mdSurface,
+                    foregroundColor: _kPurple,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(50),
+                    ),
                   ),
+                  icon: const Icon(Icons.person_add_alt_rounded),
+                  label: const Text('Find friends'),
                 ),
-                icon: const Icon(Icons.person_add_alt_rounded),
-                label: const Text('Find friends'),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

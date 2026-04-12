@@ -851,112 +851,98 @@ class _ForumsScreenState extends State<ForumsScreen> {
                 bottom: false,
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 10, 20, 8),
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          IconButton(
-                            onPressed: _openSidebar,
-                            icon: Icon(
-                              Icons.menu,
-                              color: primaryText,
-                              size: 26,
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                    decoration: BoxDecoration(
+                      color: context.mdSecondarySurface,
+                      borderRadius: BorderRadius.circular(22),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            IconButton(
+                              onPressed: _openSidebar,
+                              icon: Icon(
+                                Icons.menu,
+                                color: primaryText,
+                                size: 26,
+                              ),
+                              tooltip: 'Open menu',
                             ),
-                            tooltip: 'Open menu',
-                          ),
-                          const Spacer(),
-                          Text(
-                            _todayStr(),
-                            style: TextStyle(
-                              color: primaryText,
-                              fontWeight: FontWeight.bold,
+                            const Spacer(),
+                            Text(
+                              _todayStr(),
+                              style: TextStyle(
+                                color: primaryText,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
-                          ),
-                          const Spacer(),
-                          IconButton(
-                            onPressed: _toggleArchived,
-                            icon: Icon(
-                              _showArchived
-                                  ? Icons.unarchive_outlined
-                                  : Icons.archive_outlined,
-                              color: _showArchived ? _kPurple : primaryText,
-                              size: 22,
+                            const Spacer(),
+                            IconButton(
+                              onPressed: _toggleArchived,
+                              icon: Icon(
+                                _showArchived
+                                    ? Icons.unarchive_outlined
+                                    : Icons.archive_outlined,
+                                color: _showArchived ? _kPurple : primaryText,
+                                size: 22,
+                              ),
+                              tooltip: _showArchived
+                                  ? 'Show active posts'
+                                  : 'Show archived posts',
                             ),
-                            tooltip: _showArchived
-                                ? 'Show active posts'
-                                : 'Show archived posts',
-                          ),
-                          IconButton(
-                            onPressed: () => _fetchPosts(silent: false),
-                            icon: Icon(
-                              Icons.refresh_rounded,
-                              color: primaryText,
-                              size: 22,
-                            ),
-                            tooltip: 'Refresh forums',
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      RichText(
-                        textAlign: TextAlign.center,
-                        text: TextSpan(
-                          style: GoogleFonts.quicksand(
-                            fontSize: 38,
-                            fontWeight: FontWeight.w700,
-                            height: 1.0,
-                          ),
-                          children: const [
-                            TextSpan(
-                              text: 'F',
-                              style: TextStyle(color: Color(0xFF5E5CE6)),
-                            ),
-                            TextSpan(
-                              text: 'o',
-                              style: TextStyle(color: Color(0xFFE56AA6)),
-                            ),
-                            TextSpan(
-                              text: 'r',
-                              style: TextStyle(color: Color(0xFF57B8FF)),
-                            ),
-                            TextSpan(
-                              text: 'u',
-                              style: TextStyle(color: Color(0xFF6FCF97)),
-                            ),
-                            TextSpan(
-                              text: 'm',
-                              style: TextStyle(color: Color(0xFFFFB84D)),
-                            ),
-                            TextSpan(
-                              text: 's',
-                              style: TextStyle(color: Color(0xFFAF7BFF)),
+                            IconButton(
+                              onPressed: () => _fetchPosts(silent: false),
+                              icon: Icon(
+                                Icons.refresh_rounded,
+                                color: primaryText,
+                                size: 22,
+                              ),
+                              tooltip: 'Refresh forums',
                             ),
                           ],
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _showArchived
-                            ? 'Archived forum posts'
-                            : 'A safe space to share and connect',
-                        style: TextStyle(
-                          color: secondaryText,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      if (!_showArchived && _showMineOnly)
+                        const SizedBox(height: 8),
                         Align(
                           alignment: Alignment.centerLeft,
-                          child: TextButton.icon(
-                            onPressed: () =>
-                                setState(() => _showMineOnly = false),
-                            icon: const Icon(Icons.filter_alt_off, size: 18),
-                            label: const Text('Showing only my posts'),
+                          child: Text(
+                            'Forums',
+                            style: Theme.of(context).textTheme.headlineMedium
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  color: primaryText,
+                                ),
                           ),
                         ),
-                    ],
+                        const SizedBox(height: 2),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            _showArchived
+                                ? 'Archived forum posts'
+                                : 'A safe space to share and connect',
+                            style: TextStyle(
+                              color: secondaryText,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        if (!_showArchived && _showMineOnly)
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: TextButton.icon(
+                              onPressed: () =>
+                                  setState(() => _showMineOnly = false),
+                              icon: const Icon(Icons.filter_alt_off, size: 18),
+                              label: const Text('Showing only my posts'),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 ),
               ),
