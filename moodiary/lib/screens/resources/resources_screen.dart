@@ -660,12 +660,12 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
                     interactionOptions: const InteractionOptions(
                       flags: InteractiveFlag.all,
                     ),
-                    onTap: (_, __) {
+                    onTap: (tapPosition, point) {
                       if (_selectedClinic != null) {
                         setState(() => _selectedClinic = null);
                       }
                     },
-                    onLongPress: (_, point) {
+                    onLongPress: (tapPosition, point) {
                       _searchAroundPoint(point);
                     },
                     onMapReady: () {
