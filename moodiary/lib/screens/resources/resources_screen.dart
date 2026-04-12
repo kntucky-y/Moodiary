@@ -33,6 +33,7 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
   int _radiusMeters = 5000;
   bool _loadingResources = false;
   bool _loadingClinics = false;
+  bool _isMapReady = false;
   String? _resourcesError;
   String? _clinicError;
   LatLng? _currentCenter;
@@ -128,7 +129,7 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
         _currentCenter = current;
         _clinicError = null;
       });
-      _mapController.move(current, 13);
+      _moveMapSafely(current, 13);
       await _loadNearbyClinics(center: current);
     } catch (error) {
       if (!mounted) return;
@@ -183,7 +184,7 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
         _currentCenter = current;
         _clinicError = null;
       });
-      _mapController.move(current, 13);
+      _moveMapSafely(current, 13);
       await _loadNearbyClinics(center: current);
     } catch (error) {
       if (!mounted) return;
@@ -203,6 +204,11 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
     final current = _currentCenter;
     if (current == null) return 0;
     return _distance.as(LengthUnit.Kilometer, current, _clinicPoint(clinic));
+  }
+
+  void _moveMapSafely(LatLng center, double zoom) {
+    if (!_isMapReady) return;
+    _mapController.move(center, zoom);
   }
 
   String _formatDistance(double km) {
@@ -540,6 +546,13 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
                   options: MapOptions(
                     initialCenter: center,
                     initialZoom: 13,
+                    onMapReady: () {
+                      _isMapReady = true;
+                      final latestCenter = _currentCenter;
+                      if (latestCenter != null) {
+                        _moveMapSafely(latestCenter, 13);
+                      }
+                    },
                     interactionOptions: const InteractionOptions(
                       flags: InteractiveFlag.all,
                     ),
