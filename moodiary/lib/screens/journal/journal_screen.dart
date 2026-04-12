@@ -9,6 +9,7 @@ import '../companion/companion_screen.dart';
 import '../onboarding/onboarding_screen.dart';
 import '../settings/settings_screen.dart';
 import '../../services/local_notifications_service.dart';
+import '../../services/auth_service.dart';
 import '../../services/realtime_notifications.dart';
 import '../../services/theme_controller.dart';
 import '../../utils/transitions.dart';
@@ -17,7 +18,7 @@ import '../../theme/moodiary_colors.dart';
 
 const _kPurple = Color(0xFFA076F9);
 const _kSubtle = Color(0xFF8A8A8D);
-const _kBaseUrl = 'https://moodiary-production.up.railway.app';
+const _kBaseUrl = kBackendBaseUrl;
 
 // ─── Tag data ─────────────────────────────────────────────────────────────────
 const _kTags = ['terrible', 'bad', 'okay', 'good', 'excellent'];

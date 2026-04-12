@@ -3,13 +3,14 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:socket_io_client/socket_io_client.dart' as io;
+import '../../services/auth_service.dart';
 import '../forums/forums_screen.dart';
 import '../../utils/transitions.dart';
 import '../../theme/moodiary_colors.dart';
 import '../../utils/avatar_utils.dart';
 import '../../widgets/user_profile_popup.dart';
 
-const _kBaseUrl = 'https://moodiary-production.up.railway.app';
+const _kBaseUrl = kBackendBaseUrl;
 const _kPurple = Color(0xFFA076F9);
 const _kBubbleMine = Color(0xFF4338CA);
 

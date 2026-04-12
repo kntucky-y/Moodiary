@@ -13,6 +13,7 @@ import '../companion/companion_screen.dart';
 import '../onboarding/onboarding_screen.dart';
 import '../settings/settings_screen.dart';
 import '../../services/local_notifications_service.dart';
+import '../../services/auth_service.dart';
 import '../../utils/transitions.dart';
 import '../../widgets/app_sidebar.dart';
 import '../../services/realtime_notifications.dart';
@@ -23,7 +24,7 @@ import '../../widgets/user_profile_popup.dart';
 import 'user_discovery_screen.dart';
 import 'friend_chat_screen.dart';
 
-const _kBaseUrl = 'https://moodiary-production.up.railway.app';
+const _kBaseUrl = kBackendBaseUrl;
 const _kPurple = Color(0xFFA076F9);
 const _kSubtle = Color(0xFF9CA3AF);
 const _kFriendsCacheKey = 'friends_cache_v1';

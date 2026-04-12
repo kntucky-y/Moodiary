@@ -12,13 +12,14 @@ import '../settings/settings_screen.dart';
 import '../../utils/transitions.dart';
 import '../../widgets/app_sidebar.dart';
 import '../../services/local_notifications_service.dart';
+import '../../services/auth_service.dart';
 import '../../services/realtime_notifications.dart';
 import '../../services/theme_controller.dart';
 import '../../theme/moodiary_colors.dart';
 
 const _kPurple = Color(0xFFA076F9);
 const _kSubtle = Color(0xFF8A8A8D);
-const _kBaseUrl = 'https://moodiary-production.up.railway.app';
+const _kBaseUrl = kBackendBaseUrl;
 
 // ─── Activity data ────────────────────────────────────────────────────────────
 class _Activity {

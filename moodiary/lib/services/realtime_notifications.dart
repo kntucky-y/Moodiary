@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 
+import 'auth_service.dart';
 import 'local_notifications_service.dart';
 import '../utils/in_app_notifications.dart';
 
@@ -13,7 +14,7 @@ class RealtimeNotifications {
   }
 
   static final RealtimeNotifications instance = RealtimeNotifications._();
-  static const _kBaseUrl = 'https://moodiary-production.up.railway.app';
+  static const _kBaseUrl = kBackendBaseUrl;
 
   final StreamController<Map<String, dynamic>> _controller =
       StreamController<Map<String, dynamic>>.broadcast();

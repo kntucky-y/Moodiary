@@ -3,7 +3,10 @@ import 'dart:async';
 
 import 'package:http/http.dart' as http;
 
-const String kBackendBaseUrl = 'https://moodiary-production.up.railway.app';
+const String kBackendBaseUrl = String.fromEnvironment(
+  'BACKEND_BASE_URL',
+  defaultValue: 'http://localhost:5000',
+);
 
 class AuthException implements Exception {
   final String message;

@@ -10,6 +10,7 @@ import '../journal/journal_screen.dart';
 import '../app_shell.dart';
 import '../profile/user_profile_screen.dart';
 import '../../services/local_notifications_service.dart';
+import '../../services/auth_service.dart';
 import '../../services/theme_controller.dart';
 import '../../theme/moodiary_colors.dart';
 import '../../utils/transitions.dart';
@@ -458,7 +459,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     if (token == null) return;
     try {
       await http.post(
-        Uri.parse('https://moodiary-production.up.railway.app/api/moods'),
+        Uri.parse('$kBackendBaseUrl/api/moods'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -521,7 +522,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     if (token == null) return;
     try {
       await http.post(
-        Uri.parse('https://moodiary-production.up.railway.app/api/moods'),
+        Uri.parse('$kBackendBaseUrl/api/moods'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -1689,7 +1690,7 @@ class _CompanionChatState extends State<_CompanionChat> {
   bool _loading = false;
   String? _token;
 
-  static const _kBaseUrl = 'https://moodiary-production.up.railway.app';
+  static const _kBaseUrl = kBackendBaseUrl;
 
   static const _prompts = [
     'Tell me a motivational quote.',
