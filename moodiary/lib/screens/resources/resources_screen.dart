@@ -1,7 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../services/auth_service.dart';
@@ -17,8 +18,8 @@ class ResourcesScreen extends StatefulWidget {
 class _ResourcesScreenState extends State<ResourcesScreen> {
   late Future<void> _locationBootstrapFuture;
 
-  final MapController _mapController = MapController();
-  final Distance _distance = const Distance();
+  GoogleMapController? _googleMapController;
+  CameraPosition? _pendingCameraTarget;
 
   final List<String> _categories = [
     'All',
@@ -33,7 +34,6 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
   int _radiusMeters = 5000;
   bool _loadingResources = false;
   bool _loadingClinics = false;
-  bool _isMapReady = false;
   String? _resourcesError;
   String? _clinicError;
   LatLng? _currentCenter;
@@ -91,6 +91,12 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
+  }
+
+  @override
+  void dispose() {
+    _googleMapController?.dispose();
+    super.dispose();
   }
 
   Future<LatLng> _getCurrentLocation() async {
@@ -203,12 +209,25 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
   double _distanceKm(Map<String, dynamic> clinic) {
     final current = _currentCenter;
     if (current == null) return 0;
-    return _distance.as(LengthUnit.Kilometer, current, _clinicPoint(clinic));
+    final clinicPoint = _clinicPoint(clinic);
+    final meters = Geolocator.distanceBetween(
+      current.latitude,
+      current.longitude,
+      clinicPoint.latitude,
+      clinicPoint.longitude,
+    );
+    return meters / 1000;
   }
 
   void _moveMapSafely(LatLng center, double zoom) {
-    if (!_isMapReady) return;
-    _mapController.move(center, zoom);
+    final target = CameraPosition(target: center, zoom: zoom);
+    final controller = _googleMapController;
+    if (controller == null) {
+      _pendingCameraTarget = target;
+      return;
+    }
+
+    controller.animateCamera(CameraUpdate.newCameraPosition(target));
   }
 
   String _formatDistance(double km) {
@@ -403,34 +422,33 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
       );
     }
 
-    final markers = <Marker>[
+    final markers = <Marker>{
       Marker(
-        point: center,
-        width: 44,
-        height: 44,
-        child: const Icon(Icons.my_location, color: Colors.blue, size: 28),
+        markerId: const MarkerId('current-location'),
+        position: center,
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+        infoWindow: const InfoWindow(title: 'Your location'),
       ),
       ..._clinics.map(
         (clinic) => Marker(
-          point: _clinicPoint(clinic),
-          width: 44,
-          height: 44,
-          child: GestureDetector(
-            onTap: () {
-              setState(() => _selectedClinic = clinic);
-              _showClinicDetails(clinic);
-            },
-            child: Icon(
-              Icons.location_pin,
-              color: _selectedClinic == clinic
-                  ? context.mdAccentPurple
-                  : Colors.redAccent,
-              size: 34,
-            ),
+          markerId: MarkerId(
+            clinic['id']?.toString() ??
+                'clinic-${clinic['latitude']}-${clinic['longitude']}',
           ),
+          position: _clinicPoint(clinic),
+          icon: BitmapDescriptor.defaultMarkerWithHue(
+            _selectedClinic == clinic
+                ? BitmapDescriptor.hueViolet
+                : BitmapDescriptor.hueRed,
+          ),
+          infoWindow: InfoWindow(title: clinic['name'] as String? ?? 'Clinic'),
+          onTap: () {
+            setState(() => _selectedClinic = clinic);
+            _showClinicDetails(clinic);
+          },
         ),
       ),
-    ];
+    };
 
     return Card(
       elevation: 0,
@@ -541,30 +559,25 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
               borderRadius: BorderRadius.circular(20),
               child: SizedBox(
                 height: 260,
-                child: FlutterMap(
-                  mapController: _mapController,
-                  options: MapOptions(
-                    initialCenter: center,
-                    initialZoom: 13,
-                    onMapReady: () {
-                      _isMapReady = true;
-                      final latestCenter = _currentCenter;
-                      if (latestCenter != null) {
-                        _moveMapSafely(latestCenter, 13);
-                      }
-                    },
-                    interactionOptions: const InteractionOptions(
-                      flags: InteractiveFlag.all,
-                    ),
+                child: GoogleMap(
+                  initialCameraPosition: CameraPosition(
+                    target: center,
+                    zoom: 13,
                   ),
-                  children: [
-                    TileLayer(
-                      urlTemplate:
-                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                      userAgentPackageName: 'com.moodiary.app',
-                    ),
-                    MarkerLayer(markers: markers),
-                  ],
+                  myLocationEnabled: true,
+                  myLocationButtonEnabled: false,
+                  zoomControlsEnabled: false,
+                  markers: markers,
+                  onMapCreated: (controller) {
+                    _googleMapController = controller;
+                    final pending = _pendingCameraTarget;
+                    if (pending != null) {
+                      controller.animateCamera(
+                        CameraUpdate.newCameraPosition(pending),
+                      );
+                      _pendingCameraTarget = null;
+                    }
+                  },
                 ),
               ),
             ),
