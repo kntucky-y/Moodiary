@@ -13,7 +13,6 @@ import '../../utils/user_cache.dart';
 import '../app_shell.dart';
 import '../companion/companion_screen.dart';
 import '../profile/mbti_test_screen.dart';
-import 'reset_password_screen.dart';
 
 const _kPurple = Color(0xFF9B7FDB);
 
@@ -185,101 +184,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _showForgotPasswordSheet() async {
-    final controller = TextEditingController(
-      text: _emailController.text.trim(),
-    );
-    bool isSubmitting = false;
-
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (ctx) {
-        return Padding(
-          padding: EdgeInsets.only(
-            left: 24,
-            right: 24,
-            top: 24,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
-          ),
-          child: StatefulBuilder(
-            builder: (sheetContext, setModalState) {
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Forgot password',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: controller,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(
-                      labelText: 'Email address',
-                      hintText: 'you@example.com',
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: isSubmitting
-                          ? null
-                          : () async {
-                              final email = controller.text.trim();
-                              if (email.isEmpty) {
-                                _showError('Please enter your email');
-                                return;
-                              }
-
-                              setModalState(() => isSubmitting = true);
-
-                              try {
-                                final message = await AuthService.instance
-                                    .requestPasswordReset(email: email);
-                                if (!mounted) return;
-                                Navigator.of(context).pop();
-                                _showInfo(message);
-                              } on AuthException catch (error) {
-                                setModalState(() => isSubmitting = false);
-                                _showError(error.message);
-                              } catch (_) {
-                                setModalState(() => isSubmitting = false);
-                                _showError(
-                                  'Unable to send reset email right now',
-                                );
-                              }
-                            },
-                      child: isSubmitting
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Text('Send reset link'),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const ResetPasswordScreen(),
-                        ),
-                      );
-                    },
-                    child: const Text('Already have a reset token?'),
-                  ),
-                ],
-              );
-            },
-          ),
-        );
-      },
-    );
-
-    controller.dispose();
+    _showInfo('Forgot password is coming soon.');
   }
 
   @override
