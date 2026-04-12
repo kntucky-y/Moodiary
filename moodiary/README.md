@@ -34,7 +34,9 @@ The reset email opens the app directly on the reset screen and also includes the
 
 ## Mobile configuration
 
-No native configuration is required beyond the default Flutter setup. After updating dependencies run:
+The Resources tab map uses OpenStreetMap and does not require Google Maps API keys or billing setup.
+
+After updating dependencies run:
 
 ```
 cd moodiary

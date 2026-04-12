@@ -44,8 +44,9 @@ dependencies:
   url_launcher: ^6.3.2
   image_picker: ^1.2.1
   file_selector: ^1.0.3
-  google_maps_flutter: ^2.12.3
+  flutter_map: ^8.2.2
   geolocator: ^14.0.2
+  latlong2: ^0.9.1
 
 dev_dependencies:
   flutter_test:

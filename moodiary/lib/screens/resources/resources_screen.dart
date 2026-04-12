@@ -1,8 +1,7 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../services/auth_service.dart';
@@ -18,8 +17,10 @@ class ResourcesScreen extends StatefulWidget {
 class _ResourcesScreenState extends State<ResourcesScreen> {
   late Future<void> _locationBootstrapFuture;
 
-  GoogleMapController? _googleMapController;
-  CameraPosition? _pendingCameraTarget;
+  final MapController _mapController = MapController();
+  bool _isMapReady = false;
+  LatLng? _pendingMapCenter;
+  double _pendingMapZoom = 13;
 
   final List<String> _categories = [
     'All',
@@ -91,12 +92,6 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
-  }
-
-  @override
-  void dispose() {
-    _googleMapController?.dispose();
-    super.dispose();
   }
 
   Future<LatLng> _getCurrentLocation() async {
@@ -200,6 +195,16 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
     }
   }
 
+  Future<void> _searchAroundPoint(LatLng center) async {
+    if (!mounted) return;
+    setState(() {
+      _currentCenter = center;
+      _clinicError = null;
+    });
+    _moveMapSafely(center, 13);
+    await _loadNearbyClinics(center: center);
+  }
+
   LatLng _clinicPoint(Map<String, dynamic> clinic) {
     final latitude = (clinic['latitude'] as num).toDouble();
     final longitude = (clinic['longitude'] as num).toDouble();
@@ -220,14 +225,13 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
   }
 
   void _moveMapSafely(LatLng center, double zoom) {
-    final target = CameraPosition(target: center, zoom: zoom);
-    final controller = _googleMapController;
-    if (controller == null) {
-      _pendingCameraTarget = target;
+    if (!_isMapReady) {
+      _pendingMapCenter = center;
+      _pendingMapZoom = zoom;
       return;
     }
 
-    controller.animateCamera(CameraUpdate.newCameraPosition(target));
+    _mapController.move(center, zoom);
   }
 
   String _formatDistance(double km) {
@@ -235,6 +239,94 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
       return '${(km * 1000).round()} m away';
     }
     return '${km.toStringAsFixed(km >= 10 ? 0 : 1)} km away';
+  }
+
+  Widget _buildClinicPreviewCards() {
+    if (_clinics.isEmpty) return const SizedBox.shrink();
+
+    return SizedBox(
+      height: 124,
+      child: ListView.separated(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        scrollDirection: Axis.horizontal,
+        itemCount: _clinics.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 10),
+        itemBuilder: (context, index) {
+          final clinic = _clinics[index];
+          final isSelected = _selectedClinic == clinic;
+          return SizedBox(
+            width: 230,
+            child: Card(
+              elevation: 0,
+              color: isSelected
+                  ? context.mdAccentPurple.withValues(alpha: 0.12)
+                  : context.mdSurface,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(
+                  color: isSelected
+                      ? context.mdAccentPurple
+                      : context.mdInputBorder,
+                ),
+              ),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: () {
+                  setState(() => _selectedClinic = clinic);
+                  _moveMapSafely(_clinicPoint(clinic), 14.5);
+                  _showClinicDetails(clinic);
+                },
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        clinic['name'] as String? ?? 'Clinic',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: context.mdPrimaryText,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        _formatDistance(_distanceKm(clinic)),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: context.mdSecondaryText,
+                        ),
+                      ),
+                      const Spacer(),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.location_on_outlined,
+                            size: 16,
+                            color: context.mdSecondaryText,
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              clinic['address'] as String? ??
+                                  'Address unavailable',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.labelSmall
+                                  ?.copyWith(color: context.mdSecondaryText),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
   }
 
   Future<void> _showClinicDetails(Map<String, dynamic> clinic) async {
@@ -422,33 +514,34 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
       );
     }
 
-    final markers = <Marker>{
+    final markers = <Marker>[
       Marker(
-        markerId: const MarkerId('current-location'),
-        position: center,
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
-        infoWindow: const InfoWindow(title: 'Your location'),
+        point: center,
+        width: 44,
+        height: 44,
+        child: const Icon(Icons.my_location, color: Colors.blue, size: 28),
       ),
       ..._clinics.map(
         (clinic) => Marker(
-          markerId: MarkerId(
-            clinic['id']?.toString() ??
-                'clinic-${clinic['latitude']}-${clinic['longitude']}',
+          point: _clinicPoint(clinic),
+          width: 44,
+          height: 44,
+          child: GestureDetector(
+            onTap: () {
+              setState(() => _selectedClinic = clinic);
+              _showClinicDetails(clinic);
+            },
+            child: Icon(
+              Icons.location_pin,
+              color: _selectedClinic == clinic
+                  ? context.mdAccentPurple
+                  : Colors.redAccent,
+              size: 34,
+            ),
           ),
-          position: _clinicPoint(clinic),
-          icon: BitmapDescriptor.defaultMarkerWithHue(
-            _selectedClinic == clinic
-                ? BitmapDescriptor.hueViolet
-                : BitmapDescriptor.hueRed,
-          ),
-          infoWindow: InfoWindow(title: clinic['name'] as String? ?? 'Clinic'),
-          onTap: () {
-            setState(() => _selectedClinic = clinic);
-            _showClinicDetails(clinic);
-          },
         ),
       ),
-    };
+    ];
 
     return Card(
       elevation: 0,
@@ -559,25 +652,39 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
               borderRadius: BorderRadius.circular(20),
               child: SizedBox(
                 height: 260,
-                child: GoogleMap(
-                  initialCameraPosition: CameraPosition(
-                    target: center,
-                    zoom: 13,
+                child: FlutterMap(
+                  mapController: _mapController,
+                  options: MapOptions(
+                    initialCenter: center,
+                    initialZoom: 13,
+                    interactionOptions: const InteractionOptions(
+                      flags: InteractiveFlag.all,
+                    ),
+                    onTap: (_, __) {
+                      if (_selectedClinic != null) {
+                        setState(() => _selectedClinic = null);
+                      }
+                    },
+                    onLongPress: (_, point) {
+                      _searchAroundPoint(point);
+                    },
+                    onMapReady: () {
+                      _isMapReady = true;
+                      final pendingCenter = _pendingMapCenter;
+                      if (pendingCenter != null) {
+                        _mapController.move(pendingCenter, _pendingMapZoom);
+                        _pendingMapCenter = null;
+                      }
+                    },
                   ),
-                  myLocationEnabled: true,
-                  myLocationButtonEnabled: false,
-                  zoomControlsEnabled: false,
-                  markers: markers,
-                  onMapCreated: (controller) {
-                    _googleMapController = controller;
-                    final pending = _pendingCameraTarget;
-                    if (pending != null) {
-                      controller.animateCamera(
-                        CameraUpdate.newCameraPosition(pending),
-                      );
-                      _pendingCameraTarget = null;
-                    }
-                  },
+                  children: [
+                    TileLayer(
+                      urlTemplate:
+                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      userAgentPackageName: 'com.moodiary.app',
+                    ),
+                    MarkerLayer(markers: markers),
+                  ],
                 ),
               ),
             ),
@@ -585,12 +692,13 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             child: Text(
-              'Tap a pin or clinic card to open call, website, and address details.',
+              'Tap markers for details. Long-press anywhere to search that area.',
               style: Theme.of(
                 context,
               ).textTheme.bodySmall?.copyWith(color: context.mdSecondaryText),
             ),
           ),
+          _buildClinicPreviewCards(),
         ],
       ),
     );
