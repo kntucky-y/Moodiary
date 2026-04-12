@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 
 const String kBackendBaseUrl = String.fromEnvironment(
   'BACKEND_BASE_URL',
-  defaultValue: 'http://localhost:5000',
+  defaultValue: 'https://moodiary-3h7r.onrender.com',
 );
 
 class AuthException implements Exception {
