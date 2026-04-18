@@ -14,6 +14,7 @@ class GlassContainer extends StatelessWidget {
   final Color? borderColor;
   final Gradient? gradient;
   final List<BoxShadow>? shadows;
+  final bool showTintOverlay;
 
   const GlassContainer({
     super.key,
@@ -26,6 +27,7 @@ class GlassContainer extends StatelessWidget {
     this.borderColor,
     this.gradient,
     this.shadows,
+    this.showTintOverlay = true,
   });
 
   @override
@@ -57,25 +59,26 @@ class GlassContainer extends StatelessWidget {
             ),
             child: Stack(
               children: [
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        borderRadius: resolvedRadius,
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            overlayTop,
-                            Colors.transparent,
-                            overlayBottom,
-                          ],
-                          stops: const [0.0, 0.56, 1.0],
+                if (showTintOverlay)
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          borderRadius: resolvedRadius,
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              overlayTop,
+                              Colors.transparent,
+                              overlayBottom,
+                            ],
+                            stops: const [0.0, 0.56, 1.0],
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
                 Padding(
                   padding: padding ?? const EdgeInsets.all(16),
                   child: child,
@@ -97,6 +100,7 @@ class GlassCard extends StatelessWidget {
   final double blurSigma;
   final Color? backgroundColor;
   final Color? borderColor;
+  final bool showTintOverlay;
 
   const GlassCard({
     super.key,
@@ -107,6 +111,7 @@ class GlassCard extends StatelessWidget {
     this.blurSigma = 14,
     this.backgroundColor,
     this.borderColor,
+    this.showTintOverlay = true,
   });
 
   @override
@@ -119,6 +124,7 @@ class GlassCard extends StatelessWidget {
       borderRadius: resolvedRadius,
       backgroundColor: backgroundColor,
       borderColor: borderColor,
+      showTintOverlay: showTintOverlay,
       padding: EdgeInsets.zero,
       child: Material(
         color: Colors.transparent,

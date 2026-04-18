@@ -1471,7 +1471,7 @@ class _PostCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cardSurface = post.cardColor.withValues(
-      alpha: context.isDarkMode ? 0.44 : 0.74,
+      alpha: context.isDarkMode ? 0.72 : 0.92,
     );
     final cardBrightness = ThemeData.estimateBrightnessForColor(cardSurface);
     final onCardText = cardBrightness == Brightness.dark
@@ -1492,6 +1492,7 @@ class _PostCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         backgroundColor: cardSurface,
         borderColor: context.mdGlassBorder,
+        showTintOverlay: false,
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(14),
         child: Row(
