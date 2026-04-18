@@ -684,10 +684,12 @@ class _JournalScreenState extends State<JournalScreen> {
                                           context.mdGlassSurfaceStrong,
                                       borderColor: context.mdGlassBorder,
                                       padding: EdgeInsets.zero,
-                                      child: Icon(
-                                        Icons.add,
-                                        color: context.mdPrimaryText,
-                                        size: 28,
+                                      child: Center(
+                                        child: Icon(
+                                          Icons.add,
+                                          color: context.mdPrimaryText,
+                                          size: 28,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -709,10 +711,12 @@ class _JournalScreenState extends State<JournalScreen> {
                           backgroundColor: _kPurple.withValues(alpha: 0.60),
                           borderColor: context.mdGlassBorder,
                           padding: EdgeInsets.zero,
-                          child: const Icon(
-                            Icons.add,
-                            color: Colors.white,
-                            size: 32,
+                          child: const Center(
+                            child: Icon(
+                              Icons.add,
+                              color: Colors.white,
+                              size: 32,
+                            ),
                           ),
                         ),
                       ),

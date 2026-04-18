@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../app_shell.dart';
-import '../profile/mbti_test_screen.dart';
+
 import '../../theme/moodiary_colors.dart';
 import '../../utils/transitions.dart';
+import '../../widgets/glass.dart';
+import '../app_shell.dart';
+import '../profile/mbti_test_screen.dart';
 
 const _kPurple = Color(0xFFA076F9);
 
@@ -71,23 +73,26 @@ const _companions = [
 ];
 
 const _cardColors = [
-  Color(0xFFFBCFE8), // pink
-  Color(0xFFBFDBFE), // blue
-  Color(0xFFBBF7D0), // green
-  Color(0xFFFEF08A), // yellow
-  Color(0xFFFECDD3), // rose
+  Color(0xFFFBCFE8),
+  Color(0xFFBFDBFE),
+  Color(0xFFBBF7D0),
+  Color(0xFFFEF08A),
+  Color(0xFFFECDD3),
 ];
 
 class _Companion {
   final int id;
   final String name;
   final String description;
+
   const _Companion(this.id, this.name, this.description);
+
   String get asset => 'assets/doodle$id.png';
 }
 
 class CompanionScreen extends StatelessWidget {
   final String userName;
+
   const CompanionScreen({super.key, required this.userName});
 
   Future<void> _continueLater(BuildContext context) async {
@@ -128,6 +133,9 @@ class CompanionScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    final crossAxisCount = width >= 820 ? 4 : (width >= 520 ? 3 : 2);
+
     return Scaffold(
       backgroundColor: context.mdScaffold,
       appBar: AppBar(
@@ -158,22 +166,32 @@ class CompanionScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               const SizedBox(height: 16),
-              Text(
-                'Select a companion to see its story. You can always change your companion later!',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 15,
-                  color: context.mdSecondaryText,
-                  fontStyle: FontStyle.italic,
-                  height: 1.4,
+              GlassContainer(
+                blurSigma: context.mdGlassBlurSmall,
+                borderRadius: BorderRadius.circular(16),
+                backgroundColor: context.mdGlassSurface,
+                borderColor: context.mdGlassBorder,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
+                child: Text(
+                  'Select a companion to see its story. You can always change your companion later!',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: context.mdSecondaryText,
+                    fontStyle: FontStyle.italic,
+                    height: 1.4,
+                  ),
                 ),
               ),
               const SizedBox(height: 24),
               Expanded(
                 child: GridView.builder(
                   itemCount: _companions.length,
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: crossAxisCount,
                     crossAxisSpacing: 14,
                     mainAxisSpacing: 14,
                   ),
@@ -182,19 +200,14 @@ class CompanionScreen extends StatelessWidget {
                     final color = _cardColors[index % _cardColors.length];
                     return TapScale(
                       onTap: () => _showDetail(context, companion, color),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 150),
-                        decoration: BoxDecoration(
-                          color: color,
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.08),
-                              blurRadius: 8,
-                              offset: const Offset(0, 3),
-                            ),
-                          ],
+                      child: GlassContainer(
+                        blurSigma: context.mdGlassBlurSmall,
+                        borderRadius: BorderRadius.circular(16),
+                        backgroundColor: color.withValues(
+                          alpha: context.isDarkMode ? 0.28 : 0.42,
                         ),
+                        borderColor: context.mdGlassBorder,
+                        padding: EdgeInsets.zero,
                         child: Center(
                           child: Image.asset(
                             companion.asset,
@@ -228,6 +241,7 @@ class _CompanionModal extends StatelessWidget {
   final _Companion companion;
   final Color color;
   final String userName;
+
   const _CompanionModal({
     required this.companion,
     required this.color,
@@ -272,8 +286,13 @@ class _CompanionModal extends StatelessWidget {
   Widget build(BuildContext context) {
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      backgroundColor: context.mdSurface,
-      child: Padding(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      child: GlassContainer(
+        blurSigma: context.mdGlassBlurMedium,
+        borderRadius: BorderRadius.circular(24),
+        backgroundColor: context.mdGlassSurfaceStrong,
+        borderColor: context.mdGlassBorder,
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -281,7 +300,10 @@ class _CompanionModal extends StatelessWidget {
             Container(
               width: 110,
               height: 110,
-              decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: color.withValues(alpha: context.isDarkMode ? 0.78 : 0.9),
+              ),
               child: Center(
                 child: Image.asset(
                   companion.asset,
@@ -336,13 +358,14 @@ class _CompanionModal extends StatelessWidget {
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: ElevatedButton(
+                  child: FilledButton(
                     onPressed: () => _choose(context),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _kPurple,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: _kPurple.withValues(
+                        alpha: context.isDarkMode ? 0.58 : 0.64,
+                      ),
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      elevation: 0,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(50),
                       ),

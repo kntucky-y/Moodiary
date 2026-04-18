@@ -136,11 +136,38 @@ class AppSidebar extends StatelessWidget {
                 ...items.map(_buildItem),
                 const SizedBox(height: 12),
                 if (onChangeCompanion != null)
-                  TapScale(
-                    onTap: onChangeCompanion!,
-                    child: const _SidebarItem(
-                      icon: Icons.swap_horiz_rounded,
-                      label: 'Change Companion',
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: TapScale(
+                      onTap: onChangeCompanion!,
+                      child: GlassContainer(
+                        blurSigma: context.mdGlassBlurSmall,
+                        borderRadius: BorderRadius.circular(14),
+                        backgroundColor: context.mdGlassSurface,
+                        borderColor: context.mdGlassBorder,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.swap_horiz_rounded,
+                              color: _kPurple,
+                              size: 22,
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              'Change Companion',
+                              style: TextStyle(
+                                color: context.mdPrimaryText,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 const Spacer(),
