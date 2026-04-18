@@ -85,23 +85,32 @@ class _MoodiaryShellState extends State<MoodiaryShell> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final media = MediaQuery.of(context);
-    final bottomInset = media.padding.bottom > 0 ? 8.0 : 12.0;
+    final horizontalInset = media.size.width >= 700 ? 20.0 : 16.0;
+    final bottomInset = media.padding.bottom > 0 ? 4.0 : 8.0;
 
     return Scaffold(
+      extendBody: true,
       body: IndexedStack(index: _index, children: _pages),
       bottomNavigationBar: SafeArea(
-        minimum: EdgeInsets.fromLTRB(0, 0, 0, bottomInset),
+        minimum: EdgeInsets.fromLTRB(
+          horizontalInset,
+          0,
+          horizontalInset,
+          bottomInset,
+        ),
         child: GlassContainer(
-          blurSigma: context.mdGlassBlurMedium,
+          blurSigma: context.mdGlassBlurSmall,
           borderRadius: BorderRadius.circular(context.mdRadiusLg),
           backgroundColor: context.mdGlassSurfaceStrong,
           padding: EdgeInsets.zero,
           child: NavigationBar(
             selectedIndex: _index,
             onDestinationSelected: (index) => setState(() => _index = index),
+            height: 58,
             backgroundColor: Colors.transparent,
             indicatorColor: cs.primaryContainer.withValues(alpha: 0.72),
             elevation: 0,
+            labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
             destinations: const [
               NavigationDestination(
                 icon: Icon(Icons.account_circle_outlined),

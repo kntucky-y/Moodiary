@@ -314,14 +314,14 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
                 blurSigma: 0,
                 borderRadius: BorderRadius.circular(14),
                 backgroundColor: previewColors[i % previewColors.length]
-                    .withValues(alpha: context.isDarkMode ? 0.28 : 0.86),
+                    .withValues(alpha: context.isDarkMode ? 0.20 : 0.56),
                 borderColor: context.mdGlassBorder,
                 padding: EdgeInsets.zero,
                 child: Center(
                   child: Image.asset(
                     'assets/doodle${i + 1}.png',
-                    width: 56,
-                    height: 56,
+                    width: 60,
+                    height: 60,
                     fit: BoxFit.contain,
                     filterQuality: FilterQuality.high,
                     errorBuilder: (context, error, stackTrace) =>
@@ -384,7 +384,7 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
               child: GlassContainer(
                 blurSigma: context.mdGlassBlurMedium,
                 borderRadius: BorderRadius.circular(14),
-                backgroundColor: context.mdGlassSurface,
+                backgroundColor: context.mdGlassSurfaceStrong,
                 borderColor: context.mdGlassBorder,
                 padding: const EdgeInsets.all(16),
                 child: Text(
@@ -416,8 +416,8 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
                     blurSigma: context.mdGlassBlurMedium,
                     borderRadius: BorderRadius.circular(12),
                     backgroundColor: isSelected
-                        ? cs.primaryContainer.withValues(alpha: 0.55)
-                        : context.mdGlassSurface,
+                        ? cs.primaryContainer.withValues(alpha: 0.72)
+                        : context.mdGlassSurfaceStrong,
                     borderColor: isSelected
                         ? cs.primary
                         : context.mdGlassBorder,
@@ -519,9 +519,9 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
       appBar: AppBar(title: const Text('Matching Companions')),
       body: Center(
         child: GlassContainer(
-          blurSigma: context.mdGlassBlurMedium,
+          blurSigma: context.mdGlassBlurSmall,
           borderRadius: BorderRadius.circular(20),
-          backgroundColor: context.mdGlassSurface,
+          backgroundColor: context.mdGlassSurfaceStrong,
           borderColor: context.mdGlassBorder,
           child: const Padding(
             padding: EdgeInsets.symmetric(horizontal: 24, vertical: 20),
@@ -560,7 +560,7 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
           GlassContainer(
             blurSigma: context.mdGlassBlurMedium,
             borderRadius: BorderRadius.circular(16),
-            backgroundColor: context.mdGlassSurface,
+            backgroundColor: context.mdGlassSurfaceStrong,
             borderColor: context.mdGlassBorder,
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -602,11 +602,11 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
             final companionId = companionIdOf(companion);
             final isSelected = _selectedCompanion?['id'] == companion['id'];
             return GlassContainer(
-              blurSigma: 4,
+              blurSigma: 1,
               borderRadius: BorderRadius.circular(12),
               backgroundColor: isSelected
-                  ? cs.primaryContainer.withValues(alpha: 0.55)
-                  : context.mdGlassSurface,
+                  ? cs.primaryContainer.withValues(alpha: 0.72)
+                  : context.mdGlassSurfaceStrong,
               borderColor: isSelected ? cs.primary : context.mdGlassBorder,
               padding: EdgeInsets.zero,
               child: ListTile(
@@ -631,8 +631,14 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
                       : Icons.radio_button_off,
                   color: isSelected ? cs.primary : cs.onSurfaceVariant,
                 ),
-                title: Text((companion['name'] ?? 'Companion').toString()),
-                subtitle: Text((companion['description'] ?? '').toString()),
+                title: Text(
+                  (companion['name'] ?? 'Companion').toString(),
+                  style: TextStyle(color: context.mdPrimaryText),
+                ),
+                subtitle: Text(
+                  (companion['description'] ?? '').toString(),
+                  style: TextStyle(color: context.mdSecondaryText),
+                ),
                 onTap: () => setState(() => _selectedCompanion = companion),
               ),
             );
@@ -640,9 +646,9 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
           const SizedBox(height: 8),
           if (_selectedCompanion != null)
             GlassContainer(
-              blurSigma: 4,
+              blurSigma: 1,
               borderRadius: BorderRadius.circular(12),
-              backgroundColor: cs.primaryContainer.withValues(alpha: 0.58),
+              backgroundColor: cs.primaryContainer.withValues(alpha: 0.74),
               borderColor: context.mdGlassBorder,
               child: Padding(
                 padding: const EdgeInsets.all(14),

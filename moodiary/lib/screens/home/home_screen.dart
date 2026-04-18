@@ -712,6 +712,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final cardShadow = context.mdCardGlow;
 
     return Scaffold(
+      extendBody: true,
       backgroundColor: scaffoldColor,
       body: Stack(
         children: [
@@ -1592,18 +1593,24 @@ class _BottomNav extends StatelessWidget {
     final inactiveColor = context.mdSecondaryText;
 
     final media = MediaQuery.of(context);
-    final bottomInset = media.padding.bottom > 0 ? 8.0 : 12.0;
+    final horizontalInset = media.size.width >= 700 ? 20.0 : 16.0;
+    final bottomInset = media.padding.bottom > 0 ? 4.0 : 8.0;
 
     return SafeArea(
-      minimum: EdgeInsets.fromLTRB(0, 0, 0, bottomInset),
+      minimum: EdgeInsets.fromLTRB(
+        horizontalInset,
+        0,
+        horizontalInset,
+        bottomInset,
+      ),
       child: GlassContainer(
-        blurSigma: context.mdGlassBlurMedium,
+        blurSigma: context.mdGlassBlurSmall,
         borderRadius: BorderRadius.circular(context.mdRadiusLg),
         backgroundColor: navBg.withValues(
           alpha: context.isDarkMode ? 0.62 : 0.78,
         ),
         borderColor: borderColor,
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: items
@@ -1616,13 +1623,13 @@ class _BottomNav extends StatelessWidget {
                       Icon(
                         item.icon,
                         color: item.active ? _kPurple : inactiveColor,
-                        size: 26,
+                        size: 22,
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 1),
                       Text(
                         item.label,
                         style: TextStyle(
-                          fontSize: 10,
+                          fontSize: 8,
                           color: item.active ? _kPurple : inactiveColor,
                           fontWeight: item.active
                               ? FontWeight.bold

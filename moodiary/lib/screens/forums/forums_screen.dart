@@ -855,9 +855,11 @@ class _ForumsScreenState extends State<ForumsScreen> {
                   child: SizedBox(
                     width: double.infinity,
                     child: GlassContainer(
-                      blurSigma: context.mdGlassBlurMedium,
+                      blurSigma: context.mdGlassBlurSmall,
                       borderRadius: BorderRadius.circular(22),
-                      backgroundColor: context.mdGlassSurfaceStrong,
+                      backgroundColor: context.isDarkMode
+                          ? context.mdSurface.withValues(alpha: 0.88)
+                          : Colors.white.withValues(alpha: 0.86),
                       borderColor: context.mdGlassBorder,
                       padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
                       child: Column(
@@ -1149,7 +1151,12 @@ class _ForumListView extends StatelessWidget {
                   ),
                 )
               : ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 114),
+                  padding: EdgeInsets.fromLTRB(
+                    16,
+                    16,
+                    16,
+                    MediaQuery.of(context).padding.bottom + 140,
+                  ),
                   itemCount: posts.length,
                   itemBuilder: (ctx, i) {
                     return _PostCard(
@@ -1180,7 +1187,7 @@ class _ForumListView extends StatelessWidget {
         ),
         if (onCreatePost != null)
           Positioned(
-            bottom: 20,
+            bottom: MediaQuery.of(context).padding.bottom + 88,
             right: 16,
             child: SizedBox(
               width: 54,
@@ -1347,11 +1354,13 @@ class _ForumDetailViewState extends State<_ForumDetailView> {
           SafeArea(
             top: false,
             child: GlassContainer(
-              blurSigma: context.mdGlassBlurMedium,
+              blurSigma: context.mdGlassBlurSmall,
               borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(24),
               ),
-              backgroundColor: context.mdGlassSurfaceStrong,
+              backgroundColor: context.isDarkMode
+                  ? context.mdSurface.withValues(alpha: 0.9)
+                  : Colors.white.withValues(alpha: 0.88),
               borderColor: context.mdGlassBorder,
               margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
               padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
@@ -1461,17 +1470,21 @@ class _PostCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cardBrightness = ThemeData.estimateBrightnessForColor(post.cardColor);
+    final cardSurface = post.cardColor.withValues(
+      alpha: context.isDarkMode ? 0.44 : 0.74,
+    );
+    final cardBrightness = ThemeData.estimateBrightnessForColor(cardSurface);
     final onCardText = cardBrightness == Brightness.dark
-        ? Colors.white
+        ? Colors.white.withValues(alpha: 0.96)
         : const Color(0xFF1F2937);
     final onCardSubtle = cardBrightness == Brightness.dark
-        ? Colors.white70
+        ? Colors.white.withValues(alpha: 0.74)
         : const Color(0xFF6B7280);
-    final likeColor = post.likedByMe ? Colors.red : _kSubtle;
-    final cardSurface = post.cardColor.withValues(
-      alpha: context.isDarkMode ? 0.30 : 0.56,
-    );
+    final likeColor = post.likedByMe
+        ? Colors.red
+        : (cardBrightness == Brightness.dark
+              ? Colors.white.withValues(alpha: 0.75)
+              : _kSubtle);
     return TapScale(
       onTap: onTap,
       child: GlassContainer(
