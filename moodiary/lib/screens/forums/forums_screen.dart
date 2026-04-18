@@ -20,6 +20,7 @@ import '../../services/theme_controller.dart';
 import '../../theme/moodiary_colors.dart';
 import '../../utils/avatar_utils.dart';
 import '../../widgets/user_profile_popup.dart';
+import '../../widgets/glass.dart';
 
 const _kPurple = Color(0xFFA076F9);
 const _kSubtle = Color(0xFF8A8A8D);
@@ -1100,11 +1101,12 @@ class _ForumListView extends StatelessWidget {
     final secondaryText = context.mdSecondaryText;
     return Stack(
       children: [
-        Container(
-          decoration: BoxDecoration(
-            color: context.mdSurface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(40)),
-          ),
+        GlassContainer(
+          blurSigma: context.mdGlassBlurMedium,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(40)),
+          backgroundColor: context.mdGlassSurface,
+          borderColor: context.mdGlassBorder,
+          padding: EdgeInsets.zero,
           child: posts.isEmpty
               ? Center(
                   child: Column(
@@ -1267,13 +1269,13 @@ class _ForumDetailViewState extends State<_ForumDetailView> {
                 ),
                 const SizedBox(height: 10),
                 ...post.comments.map(
-                  (c) => Container(
+                  (c) => GlassContainer(
+                    blurSigma: context.mdGlassBlurSmall,
+                    borderRadius: BorderRadius.circular(14),
+                    backgroundColor: context.mdGlassSurface,
+                    borderColor: context.mdGlassBorder,
                     margin: const EdgeInsets.only(bottom: 10),
                     padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: context.mdSurface,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
                     child: Row(
                       children: [
                         CircleAvatar(
@@ -1351,28 +1353,31 @@ class _ForumDetailViewState extends State<_ForumDetailView> {
                             _commentCtrl.clear();
                             setState(() => _submittingComment = false);
                           },
-                    child: Container(
+                    child: SizedBox(
                       width: 44,
                       height: 44,
-                      decoration: const BoxDecoration(
-                        color: _kPurple,
-                        shape: BoxShape.circle,
-                      ),
-                      child: _submittingComment
-                          ? const Padding(
-                              padding: EdgeInsets.all(12),
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation(
-                                  Colors.white,
+                      child: GlassContainer(
+                        blurSigma: context.mdGlassBlurSmall,
+                        borderRadius: BorderRadius.circular(22),
+                        backgroundColor: _kPurple.withValues(alpha: 0.66),
+                        borderColor: context.mdGlassBorder,
+                        padding: EdgeInsets.zero,
+                        child: _submittingComment
+                            ? const Padding(
+                                padding: EdgeInsets.all(12),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation(
+                                    Colors.white,
+                                  ),
                                 ),
+                              )
+                            : const Icon(
+                                Icons.arrow_upward_rounded,
+                                color: Colors.white,
+                                size: 22,
                               ),
-                            )
-                          : const Icon(
-                              Icons.arrow_upward_rounded,
-                              color: Colors.white,
-                              size: 22,
-                            ),
+                      ),
                     ),
                   ),
                 ],
@@ -1420,15 +1425,18 @@ class _PostCard extends StatelessWidget {
         ? Colors.white70
         : const Color(0xFF6B7280);
     final likeColor = post.likedByMe ? Colors.red : _kSubtle;
+    final cardSurface = post.cardColor.withValues(
+      alpha: context.isDarkMode ? 0.30 : 0.56,
+    );
     return TapScale(
       onTap: onTap,
-      child: Container(
+      child: GlassContainer(
+        blurSigma: context.mdGlassBlurSmall,
+        borderRadius: BorderRadius.circular(18),
+        backgroundColor: cardSurface,
+        borderColor: context.mdGlassBorder,
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: post.cardColor,
-          borderRadius: BorderRadius.circular(18),
-        ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1616,11 +1624,12 @@ class _ForumEmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     final primaryText = context.mdPrimaryText;
     final secondaryText = context.mdSecondaryText;
-    return Container(
-      decoration: BoxDecoration(
-        color: context.mdSurface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(40)),
-      ),
+    return GlassContainer(
+      blurSigma: context.mdGlassBlurMedium,
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(40)),
+      backgroundColor: context.mdGlassSurface,
+      borderColor: context.mdGlassBorder,
+      padding: EdgeInsets.zero,
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,

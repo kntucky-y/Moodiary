@@ -131,6 +131,18 @@ class MoodiaryApp extends StatelessWidget {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
       ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: _glassButtonStyle(isDark: false),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: _glassButtonStyle(isDark: false),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: _glassButtonStyle(isDark: false, outlined: true),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: _glassTextButtonStyle(isDark: false),
+      ),
     );
   }
 
@@ -175,6 +187,95 @@ class MoodiaryApp extends StatelessWidget {
         ),
         surfaceTintColor: Colors.transparent,
         elevation: 0,
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: _glassButtonStyle(isDark: true),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: _glassButtonStyle(isDark: true),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: _glassButtonStyle(isDark: true, outlined: true),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: _glassTextButtonStyle(isDark: true),
+      ),
+    );
+  }
+
+  ButtonStyle _glassButtonStyle({required bool isDark, bool outlined = false}) {
+    final defaultBg = isDark
+        ? Colors.white.withValues(alpha: outlined ? 0.0 : 0.16)
+        : Colors.white.withValues(alpha: outlined ? 0.0 : 0.56);
+    final pressedBg = isDark
+        ? Colors.white.withValues(alpha: outlined ? 0.12 : 0.24)
+        : Colors.white.withValues(alpha: outlined ? 0.22 : 0.68);
+    final disabledBg = isDark
+        ? Colors.white.withValues(alpha: outlined ? 0.04 : 0.08)
+        : Colors.white.withValues(alpha: outlined ? 0.08 : 0.32);
+    final foreground = isDark ? Colors.white : const Color(0xFF1A1A2E);
+    final disabledFg = foreground.withValues(alpha: 0.42);
+    final border = isDark
+        ? Colors.white.withValues(alpha: 0.24)
+        : Colors.white.withValues(alpha: 0.46);
+
+    return ButtonStyle(
+      elevation: const WidgetStatePropertyAll(0),
+      shadowColor: const WidgetStatePropertyAll(Colors.transparent),
+      backgroundColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.disabled)) return disabledBg;
+        if (states.contains(WidgetState.pressed)) return pressedBg;
+        return defaultBg;
+      }),
+      foregroundColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.disabled)) return disabledFg;
+        return foreground;
+      }),
+      side: WidgetStateProperty.resolveWith((states) {
+        if (!outlined) {
+          return BorderSide(color: border);
+        }
+        if (states.contains(WidgetState.disabled)) {
+          return BorderSide(color: border.withValues(alpha: 0.4));
+        }
+        if (states.contains(WidgetState.pressed)) {
+          return BorderSide(color: border.withValues(alpha: 0.95));
+        }
+        return BorderSide(color: border);
+      }),
+      shape: WidgetStatePropertyAll(
+        RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      ),
+      padding: const WidgetStatePropertyAll(
+        EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      ),
+      overlayColor: WidgetStatePropertyAll(
+        isDark
+            ? Colors.white.withValues(alpha: 0.08)
+            : Colors.black.withValues(alpha: 0.05),
+      ),
+      textStyle: const WidgetStatePropertyAll(
+        TextStyle(fontWeight: FontWeight.w600, letterSpacing: 0.1),
+      ),
+    );
+  }
+
+  ButtonStyle _glassTextButtonStyle({required bool isDark}) {
+    final fg = isDark ? Colors.white : const Color(0xFF2A2144);
+    return ButtonStyle(
+      foregroundColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.disabled)) {
+          return fg.withValues(alpha: 0.42);
+        }
+        return fg;
+      }),
+      textStyle: const WidgetStatePropertyAll(
+        TextStyle(fontWeight: FontWeight.w600),
+      ),
+      overlayColor: WidgetStatePropertyAll(
+        isDark
+            ? Colors.white.withValues(alpha: 0.08)
+            : Colors.black.withValues(alpha: 0.05),
       ),
     );
   }

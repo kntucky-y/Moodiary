@@ -21,6 +21,7 @@ import '../../services/theme_controller.dart';
 import '../../theme/moodiary_colors.dart';
 import '../../utils/avatar_utils.dart';
 import '../../widgets/user_profile_popup.dart';
+import '../../widgets/glass.dart';
 import 'user_discovery_screen.dart';
 import 'friend_chat_screen.dart';
 
@@ -905,64 +906,58 @@ class _FriendsHeader extends StatelessWidget {
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
-        child: Container(
+        child: SizedBox(
           width: double.infinity,
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-          decoration: BoxDecoration(
-            color: context.mdSecondarySurface,
+          child: GlassContainer(
+            blurSigma: context.mdGlassBlurMedium,
             borderRadius: BorderRadius.circular(22),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  GestureDetector(
-                    onTap: onOpenSidebar,
-                    child: Icon(Icons.menu, color: primaryText),
-                  ),
-                  const Spacer(),
-                  Text(
-                    formatted,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: primaryText,
+            backgroundColor: context.mdGlassSurface,
+            borderColor: context.mdGlassBorder,
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    GestureDetector(
+                      onTap: onOpenSidebar,
+                      child: Icon(Icons.menu, color: primaryText),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Buddies',
-                style: TextStyle(
-                  fontSize: 30,
-                  fontWeight: FontWeight.bold,
-                  color: primaryText,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'See how your friends are feeling and give them support.',
-                style: TextStyle(color: secondaryText, fontSize: 13),
-              ),
-              const SizedBox(height: 14),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: onAddFriend,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: context.mdSurface,
-                    foregroundColor: _kPurple,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(50),
+                    const Spacer(),
+                    Text(
+                      formatted,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: primaryText,
+                      ),
                     ),
-                  ),
-                  icon: const Icon(Icons.person_add_alt_rounded),
-                  label: const Text('Find friends'),
+                  ],
                 ),
-              ),
-            ],
+                const SizedBox(height: 12),
+                Text(
+                  'Buddies',
+                  style: TextStyle(
+                    fontSize: 30,
+                    fontWeight: FontWeight.bold,
+                    color: primaryText,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'See how your friends are feeling and give them support.',
+                  style: TextStyle(color: secondaryText, fontSize: 13),
+                ),
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: onAddFriend,
+                    icon: const Icon(Icons.person_add_alt_rounded),
+                    label: const Text('Find friends'),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -987,13 +982,13 @@ class _FriendCard extends StatelessWidget {
     final secondaryText = context.mdSecondaryText;
     return GestureDetector(
       onTap: onTap,
-      child: Container(
+      child: GlassContainer(
+        blurSigma: context.mdGlassBlurMedium,
+        borderRadius: BorderRadius.circular(18),
+        backgroundColor: context.mdGlassSurface,
+        borderColor: context.mdGlassBorder,
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: context.mdSecondarySurface,
-          borderRadius: BorderRadius.circular(18),
-        ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1028,16 +1023,18 @@ class _FriendCard extends StatelessWidget {
                       friend.partnerStatus == 'pendingIncoming')
                     Padding(
                       padding: const EdgeInsets.only(top: 6),
-                      child: Container(
+                      child: GlassContainer(
+                        blurSigma: context.mdGlassBlurSmall,
+                        borderRadius: BorderRadius.circular(999),
+                        backgroundColor: const Color(
+                          0xFFEAB6FF,
+                        ).withValues(alpha: 0.22),
+                        borderColor: const Color(
+                          0xFFB48BEF,
+                        ).withValues(alpha: 0.5),
                         padding: const EdgeInsets.symmetric(
                           horizontal: 10,
                           vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(
-                            0xFFEAB6FF,
-                          ).withValues(alpha: 0.25),
-                          borderRadius: BorderRadius.circular(999),
                         ),
                         child: Text(
                           friend.relationshipRole == 'partner'
@@ -1054,14 +1051,14 @@ class _FriendCard extends StatelessWidget {
                   const SizedBox(height: 8),
                   if (friend.currentMoodLabel != null &&
                       friend.currentMoodAsset != null)
-                    Container(
+                    GlassContainer(
+                      blurSigma: context.mdGlassBlurSmall,
+                      borderRadius: BorderRadius.circular(999),
+                      backgroundColor: _kPurple.withValues(alpha: 0.16),
+                      borderColor: _kPurple.withValues(alpha: 0.28),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 10,
                         vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _kPurple.withValues(alpha: 0.10),
-                        borderRadius: BorderRadius.circular(999),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -1172,13 +1169,13 @@ class _RequestSection extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         ...requests.map(
-          (req) => Container(
+          (req) => GlassContainer(
+            blurSigma: context.mdGlassBlurMedium,
+            borderRadius: BorderRadius.circular(16),
+            backgroundColor: context.mdGlassSurface,
+            borderColor: context.mdGlassBorder,
             margin: const EdgeInsets.only(bottom: 8),
             padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: context.mdSecondarySurface,
-              borderRadius: BorderRadius.circular(16),
-            ),
             child: Row(
               children: [
                 Expanded(
@@ -1298,15 +1295,8 @@ class _AddFriendSheetState extends State<_AddFriendSheet> {
           const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
-            child: ElevatedButton(
+            child: FilledButton(
               onPressed: _sending ? null : _submit,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _kPurple,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(50),
-                ),
-              ),
               child: _sending
                   ? const SizedBox(
                       width: 20,
@@ -1333,12 +1323,12 @@ class _EmptyFriends extends StatelessWidget {
   Widget build(BuildContext context) {
     final primaryText = context.mdPrimaryText;
     final secondaryText = context.mdSecondaryText;
-    return Container(
+    return GlassContainer(
+      blurSigma: context.mdGlassBlurMedium,
+      borderRadius: BorderRadius.circular(18),
+      backgroundColor: context.mdGlassSurface,
+      borderColor: context.mdGlassBorder,
       padding: const EdgeInsets.symmetric(vertical: 24),
-      decoration: BoxDecoration(
-        color: context.mdSecondarySurface,
-        borderRadius: BorderRadius.circular(18),
-      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [

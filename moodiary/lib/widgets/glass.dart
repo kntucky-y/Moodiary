@@ -32,6 +32,14 @@ class GlassContainer extends StatelessWidget {
   Widget build(BuildContext context) {
     final resolvedRadius =
         borderRadius ?? BorderRadius.circular(context.mdRadiusLg);
+    final baseColor = backgroundColor ?? context.mdGlassSurface;
+    final baseBorder = borderColor ?? context.mdGlassBorder;
+    final overlayTop = context.mdGlassHighlight.withValues(
+      alpha: context.isDarkMode ? 0.18 : 0.26,
+    );
+    final overlayBottom = Colors.white.withValues(
+      alpha: context.isDarkMode ? 0.03 : 0.10,
+    );
 
     return Container(
       margin: margin,
@@ -41,15 +49,38 @@ class GlassContainer extends StatelessWidget {
           filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
           child: DecoratedBox(
             decoration: BoxDecoration(
-              color: backgroundColor ?? context.mdGlassSurface,
+              color: baseColor,
               gradient: gradient,
               borderRadius: resolvedRadius,
-              border: Border.all(color: borderColor ?? context.mdGlassBorder),
+              border: Border.all(color: baseBorder),
               boxShadow: shadows ?? context.mdGlassShadows,
             ),
-            child: Padding(
-              padding: padding ?? const EdgeInsets.all(16),
-              child: child,
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        borderRadius: resolvedRadius,
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            overlayTop,
+                            Colors.transparent,
+                            overlayBottom,
+                          ],
+                          stops: const [0.0, 0.56, 1.0],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: padding ?? const EdgeInsets.all(16),
+                  child: child,
+                ),
+              ],
             ),
           ),
         ),

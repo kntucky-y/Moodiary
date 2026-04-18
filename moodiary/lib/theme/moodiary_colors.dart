@@ -22,22 +22,36 @@ extension MoodiaryColors on BuildContext {
   Color get mdAccentPurple => const Color(0xFFA076F9);
 
   Color get mdGlassSurface => isDarkMode
-      ? Colors.white.withValues(alpha: 0.08)
-      : Colors.white.withValues(alpha: 0.68);
+      ? Colors.white.withValues(alpha: 0.10)
+      : Colors.white.withValues(alpha: 0.42);
   Color get mdGlassSurfaceStrong => isDarkMode
-      ? Colors.white.withValues(alpha: 0.12)
-      : Colors.white.withValues(alpha: 0.82);
+      ? Colors.white.withValues(alpha: 0.16)
+      : Colors.white.withValues(alpha: 0.60);
   Color get mdGlassBorder => isDarkMode
-      ? Colors.white.withValues(alpha: 0.2)
-      : Colors.white.withValues(alpha: 0.75);
+      ? Colors.white.withValues(alpha: 0.24)
+      : Colors.white.withValues(alpha: 0.46);
   Color get mdGlassHighlight => isDarkMode
-      ? Colors.white.withValues(alpha: 0.08)
-      : Colors.white.withValues(alpha: 0.35);
+      ? Colors.white.withValues(alpha: 0.14)
+      : Colors.white.withValues(alpha: 0.24);
   Color get mdOverlayBarrier => isDarkMode
       ? Colors.black.withValues(alpha: 0.5)
       : Colors.black.withValues(alpha: 0.24);
 
-  double get mdGlassBlurMedium => 14;
+  double get mdGlassBlurSmall => 8;
+  double get mdGlassBlurMedium => 18;
+  double get mdGlassBlurLarge => 24;
+
+  Color get mdGlassButtonSurface => isDarkMode
+      ? Colors.white.withValues(alpha: 0.16)
+      : Colors.white.withValues(alpha: 0.54);
+  Color get mdGlassButtonPressedSurface => isDarkMode
+      ? Colors.white.withValues(alpha: 0.24)
+      : Colors.white.withValues(alpha: 0.66);
+  Color get mdGlassButtonDisabledSurface => isDarkMode
+      ? Colors.white.withValues(alpha: 0.08)
+      : Colors.white.withValues(alpha: 0.32);
+  Color get mdGlassButtonForeground =>
+      isDarkMode ? Colors.white : const Color(0xFF1A1A2E);
   double get mdRadiusSm => 12;
   double get mdRadiusMd => 16;
   double get mdRadiusLg => 20;

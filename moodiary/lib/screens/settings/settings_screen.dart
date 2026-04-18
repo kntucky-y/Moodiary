@@ -3,7 +3,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../services/local_notifications_service.dart';
 import '../../services/theme_controller.dart';
+import '../../theme/moodiary_colors.dart';
 import '../../utils/transitions.dart';
+import '../../widgets/glass.dart';
 import '../companion/companion_screen.dart';
 import '../account/account_management_screen.dart';
 import '../notifications/notifications_screen.dart';
@@ -162,8 +164,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
         children: [
           _SectionHeader(label: 'Appearance'),
-          Card(
-            clipBehavior: Clip.antiAlias,
+          GlassContainer(
+            blurSigma: context.mdGlassBlurMedium,
+            borderRadius: BorderRadius.circular(20),
+            backgroundColor: context.mdGlassSurface,
+            borderColor: context.mdGlassBorder,
+            padding: EdgeInsets.zero,
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -200,7 +206,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 24),
           _SectionHeader(label: 'Notifications'),
-          Card(
+          GlassContainer(
+            blurSigma: context.mdGlassBlurMedium,
+            borderRadius: BorderRadius.circular(20),
+            backgroundColor: context.mdGlassSurface,
+            borderColor: context.mdGlassBorder,
+            padding: EdgeInsets.zero,
             child: Column(
               children: [
                 SwitchListTile.adaptive(
@@ -223,7 +234,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 24),
           _SectionHeader(label: 'Account'),
-          Card(
+          GlassContainer(
+            blurSigma: context.mdGlassBlurMedium,
+            borderRadius: BorderRadius.circular(20),
+            backgroundColor: context.mdGlassSurface,
+            borderColor: context.mdGlassBorder,
+            padding: EdgeInsets.zero,
             child: Column(
               children: [
                 ListTile(
@@ -254,7 +270,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 24),
           _SectionHeader(label: 'Companion & Data'),
-          Card(
+          GlassContainer(
+            blurSigma: context.mdGlassBlurMedium,
+            borderRadius: BorderRadius.circular(20),
+            backgroundColor: context.mdGlassSurface,
+            borderColor: context.mdGlassBorder,
+            padding: EdgeInsets.zero,
             child: Column(
               children: [
                 ListTile(
@@ -284,7 +305,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 24),
           _SectionHeader(label: 'About'),
-          Card(
+          GlassContainer(
+            blurSigma: context.mdGlassBlurMedium,
+            borderRadius: BorderRadius.circular(20),
+            backgroundColor: context.mdGlassSurface,
+            borderColor: context.mdGlassBorder,
+            padding: EdgeInsets.zero,
             child: Column(
               children: [
                 ListTile(
