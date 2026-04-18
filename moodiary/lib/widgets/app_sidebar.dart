@@ -145,26 +145,15 @@ class AppSidebar extends StatelessWidget {
                           label: 'Change Companion',
                           onTap: onChangeCompanion!,
                         ),
+                      if (onLogout != null)
+                        _buildActionItem(
+                          icon: Icons.logout,
+                          label: 'Logout',
+                          onTap: () => _confirmAndLogout(context),
+                        ),
                     ],
                   ),
                 ),
-                if (onLogout != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: TapScale(
-                      onTap: () => _handleTap(onLogout!),
-                      child: Row(
-                        children: [
-                          Icon(Icons.logout, color: subtleText, size: 22),
-                          const SizedBox(width: 12),
-                          Text(
-                            'Logout',
-                            style: TextStyle(color: subtleText, fontSize: 16),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
               ],
             ),
           );
@@ -210,6 +199,34 @@ class AppSidebar extends StatelessWidget {
   void _handleTap(VoidCallback action) {
     onClose();
     action();
+  }
+
+  Future<void> _confirmAndLogout(BuildContext context) async {
+    if (onLogout == null) return;
+    final shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Log out?'),
+          content: const Text(
+            'Are you sure you want to log out? You can sign in again anytime.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Log out'),
+            ),
+          ],
+        );
+      },
+    );
+    if (shouldLogout == true) {
+      _handleTap(onLogout!);
+    }
   }
 }
 
