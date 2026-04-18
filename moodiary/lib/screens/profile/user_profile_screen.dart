@@ -37,6 +37,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   late String _userId;
   late String _authToken;
   bool _sidebarOpen = false;
+  bool _headerCollapsed = false;
   bool _isEditing = false;
   String _currentUserName = 'Friend';
   int _companionId = 1;
@@ -351,6 +352,14 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     return '${weekdays[now.weekday - 1]}, ${months[now.month - 1]} ${now.day}';
   }
 
+  bool _onScrollNotification(ScrollNotification notification) {
+    final collapsed = notification.metrics.pixels > 18;
+    if (collapsed != _headerCollapsed) {
+      setState(() => _headerCollapsed = collapsed);
+    }
+    return false;
+  }
+
   Widget _buildProfileHeader(BuildContext context) {
     final primaryText = context.mdPrimaryText;
     final secondaryText = context.mdSecondaryText;
@@ -397,28 +406,45 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'User Profile',
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: primaryText,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Your mood summary, MBTI progress, and account details.',
-                    style: TextStyle(
-                      color: secondaryText,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
+                AnimatedSize(
+                  duration: const Duration(milliseconds: 260),
+                  curve: Curves.easeOutCubic,
+                  child: _headerCollapsed
+                      ? const SizedBox.shrink()
+                      : AnimatedOpacity(
+                          duration: const Duration(milliseconds: 220),
+                          opacity: _headerCollapsed ? 0 : 1,
+                          child: Column(
+                            children: [
+                              const SizedBox(height: 8),
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  'User Profile',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .headlineMedium
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.w700,
+                                        color: primaryText,
+                                      ),
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  'Your mood summary, MBTI progress, and account details.',
+                                  style: TextStyle(
+                                    color: secondaryText,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                 ),
               ],
             ),
@@ -503,617 +529,627 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
                     return Stack(
                       children: [
-                        SingleChildScrollView(
-                          padding: const EdgeInsets.fromLTRB(14, 14, 14, 128),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              SizedBox(
-                                width: double.infinity,
-                                child: GlassContainer(
-                                  blurSigma: context.mdGlassBlurMedium,
-                                  borderRadius: BorderRadius.circular(16),
-                                  backgroundColor: context.mdGlassSurface,
-                                  borderColor: context.mdGlassBorder,
-                                  padding: const EdgeInsets.all(16),
-                                  child: Column(
-                                    children: [
-                                      Stack(
-                                        children: [
-                                          CircleAvatar(
-                                            radius: 48,
-                                            backgroundImage:
-                                                avatarImageProvider(
-                                                  displayedAvatarUrl,
-                                                ),
-                                            child:
-                                                avatarImageProvider(
-                                                      displayedAvatarUrl,
-                                                    ) ==
-                                                    null
-                                                ? const Icon(
-                                                    Icons.person,
-                                                    size: 44,
-                                                  )
-                                                : null,
-                                          ),
-                                          if (_isEditing)
-                                            Positioned(
-                                              right: -2,
-                                              bottom: -2,
-                                              child: InkWell(
-                                                onTap: _pickAvatarImage,
-                                                child: Container(
-                                                  padding: const EdgeInsets.all(
-                                                    6,
+                        NotificationListener<ScrollNotification>(
+                          onNotification: _onScrollNotification,
+                          child: SingleChildScrollView(
+                            padding: const EdgeInsets.fromLTRB(14, 14, 14, 128),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: GlassContainer(
+                                    blurSigma: context.mdGlassBlurMedium,
+                                    borderRadius: BorderRadius.circular(16),
+                                    backgroundColor: context.mdGlassSurface,
+                                    borderColor: context.mdGlassBorder,
+                                    padding: const EdgeInsets.all(16),
+                                    child: Column(
+                                      children: [
+                                        Stack(
+                                          children: [
+                                            CircleAvatar(
+                                              radius: 48,
+                                              backgroundImage:
+                                                  avatarImageProvider(
+                                                    displayedAvatarUrl,
                                                   ),
-                                                  decoration: BoxDecoration(
-                                                    color: cs.primary,
-                                                    shape: BoxShape.circle,
-                                                  ),
-                                                  child: Icon(
-                                                    Icons.photo_camera_outlined,
-                                                    size: 16,
-                                                    color: cs.onPrimary,
-                                                  ),
-                                                ),
-                                              ),
+                                              child:
+                                                  avatarImageProvider(
+                                                        displayedAvatarUrl,
+                                                      ) ==
+                                                      null
+                                                  ? const Icon(
+                                                      Icons.person,
+                                                      size: 44,
+                                                    )
+                                                  : null,
                                             ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 10),
-                                      Text(
-                                        (userData['name'] as String? ?? 'NAME')
-                                            .toUpperCase(),
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .titleSmall
-                                            ?.copyWith(
-                                              fontWeight: FontWeight.w800,
-                                            ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: GlassContainer(
-                                      blurSigma: context.mdGlassBlurMedium,
-                                      borderRadius: BorderRadius.circular(12),
-                                      backgroundColor: context.mdGlassSurface,
-                                      borderColor: context.mdGlassBorder,
-                                      padding: const EdgeInsets.all(12),
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            'WHAT I\'M FEELING RIGHT NOW...',
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .labelSmall
-                                                ?.copyWith(
-                                                  fontWeight: FontWeight.w700,
-                                                ),
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Row(
-                                            children: [
-                                              _MoodMini(
-                                                asset: _currentMoodAsset,
-                                              ),
-                                              const SizedBox(width: 8),
-                                              Expanded(
-                                                child: Text(
-                                                  _currentMoodLabel,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                  style: Theme.of(context)
-                                                      .textTheme
-                                                      .bodyMedium
-                                                      ?.copyWith(
-                                                        fontWeight:
-                                                            FontWeight.w700,
-                                                      ),
+                                            if (_isEditing)
+                                              Positioned(
+                                                right: -2,
+                                                bottom: -2,
+                                                child: InkWell(
+                                                  onTap: _pickAvatarImage,
+                                                  child: Container(
+                                                    padding:
+                                                        const EdgeInsets.all(6),
+                                                    decoration: BoxDecoration(
+                                                      color: cs.primary,
+                                                      shape: BoxShape.circle,
+                                                    ),
+                                                    child: Icon(
+                                                      Icons
+                                                          .photo_camera_outlined,
+                                                      size: 16,
+                                                      color: cs.onPrimary,
+                                                    ),
+                                                  ),
                                                 ),
                                               ),
-                                            ],
-                                          ),
-                                        ],
-                                      ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 10),
+                                        Text(
+                                          (userData['name'] as String? ??
+                                                  'NAME')
+                                              .toUpperCase(),
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .titleSmall
+                                              ?.copyWith(
+                                                fontWeight: FontWeight.w800,
+                                              ),
+                                        ),
+                                      ],
                                     ),
                                   ),
-                                  const SizedBox(width: 10),
-                                  SizedBox(
-                                    width: 120,
-                                    child: GlassContainer(
-                                      blurSigma: context.mdGlassBlurMedium,
-                                      borderRadius: BorderRadius.circular(12),
-                                      backgroundColor: context.mdGlassSurface,
-                                      borderColor: context.mdGlassBorder,
-                                      padding: const EdgeInsets.all(12),
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            'Mood Score',
+                                ),
+                                const SizedBox(height: 12),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: GlassContainer(
+                                        blurSigma: context.mdGlassBlurMedium,
+                                        borderRadius: BorderRadius.circular(12),
+                                        backgroundColor: context.mdGlassSurface,
+                                        borderColor: context.mdGlassBorder,
+                                        padding: const EdgeInsets.all(12),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              'WHAT I\'M FEELING RIGHT NOW...',
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .labelSmall
+                                                  ?.copyWith(
+                                                    fontWeight: FontWeight.w700,
+                                                  ),
+                                            ),
+                                            const SizedBox(height: 8),
+                                            Row(
+                                              children: [
+                                                _MoodMini(
+                                                  asset: _currentMoodAsset,
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Expanded(
+                                                  child: Text(
+                                                    _currentMoodLabel,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                    style: Theme.of(context)
+                                                        .textTheme
+                                                        .bodyMedium
+                                                        ?.copyWith(
+                                                          fontWeight:
+                                                              FontWeight.w700,
+                                                        ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    SizedBox(
+                                      width: 120,
+                                      child: GlassContainer(
+                                        blurSigma: context.mdGlassBlurMedium,
+                                        borderRadius: BorderRadius.circular(12),
+                                        backgroundColor: context.mdGlassSurface,
+                                        borderColor: context.mdGlassBorder,
+                                        padding: const EdgeInsets.all(12),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              'Mood Score',
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .labelSmall
+                                                  ?.copyWith(
+                                                    fontWeight: FontWeight.w700,
+                                                  ),
+                                            ),
+                                            const SizedBox(height: 6),
+                                            Text(
+                                              '$_todayMoodScore',
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .headlineMedium
+                                                  ?.copyWith(
+                                                    fontWeight: FontWeight.w900,
+                                                    color: cs.primary,
+                                                  ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 10),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: GlassContainer(
+                                    blurSigma: context.mdGlassBlurMedium,
+                                    borderRadius: BorderRadius.circular(12),
+                                    backgroundColor: context.mdGlassSurface,
+                                    borderColor: context.mdGlassBorder,
+                                    padding: const EdgeInsets.all(12),
+                                    child: Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.local_fire_department_rounded,
+                                          color: Color(0xFFEA580C),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Expanded(
+                                          child: Text(
+                                            'Current streak: $_streakCount ${_streakCount == 1 ? 'day' : 'days'}',
                                             style: Theme.of(context)
                                                 .textTheme
-                                                .labelSmall
+                                                .bodyMedium
                                                 ?.copyWith(
                                                   fontWeight: FontWeight.w700,
                                                 ),
                                           ),
-                                          const SizedBox(height: 6),
-                                          Text(
-                                            '$_todayMoodScore',
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .headlineMedium
-                                                ?.copyWith(
-                                                  fontWeight: FontWeight.w900,
-                                                  color: cs.primary,
-                                                ),
-                                          ),
-                                        ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                if (partner != null) ...[
+                                  const SizedBox(height: 10),
+                                  Material(
+                                    color: cs.surfaceContainer,
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: InkWell(
+                                      borderRadius: BorderRadius.circular(12),
+                                      onTap: () async {
+                                        final partnerId = partner['id']
+                                            ?.toString();
+                                        if (partnerId == null ||
+                                            partnerId.isEmpty) {
+                                          return;
+                                        }
+                                        await showUserProfilePopup(
+                                          context,
+                                          userId: partnerId,
+                                        );
+                                      },
+                                      child: Container(
+                                        width: double.infinity,
+                                        padding: const EdgeInsets.all(12),
+                                        child: Row(
+                                          children: [
+                                            CircleAvatar(
+                                              radius: 18,
+                                              backgroundImage:
+                                                  avatarImageProvider(
+                                                    partner['avatarUrl']
+                                                        as String?,
+                                                  ),
+                                              child:
+                                                  avatarImageProvider(
+                                                        partner['avatarUrl']
+                                                            as String?,
+                                                      ) ==
+                                                      null
+                                                  ? const Icon(
+                                                      Icons.favorite_outline,
+                                                    )
+                                                  : null,
+                                            ),
+                                            const SizedBox(width: 10),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    'Partner',
+                                                    style: Theme.of(context)
+                                                        .textTheme
+                                                        .labelSmall
+                                                        ?.copyWith(
+                                                          fontWeight:
+                                                              FontWeight.w700,
+                                                        ),
+                                                  ),
+                                                  const SizedBox(height: 2),
+                                                  Text(
+                                                    (partner['name']
+                                                            as String?) ??
+                                                        'Partner',
+                                                    style: Theme.of(context)
+                                                        .textTheme
+                                                        .bodyMedium
+                                                        ?.copyWith(
+                                                          fontWeight:
+                                                              FontWeight.w800,
+                                                        ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            const Icon(
+                                              Icons.chevron_right_rounded,
+                                              color: Color(0xFFEC4899),
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     ),
                                   ),
                                 ],
-                              ),
-                              const SizedBox(height: 10),
-                              SizedBox(
-                                width: double.infinity,
-                                child: GlassContainer(
+                                const SizedBox(height: 10),
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: cs.surfaceContainer,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          const Icon(Icons.psychology_outlined),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            'MBTI Personality',
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .labelLarge
+                                                ?.copyWith(
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        (userData['mbtiLatestType']
+                                                as String?) ??
+                                            'No MBTI result yet',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleMedium
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Align(
+                                        alignment: Alignment.centerLeft,
+                                        child: OutlinedButton(
+                                          onPressed: () async {
+                                            final completed =
+                                                await Navigator.of(
+                                                  context,
+                                                ).push<bool>(
+                                                  FadeSlideRoute(
+                                                    page: MbtiTestScreen(
+                                                      userName:
+                                                          _currentUserName,
+                                                    ),
+                                                  ),
+                                                );
+                                            if (completed == true && mounted) {
+                                              await _refreshProfileBundleInBackground();
+                                            }
+                                          },
+                                          child: Text(
+                                            (userData['mbtiLatestType']
+                                                        as String?) ==
+                                                    null
+                                                ? 'Take MBTI Test'
+                                                : 'Retake MBTI Test',
+                                          ),
+                                        ),
+                                      ),
+                                      if (mbtiHistory.isNotEmpty) ...[
+                                        const SizedBox(height: 10),
+                                        Text(
+                                          'Recent MBTI results',
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .labelMedium
+                                              ?.copyWith(
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        ...mbtiHistory.map((entry) {
+                                          final type =
+                                              (entry['mbtiType'] as String?) ??
+                                              'N/A';
+                                          final createdAt =
+                                              (entry['createdAt'] as String?) ??
+                                              '';
+                                          final dateText = createdAt.isEmpty
+                                              ? ''
+                                              : createdAt.split('T').first;
+                                          return Padding(
+                                            padding: const EdgeInsets.only(
+                                              bottom: 4,
+                                            ),
+                                            child: Text(
+                                              dateText.isEmpty
+                                                  ? type
+                                                  : '$type • $dateText',
+                                              style: Theme.of(
+                                                context,
+                                              ).textTheme.bodySmall,
+                                            ),
+                                          );
+                                        }),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: cs.surfaceContainer,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          const Icon(
+                                            Icons.calendar_month_outlined,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            'Calendar Preview',
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .labelLarge
+                                                ?.copyWith(
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'Today: $_currentMoodLabel',
+                                        style: Theme.of(
+                                          context,
+                                        ).textTheme.bodyMedium,
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Mood score: $_todayMoodScore • Streak: $_streakCount ${_streakCount == 1 ? 'day' : 'days'}',
+                                        style: Theme.of(
+                                          context,
+                                        ).textTheme.bodySmall,
+                                      ),
+                                      const SizedBox(height: 10),
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: OutlinedButton(
+                                              onPressed: () => _openScreen(
+                                                CalendarScreen(
+                                                  userName: _currentUserName,
+                                                  companionId: _companionId,
+                                                  companionName: _companionName,
+                                                ),
+                                              ),
+                                              child: const Text(
+                                                'Open Calendar',
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 10),
+                                          Expanded(
+                                            child: OutlinedButton(
+                                              onPressed: () => _openScreen(
+                                                JournalScreen(
+                                                  userName: _currentUserName,
+                                                  companionId: _companionId,
+                                                  companionName: _companionName,
+                                                ),
+                                              ),
+                                              child: const Text('Open Journal'),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                Text(
+                                  'Public Posts (Forums)',
+                                  style: Theme.of(context).textTheme.titleMedium
+                                      ?.copyWith(fontWeight: FontWeight.w800),
+                                ),
+                                const SizedBox(height: 8),
+                                if (posts.isEmpty)
+                                  const _SimpleInfoCard(
+                                    title: 'Posts',
+                                    subtitle: 'No public forum posts yet.',
+                                    leading: Icons.chat_bubble_outline,
+                                  )
+                                else
+                                  ...posts.map(
+                                    (p) => _SimpleInfoCard(
+                                      title:
+                                          (p['title'] as String?) ??
+                                          'Untitled Post',
+                                      subtitle: (p['content'] as String?) ?? '',
+                                      leading: Icons.forum_outlined,
+                                    ),
+                                  ),
+                                const SizedBox(height: 14),
+                                Text(
+                                  'Name',
+                                  style: Theme.of(context).textTheme.titleSmall,
+                                ),
+                                const SizedBox(height: 8),
+                                if (_isEditing)
+                                  TextField(
+                                    controller: _nameController,
+                                    decoration: InputDecoration(
+                                      hintText: 'Your name',
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                  )
+                                else
+                                  GlassContainer(
+                                    blurSigma: context.mdGlassBlurMedium,
+                                    borderRadius: BorderRadius.circular(14),
+                                    backgroundColor: context.mdGlassSurface,
+                                    borderColor: context.mdGlassBorder,
+                                    padding: const EdgeInsets.all(12),
+                                    child: Text(
+                                      userData['name'] as String? ?? 'N/A',
+                                    ),
+                                  ),
+                                const SizedBox(height: 20),
+                                Text(
+                                  'Email',
+                                  style: Theme.of(context).textTheme.titleSmall,
+                                ),
+                                const SizedBox(height: 8),
+                                if (_isEditing)
+                                  TextField(
+                                    controller: _emailController,
+                                    decoration: InputDecoration(
+                                      hintText: 'your.email@example.com',
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                  )
+                                else
+                                  GlassContainer(
+                                    blurSigma: context.mdGlassBlurMedium,
+                                    borderRadius: BorderRadius.circular(14),
+                                    backgroundColor: context.mdGlassSurface,
+                                    borderColor: context.mdGlassBorder,
+                                    padding: const EdgeInsets.all(12),
+                                    child: Text(
+                                      userData['email'] as String? ?? 'N/A',
+                                    ),
+                                  ),
+                                const SizedBox(height: 20),
+                                Text(
+                                  'Bio',
+                                  style: Theme.of(context).textTheme.titleSmall,
+                                ),
+                                const SizedBox(height: 8),
+                                if (_isEditing)
+                                  TextField(
+                                    controller: _bioController,
+                                    maxLines: 4,
+                                    maxLength: 500,
+                                    keyboardType: TextInputType.multiline,
+                                    decoration: InputDecoration(
+                                      hintText:
+                                          'Tell us about yourself... Emojis are welcome 😊',
+                                      helperText:
+                                          'You can use emojis in your bio.',
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                  )
+                                else
+                                  GlassContainer(
+                                    blurSigma: context.mdGlassBlurMedium,
+                                    borderRadius: BorderRadius.circular(14),
+                                    backgroundColor: context.mdGlassSurface,
+                                    borderColor: context.mdGlassBorder,
+                                    padding: const EdgeInsets.all(12),
+                                    child: Text(
+                                      userData['bio'] as String? ?? 'No bio',
+                                      style: TextStyle(
+                                        color: Theme.of(
+                                          context,
+                                        ).textTheme.bodyMedium?.color,
+                                      ),
+                                    ),
+                                  ),
+                                const SizedBox(height: 20),
+                                GlassContainer(
                                   blurSigma: context.mdGlassBlurMedium,
-                                  borderRadius: BorderRadius.circular(12),
+                                  borderRadius: BorderRadius.circular(14),
                                   backgroundColor: context.mdGlassSurface,
                                   borderColor: context.mdGlassBorder,
                                   padding: const EdgeInsets.all(12),
                                   child: Row(
                                     children: [
-                                      const Icon(
-                                        Icons.local_fire_department_rounded,
-                                        color: Color(0xFFEA580C),
-                                      ),
-                                      const SizedBox(width: 10),
-                                      Expanded(
-                                        child: Text(
-                                          'Current streak: $_streakCount ${_streakCount == 1 ? 'day' : 'days'}',
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .bodyMedium
-                                              ?.copyWith(
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              if (partner != null) ...[
-                                const SizedBox(height: 10),
-                                Material(
-                                  color: cs.surfaceContainer,
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: InkWell(
-                                    borderRadius: BorderRadius.circular(12),
-                                    onTap: () async {
-                                      final partnerId = partner['id']
-                                          ?.toString();
-                                      if (partnerId == null ||
-                                          partnerId.isEmpty) {
-                                        return;
-                                      }
-                                      await showUserProfilePopup(
-                                        context,
-                                        userId: partnerId,
-                                      );
-                                    },
-                                    child: Container(
-                                      width: double.infinity,
-                                      padding: const EdgeInsets.all(12),
-                                      child: Row(
+                                      const Icon(Icons.calendar_today),
+                                      const SizedBox(width: 12),
+                                      Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
-                                          CircleAvatar(
-                                            radius: 18,
-                                            backgroundImage:
-                                                avatarImageProvider(
-                                                  partner['avatarUrl']
-                                                      as String?,
-                                                ),
-                                            child:
-                                                avatarImageProvider(
-                                                      partner['avatarUrl']
-                                                          as String?,
-                                                    ) ==
-                                                    null
-                                                ? const Icon(
-                                                    Icons.favorite_outline,
-                                                  )
-                                                : null,
-                                          ),
-                                          const SizedBox(width: 10),
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  'Partner',
-                                                  style: Theme.of(context)
-                                                      .textTheme
-                                                      .labelSmall
-                                                      ?.copyWith(
-                                                        fontWeight:
-                                                            FontWeight.w700,
-                                                      ),
-                                                ),
-                                                const SizedBox(height: 2),
-                                                Text(
-                                                  (partner['name']
-                                                          as String?) ??
-                                                      'Partner',
-                                                  style: Theme.of(context)
-                                                      .textTheme
-                                                      .bodyMedium
-                                                      ?.copyWith(
-                                                        fontWeight:
-                                                            FontWeight.w800,
-                                                      ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                          const Icon(
-                                            Icons.chevron_right_rounded,
-                                            color: Color(0xFFEC4899),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                              const SizedBox(height: 10),
-                              Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: cs.surfaceContainer,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        const Icon(Icons.psychology_outlined),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          'MBTI Personality',
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .labelLarge
-                                              ?.copyWith(
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 6),
-                                    Text(
-                                      (userData['mbtiLatestType'] as String?) ??
-                                          'No MBTI result yet',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleMedium
-                                          ?.copyWith(
-                                            fontWeight: FontWeight.w800,
-                                          ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Align(
-                                      alignment: Alignment.centerLeft,
-                                      child: OutlinedButton(
-                                        onPressed: () async {
-                                          final completed =
-                                              await Navigator.of(
-                                                context,
-                                              ).push<bool>(
-                                                FadeSlideRoute(
-                                                  page: MbtiTestScreen(
-                                                    userName: _currentUserName,
-                                                  ),
-                                                ),
-                                              );
-                                          if (completed == true && mounted) {
-                                            await _refreshProfileBundleInBackground();
-                                          }
-                                        },
-                                        child: Text(
-                                          (userData['mbtiLatestType']
-                                                      as String?) ==
-                                                  null
-                                              ? 'Take MBTI Test'
-                                              : 'Retake MBTI Test',
-                                        ),
-                                      ),
-                                    ),
-                                    if (mbtiHistory.isNotEmpty) ...[
-                                      const SizedBox(height: 10),
-                                      Text(
-                                        'Recent MBTI results',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .labelMedium
-                                            ?.copyWith(
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                      ),
-                                      const SizedBox(height: 6),
-                                      ...mbtiHistory.map((entry) {
-                                        final type =
-                                            (entry['mbtiType'] as String?) ??
-                                            'N/A';
-                                        final createdAt =
-                                            (entry['createdAt'] as String?) ??
-                                            '';
-                                        final dateText = createdAt.isEmpty
-                                            ? ''
-                                            : createdAt.split('T').first;
-                                        return Padding(
-                                          padding: const EdgeInsets.only(
-                                            bottom: 4,
-                                          ),
-                                          child: Text(
-                                            dateText.isEmpty
-                                                ? type
-                                                : '$type • $dateText',
+                                          Text(
+                                            'Member Since',
                                             style: Theme.of(
                                               context,
                                             ).textTheme.bodySmall,
                                           ),
-                                        );
-                                      }),
+                                          Text(
+                                            userData['createdAt'] != null
+                                                ? DateTime.parse(
+                                                    userData['createdAt']
+                                                        as String,
+                                                  ).toString().split(' ')[0]
+                                                : 'N/A',
+                                            style: Theme.of(
+                                              context,
+                                            ).textTheme.titleSmall,
+                                          ),
+                                        ],
+                                      ),
                                     ],
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: cs.surfaceContainer,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        const Icon(
-                                          Icons.calendar_month_outlined,
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          'Calendar Preview',
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .labelLarge
-                                              ?.copyWith(
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      'Today: $_currentMoodLabel',
-                                      style: Theme.of(
-                                        context,
-                                      ).textTheme.bodyMedium,
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      'Mood score: $_todayMoodScore • Streak: $_streakCount ${_streakCount == 1 ? 'day' : 'days'}',
-                                      style: Theme.of(
-                                        context,
-                                      ).textTheme.bodySmall,
-                                    ),
-                                    const SizedBox(height: 10),
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: OutlinedButton(
-                                            onPressed: () => _openScreen(
-                                              CalendarScreen(
-                                                userName: _currentUserName,
-                                                companionId: _companionId,
-                                                companionName: _companionName,
-                                              ),
-                                            ),
-                                            child: const Text('Open Calendar'),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 10),
-                                        Expanded(
-                                          child: OutlinedButton(
-                                            onPressed: () => _openScreen(
-                                              JournalScreen(
-                                                userName: _currentUserName,
-                                                companionId: _companionId,
-                                                companionName: _companionName,
-                                              ),
-                                            ),
-                                            child: const Text('Open Journal'),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                              Text(
-                                'Public Posts (Forums)',
-                                style: Theme.of(context).textTheme.titleMedium
-                                    ?.copyWith(fontWeight: FontWeight.w800),
-                              ),
-                              const SizedBox(height: 8),
-                              if (posts.isEmpty)
-                                const _SimpleInfoCard(
-                                  title: 'Posts',
-                                  subtitle: 'No public forum posts yet.',
-                                  leading: Icons.chat_bubble_outline,
-                                )
-                              else
-                                ...posts.map(
-                                  (p) => _SimpleInfoCard(
-                                    title:
-                                        (p['title'] as String?) ??
-                                        'Untitled Post',
-                                    subtitle: (p['content'] as String?) ?? '',
-                                    leading: Icons.forum_outlined,
                                   ),
                                 ),
-                              const SizedBox(height: 14),
-                              Text(
-                                'Name',
-                                style: Theme.of(context).textTheme.titleSmall,
-                              ),
-                              const SizedBox(height: 8),
-                              if (_isEditing)
-                                TextField(
-                                  controller: _nameController,
-                                  decoration: InputDecoration(
-                                    hintText: 'Your name',
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                  ),
-                                )
-                              else
-                                GlassContainer(
-                                  blurSigma: context.mdGlassBlurMedium,
-                                  borderRadius: BorderRadius.circular(14),
-                                  backgroundColor: context.mdGlassSurface,
-                                  borderColor: context.mdGlassBorder,
-                                  padding: const EdgeInsets.all(12),
-                                  child: Text(
-                                    userData['name'] as String? ?? 'N/A',
-                                  ),
-                                ),
-                              const SizedBox(height: 20),
-                              Text(
-                                'Email',
-                                style: Theme.of(context).textTheme.titleSmall,
-                              ),
-                              const SizedBox(height: 8),
-                              if (_isEditing)
-                                TextField(
-                                  controller: _emailController,
-                                  decoration: InputDecoration(
-                                    hintText: 'your.email@example.com',
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                  ),
-                                )
-                              else
-                                GlassContainer(
-                                  blurSigma: context.mdGlassBlurMedium,
-                                  borderRadius: BorderRadius.circular(14),
-                                  backgroundColor: context.mdGlassSurface,
-                                  borderColor: context.mdGlassBorder,
-                                  padding: const EdgeInsets.all(12),
-                                  child: Text(
-                                    userData['email'] as String? ?? 'N/A',
-                                  ),
-                                ),
-                              const SizedBox(height: 20),
-                              Text(
-                                'Bio',
-                                style: Theme.of(context).textTheme.titleSmall,
-                              ),
-                              const SizedBox(height: 8),
-                              if (_isEditing)
-                                TextField(
-                                  controller: _bioController,
-                                  maxLines: 4,
-                                  maxLength: 500,
-                                  keyboardType: TextInputType.multiline,
-                                  decoration: InputDecoration(
-                                    hintText:
-                                        'Tell us about yourself... Emojis are welcome 😊',
-                                    helperText:
-                                        'You can use emojis in your bio.',
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                  ),
-                                )
-                              else
-                                GlassContainer(
-                                  blurSigma: context.mdGlassBlurMedium,
-                                  borderRadius: BorderRadius.circular(14),
-                                  backgroundColor: context.mdGlassSurface,
-                                  borderColor: context.mdGlassBorder,
-                                  padding: const EdgeInsets.all(12),
-                                  child: Text(
-                                    userData['bio'] as String? ?? 'No bio',
-                                    style: TextStyle(
-                                      color: Theme.of(
-                                        context,
-                                      ).textTheme.bodyMedium?.color,
-                                    ),
-                                  ),
-                                ),
-                              const SizedBox(height: 20),
-                              GlassContainer(
-                                blurSigma: context.mdGlassBlurMedium,
-                                borderRadius: BorderRadius.circular(14),
-                                backgroundColor: context.mdGlassSurface,
-                                borderColor: context.mdGlassBorder,
-                                padding: const EdgeInsets.all(12),
-                                child: Row(
-                                  children: [
-                                    const Icon(Icons.calendar_today),
-                                    const SizedBox(width: 12),
-                                    Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Member Since',
-                                          style: Theme.of(
-                                            context,
-                                          ).textTheme.bodySmall,
-                                        ),
-                                        Text(
-                                          userData['createdAt'] != null
-                                              ? DateTime.parse(
-                                                  userData['createdAt']
-                                                      as String,
-                                                ).toString().split(' ')[0]
-                                              : 'N/A',
-                                          style: Theme.of(
-                                            context,
-                                          ).textTheme.titleSmall,
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 24),
-                            ],
+                                const SizedBox(height: 24),
+                              ],
+                            ),
                           ),
                         ),
                         if (_isEditing)

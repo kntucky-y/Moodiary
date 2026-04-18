@@ -203,6 +203,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   int? _selectedMood;
   bool _sidebarOpen = false;
+  bool _headerCollapsed = false;
   String? _profileAvatarUrl;
   ImageProvider<Object>? _profileAvatarImage;
 
@@ -246,6 +247,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   void dispose() {
     _entranceCtrl.dispose();
     super.dispose();
+  }
+
+  bool _onScrollNotification(ScrollNotification notification) {
+    final collapsed = notification.metrics.pixels > 18;
+    if (collapsed != _headerCollapsed) {
+      setState(() => _headerCollapsed = collapsed);
+    }
+    return false;
   }
 
   String _dateKey() {
@@ -722,6 +731,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 greeting: _greeting,
                 companionAsset: _companionAsset,
                 companionName: widget.companionName,
+                collapsed: _headerCollapsed,
                 onHamburger: () => setState(() => _sidebarOpen = true),
                 onProfileTap: () async {
                   await Navigator.of(
@@ -734,136 +744,142 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 onCompanionTap: _showCompanionChat,
               ),
               Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            "Today's Task",
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: primaryText,
-                            ),
-                          ),
-                          if (_pendingCount > 0)
-                            Container(
-                              width: 24,
-                              height: 24,
-                              decoration: const BoxDecoration(
-                                color: Colors.red,
-                                shape: BoxShape.circle,
-                              ),
-                              child: Center(
-                                child: Text(
-                                  '$_pendingCount',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      // ── Mood Score Card ─────────────────────────────────
-                      _MoodScoreCard(
-                        score: _moodScore,
-                        streakCount: _streakCount,
-                      ),
-                      const SizedBox(height: 12),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: cardColor,
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: cardShadow,
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
+                child: NotificationListener<ScrollNotification>(
+                  onNotification: _onScrollNotification,
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              'How are you today?',
+                              "Today's Task",
                               style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 15,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
                                 color: primaryText,
                               ),
                             ),
-                            const SizedBox(height: 12),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceAround,
-                              children: List.generate(_moods.length, (i) {
-                                final mood = _moods[i];
-                                final selected = _selectedMood == i;
-                                return GestureDetector(
-                                  onTap: () => _selectMood(i),
-                                  child: AnimatedScale(
-                                    scale: selected ? 1.2 : 1.0,
-                                    duration: const Duration(milliseconds: 200),
-                                    child: Column(
-                                      children: [
-                                        Image.asset(
-                                          mood.asset,
-                                          width: 44,
-                                          height: 44,
-                                          errorBuilder:
-                                              (context, error, stackTrace) =>
-                                                  Icon(
-                                                    Icons.sentiment_neutral,
-                                                    size: 44,
-                                                    color: subtleText,
-                                                  ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          mood.label,
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                            color: selected
-                                                ? _kPurple
-                                                : subtleText,
-                                            fontWeight: selected
-                                                ? FontWeight.bold
-                                                : FontWeight.normal,
-                                          ),
-                                        ),
-                                      ],
+                            if (_pendingCount > 0)
+                              Container(
+                                width: 24,
+                                height: 24,
+                                decoration: const BoxDecoration(
+                                  color: Colors.red,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    '$_pendingCount',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
                                     ),
                                   ),
-                                );
-                              }),
-                            ),
+                                ),
+                              ),
                           ],
                         ),
-                      ),
-                      const SizedBox(height: 12),
-                      if (_todayTasks.isEmpty)
-                        const Center(child: CircularProgressIndicator())
-                      else
-                        ...List.generate(
-                          _todayTasks.length,
-                          (i) => _TaskCard(
-                            task: _todayTasks[i],
-                            completed: _completedStates[i],
-                            onTap: () => _showTaskDetail(i),
+                        const SizedBox(height: 12),
+                        // ── Mood Score Card ─────────────────────────────────
+                        _MoodScoreCard(
+                          score: _moodScore,
+                          streakCount: _streakCount,
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: cardColor,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: cardShadow,
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            children: [
+                              Text(
+                                'How are you today?',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 15,
+                                  color: primaryText,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceAround,
+                                children: List.generate(_moods.length, (i) {
+                                  final mood = _moods[i];
+                                  final selected = _selectedMood == i;
+                                  return GestureDetector(
+                                    onTap: () => _selectMood(i),
+                                    child: AnimatedScale(
+                                      scale: selected ? 1.2 : 1.0,
+                                      duration: const Duration(
+                                        milliseconds: 200,
+                                      ),
+                                      child: Column(
+                                        children: [
+                                          Image.asset(
+                                            mood.asset,
+                                            width: 44,
+                                            height: 44,
+                                            errorBuilder:
+                                                (context, error, stackTrace) =>
+                                                    Icon(
+                                                      Icons.sentiment_neutral,
+                                                      size: 44,
+                                                      color: subtleText,
+                                                    ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            mood.label,
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              color: selected
+                                                  ? _kPurple
+                                                  : subtleText,
+                                              fontWeight: selected
+                                                  ? FontWeight.bold
+                                                  : FontWeight.normal,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                }),
+                              ),
+                            ],
                           ),
                         ),
-                      SizedBox(
-                        height: MediaQuery.of(context).padding.bottom + 16,
-                      ),
-                    ],
+                        const SizedBox(height: 12),
+                        if (_todayTasks.isEmpty)
+                          const Center(child: CircularProgressIndicator())
+                        else
+                          ...List.generate(
+                            _todayTasks.length,
+                            (i) => _TaskCard(
+                              task: _todayTasks[i],
+                              completed: _completedStates[i],
+                              onTap: () => _showTaskDetail(i),
+                            ),
+                          ),
+                        SizedBox(
+                          height: MediaQuery.of(context).padding.bottom + 16,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -1007,6 +1023,7 @@ class _Header extends StatelessWidget {
   final String greeting;
   final String companionAsset;
   final String companionName;
+  final bool collapsed;
   final String? profileAvatarUrl;
   final ImageProvider<Object>? profileAvatarImage;
   final VoidCallback onHamburger;
@@ -1018,6 +1035,7 @@ class _Header extends StatelessWidget {
     required this.greeting,
     required this.companionAsset,
     required this.companionName,
+    required this.collapsed,
     required this.profileAvatarUrl,
     required this.profileAvatarImage,
     required this.onHamburger,
@@ -1084,75 +1102,97 @@ class _Header extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Home',
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: primaryText,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    '$greeting Ready to take care of yourself today?',
-                    style: TextStyle(
-                      color: secondaryText,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                SizedBox(
-                  width: double.infinity,
-                  child: TapScale(
-                    onTap: onCompanionTap,
-                    child: GlassContainer(
-                      blurSigma: context.mdGlassBlurSmall,
-                      borderRadius: BorderRadius.circular(14),
-                      backgroundColor: context.mdGlassSurface,
-                      borderColor: context.mdGlassBorder,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 8,
-                      ),
-                      child: Row(
-                        children: [
-                          Image.asset(
-                            companionAsset,
-                            width: 34,
-                            height: 34,
-                            fit: BoxFit.contain,
-                            errorBuilder: (context, error, stackTrace) => Icon(
-                              Icons.sentiment_satisfied_alt,
-                              size: 26,
-                              color: secondaryText,
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              'Talk with $companionName',
-                              style: TextStyle(
-                                color: primaryText,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
+                AnimatedSize(
+                  duration: const Duration(milliseconds: 260),
+                  curve: Curves.easeOutCubic,
+                  child: collapsed
+                      ? const SizedBox.shrink()
+                      : AnimatedOpacity(
+                          duration: const Duration(milliseconds: 220),
+                          opacity: collapsed ? 0 : 1,
+                          child: Column(
+                            children: [
+                              const SizedBox(height: 8),
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  'Home',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .headlineMedium
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.w700,
+                                        color: primaryText,
+                                      ),
+                                ),
                               ),
-                            ),
+                              const SizedBox(height: 2),
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  '$greeting Ready to take care of yourself today?',
+                                  style: TextStyle(
+                                    color: secondaryText,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              SizedBox(
+                                width: double.infinity,
+                                child: TapScale(
+                                  onTap: onCompanionTap,
+                                  child: GlassContainer(
+                                    blurSigma: context.mdGlassBlurSmall,
+                                    borderRadius: BorderRadius.circular(14),
+                                    backgroundColor: context.mdGlassSurface,
+                                    borderColor: context.mdGlassBorder,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 8,
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Image.asset(
+                                          companionAsset,
+                                          width: 34,
+                                          height: 34,
+                                          fit: BoxFit.contain,
+                                          errorBuilder:
+                                              (
+                                                context,
+                                                error,
+                                                stackTrace,
+                                              ) => Icon(
+                                                Icons.sentiment_satisfied_alt,
+                                                size: 26,
+                                                color: secondaryText,
+                                              ),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Expanded(
+                                          child: Text(
+                                            'Talk with $companionName',
+                                            style: TextStyle(
+                                              color: primaryText,
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                        Icon(
+                                          Icons.chevron_right_rounded,
+                                          color: secondaryText,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                          Icon(
-                            Icons.chevron_right_rounded,
-                            color: secondaryText,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+                        ),
                 ),
               ],
             ),

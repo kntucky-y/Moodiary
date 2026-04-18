@@ -49,6 +49,7 @@ class FriendsScreen extends StatefulWidget {
 class _FriendsScreenState extends State<FriendsScreen> {
   bool _loading = true;
   bool _sidebarOpen = false;
+  bool _headerCollapsed = false;
   String? _token;
   late String _currentUserName;
   List<_FriendSummary> _friends = [];
@@ -70,6 +71,14 @@ class _FriendsScreenState extends State<FriendsScreen> {
   void dispose() {
     _notificationSub?.cancel();
     super.dispose();
+  }
+
+  bool _onScrollNotification(ScrollNotification notification) {
+    final collapsed = notification.metrics.pixels > 18;
+    if (collapsed != _headerCollapsed) {
+      setState(() => _headerCollapsed = collapsed);
+    }
+    return false;
   }
 
   Future<void> _init() async {
@@ -662,6 +671,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
               _FriendsHeader(
                 onAddFriend: _openAddFriendSheet,
                 onOpenSidebar: () => setState(() => _sidebarOpen = true),
+                collapsed: _headerCollapsed,
               ),
               Expanded(
                 child: Container(
@@ -675,45 +685,54 @@ class _FriendsScreenState extends State<FriendsScreen> {
                       ? const Center(child: CircularProgressIndicator())
                       : RefreshIndicator(
                           onRefresh: _loadFriends,
-                          child: ListView(
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            padding: const EdgeInsets.fromLTRB(20, 24, 20, 120),
-                            children: [
-                              if (_incoming.isNotEmpty)
-                                _RequestSection(
-                                  title: 'Friend requests',
-                                  requests: _incoming,
-                                  onPrimary: _acceptRequest,
-                                  onSecondary: _rejectRequest,
-                                ),
-                              if (_outgoing.isNotEmpty)
-                                _RequestSection(
-                                  title: 'Pending invites',
-                                  requests: _outgoing,
-                                  outgoing: true,
-                                  onSecondary: _rejectRequest,
-                                ),
-                              const SizedBox(height: 12),
-                              Text(
-                                'Buddies',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 18,
-                                  color: context.mdPrimaryText,
-                                ),
+                          child: NotificationListener<ScrollNotification>(
+                            onNotification: _onScrollNotification,
+                            child: ListView(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              padding: const EdgeInsets.fromLTRB(
+                                20,
+                                24,
+                                20,
+                                120,
                               ),
-                              const SizedBox(height: 12),
-                              if (_friends.isEmpty)
-                                const _EmptyFriends()
-                              else
-                                ..._friends.map(
-                                  (friend) => _FriendCard(
-                                    friend: friend,
-                                    onTap: () => _showFriendActions(friend),
-                                    onUnfriend: () => _confirmUnfriend(friend),
+                              children: [
+                                if (_incoming.isNotEmpty)
+                                  _RequestSection(
+                                    title: 'Friend requests',
+                                    requests: _incoming,
+                                    onPrimary: _acceptRequest,
+                                    onSecondary: _rejectRequest,
+                                  ),
+                                if (_outgoing.isNotEmpty)
+                                  _RequestSection(
+                                    title: 'Pending invites',
+                                    requests: _outgoing,
+                                    outgoing: true,
+                                    onSecondary: _rejectRequest,
+                                  ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  'Buddies',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 18,
+                                    color: context.mdPrimaryText,
                                   ),
                                 ),
-                            ],
+                                const SizedBox(height: 12),
+                                if (_friends.isEmpty)
+                                  const _EmptyFriends()
+                                else
+                                  ..._friends.map(
+                                    (friend) => _FriendCard(
+                                      friend: friend,
+                                      onTap: () => _showFriendActions(friend),
+                                      onUnfriend: () =>
+                                          _confirmUnfriend(friend),
+                                    ),
+                                  ),
+                              ],
+                            ),
                           ),
                         ),
                 ),
@@ -889,10 +908,12 @@ class _FriendRequest {
 class _FriendsHeader extends StatelessWidget {
   final VoidCallback onAddFriend;
   final VoidCallback onOpenSidebar;
+  final bool collapsed;
 
   const _FriendsHeader({
     required this.onAddFriend,
     required this.onOpenSidebar,
+    required this.collapsed,
   });
 
   @override
@@ -961,28 +982,45 @@ class _FriendsHeader extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Buddies',
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: primaryText,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'See how your friends are feeling and give them support.',
-                    style: TextStyle(
-                      color: secondaryText,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
+                AnimatedSize(
+                  duration: const Duration(milliseconds: 260),
+                  curve: Curves.easeOutCubic,
+                  child: collapsed
+                      ? const SizedBox.shrink()
+                      : AnimatedOpacity(
+                          duration: const Duration(milliseconds: 220),
+                          opacity: collapsed ? 0 : 1,
+                          child: Column(
+                            children: [
+                              const SizedBox(height: 8),
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  'Buddies',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .headlineMedium
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.w700,
+                                        color: primaryText,
+                                      ),
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  'See how your friends are feeling and give them support.',
+                                  style: TextStyle(
+                                    color: secondaryText,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                 ),
               ],
             ),

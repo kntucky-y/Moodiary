@@ -66,6 +66,7 @@ class _ForumsScreenState extends State<ForumsScreen> {
   bool _sidebarOpen = false;
   bool _fabExpanded = false;
   bool _showMineOnly = false;
+  bool _headerCollapsed = false;
   bool _showArchived = false;
 
   String? _token;
@@ -826,6 +827,14 @@ class _ForumsScreenState extends State<ForumsScreen> {
     return '$year/$month/$day';
   }
 
+  bool _onScrollNotification(ScrollNotification notification) {
+    final collapsed = notification.metrics.pixels > 18;
+    if (collapsed != _headerCollapsed) {
+      setState(() => _headerCollapsed = collapsed);
+    }
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
     final primaryText = context.mdPrimaryText;
@@ -915,46 +924,65 @@ class _ForumsScreenState extends State<ForumsScreen> {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 8),
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: Text(
-                              'Forums',
-                              style: Theme.of(context).textTheme.headlineMedium
-                                  ?.copyWith(
-                                    fontWeight: FontWeight.w700,
-                                    color: primaryText,
+                          AnimatedSize(
+                            duration: const Duration(milliseconds: 260),
+                            curve: Curves.easeOutCubic,
+                            child: _headerCollapsed
+                                ? const SizedBox.shrink()
+                                : AnimatedOpacity(
+                                    duration: const Duration(milliseconds: 220),
+                                    opacity: _headerCollapsed ? 0 : 1,
+                                    child: Column(
+                                      children: [
+                                        const SizedBox(height: 8),
+                                        Align(
+                                          alignment: Alignment.centerLeft,
+                                          child: Text(
+                                            'Forums',
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .headlineMedium
+                                                ?.copyWith(
+                                                  fontWeight: FontWeight.w700,
+                                                  color: primaryText,
+                                                ),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Align(
+                                          alignment: Alignment.centerLeft,
+                                          child: Text(
+                                            _showArchived
+                                                ? 'Archived forum posts'
+                                                : 'A safe space to share and connect',
+                                            style: TextStyle(
+                                              color: secondaryText,
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        if (!_showArchived && _showMineOnly)
+                                          Align(
+                                            alignment: Alignment.centerLeft,
+                                            child: TextButton.icon(
+                                              onPressed: () => setState(
+                                                () => _showMineOnly = false,
+                                              ),
+                                              icon: const Icon(
+                                                Icons.filter_alt_off,
+                                                size: 18,
+                                              ),
+                                              label: const Text(
+                                                'Showing only my posts',
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
                                   ),
-                            ),
                           ),
-                          const SizedBox(height: 2),
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: Text(
-                              _showArchived
-                                  ? 'Archived forum posts'
-                                  : 'A safe space to share and connect',
-                              style: TextStyle(
-                                color: secondaryText,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          if (!_showArchived && _showMineOnly)
-                            Align(
-                              alignment: Alignment.centerLeft,
-                              child: TextButton.icon(
-                                onPressed: () =>
-                                    setState(() => _showMineOnly = false),
-                                icon: const Icon(
-                                  Icons.filter_alt_off,
-                                  size: 18,
-                                ),
-                                label: const Text('Showing only my posts'),
-                              ),
-                            ),
                         ],
                       ),
                     ),
@@ -962,68 +990,74 @@ class _ForumsScreenState extends State<ForumsScreen> {
                 ),
               ),
               Expanded(
-                child: _loading
-                    ? const Center(child: CircularProgressIndicator())
-                    : _token == null
-                    ? const _ForumEmptyState(
-                        title: 'Please login first',
-                        subtitle: 'Forums requires an authenticated account.',
-                        icon: Icons.lock_outline_rounded,
-                      )
-                    : AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 260),
-                        switchInCurve: Curves.easeOutCubic,
-                        switchOutCurve: Curves.easeInCubic,
-                        child: detailPost != null
-                            ? _ForumDetailView(
-                                key: const ValueKey('forum-detail'),
-                                post: detailPost,
-                                showArchivedActions: _showArchived,
-                                onOpenPost: _openPostDetail,
-                                onClose: _closePostDetail,
-                                onLikeTap: () => _toggleLike(detailPost.id),
-                                onReportTap: () =>
-                                    _showReportDialog(detailPost.id),
-                                onArchiveTap: detailPost.isMine
-                                    ? () => _archivePost(detailPost.id)
-                                    : null,
-                                onRecoverTap: detailPost.isMine
-                                    ? () => _recoverPost(detailPost.id)
-                                    : null,
-                                onDeletePermanentlyTap: detailPost.isMine
-                                    ? () =>
-                                          _deletePostPermanently(detailPost.id)
-                                    : null,
-                                onAddComment: _addComment,
-                              )
-                            : _ForumListView(
-                                key: const ValueKey('forum-list'),
-                                posts: visiblePosts,
-                                companionId: widget.companionId,
-                                fabExpanded: _fabExpanded,
-                                showArchivedActions: _showArchived,
-                                onOpenPost: _openPostDetail,
-                                onPostTap: (i) =>
-                                    _openPostDetail(visiblePosts[i].id),
-                                onLikeTap: (i) =>
-                                    _toggleLike(visiblePosts[i].id),
-                                onReportTap: (i) =>
-                                    _showReportDialog(visiblePosts[i].id),
-                                onArchiveTap: (i) =>
-                                    _archivePost(visiblePosts[i].id),
-                                onRecoverTap: (i) =>
-                                    _recoverPost(visiblePosts[i].id),
-                                onDeletePermanentlyTap: (i) =>
-                                    _deletePostPermanently(visiblePosts[i].id),
-                                onExpandFab: () =>
-                                    setState(() => _fabExpanded = true),
-                                onCollapseFab: () =>
-                                    setState(() => _fabExpanded = false),
-                                onCreatePost: _showArchived
-                                    ? null
-                                    : _showComposerDialog,
-                              ),
-                      ),
+                child: NotificationListener<ScrollNotification>(
+                  onNotification: _onScrollNotification,
+                  child: _loading
+                      ? const Center(child: CircularProgressIndicator())
+                      : _token == null
+                      ? const _ForumEmptyState(
+                          title: 'Please login first',
+                          subtitle: 'Forums requires an authenticated account.',
+                          icon: Icons.lock_outline_rounded,
+                        )
+                      : AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 260),
+                          switchInCurve: Curves.easeOutCubic,
+                          switchOutCurve: Curves.easeInCubic,
+                          child: detailPost != null
+                              ? _ForumDetailView(
+                                  key: const ValueKey('forum-detail'),
+                                  post: detailPost,
+                                  showArchivedActions: _showArchived,
+                                  onOpenPost: _openPostDetail,
+                                  onClose: _closePostDetail,
+                                  onLikeTap: () => _toggleLike(detailPost.id),
+                                  onReportTap: () =>
+                                      _showReportDialog(detailPost.id),
+                                  onArchiveTap: detailPost.isMine
+                                      ? () => _archivePost(detailPost.id)
+                                      : null,
+                                  onRecoverTap: detailPost.isMine
+                                      ? () => _recoverPost(detailPost.id)
+                                      : null,
+                                  onDeletePermanentlyTap: detailPost.isMine
+                                      ? () => _deletePostPermanently(
+                                          detailPost.id,
+                                        )
+                                      : null,
+                                  onAddComment: _addComment,
+                                )
+                              : _ForumListView(
+                                  key: const ValueKey('forum-list'),
+                                  posts: visiblePosts,
+                                  companionId: widget.companionId,
+                                  fabExpanded: _fabExpanded,
+                                  showArchivedActions: _showArchived,
+                                  onOpenPost: _openPostDetail,
+                                  onPostTap: (i) =>
+                                      _openPostDetail(visiblePosts[i].id),
+                                  onLikeTap: (i) =>
+                                      _toggleLike(visiblePosts[i].id),
+                                  onReportTap: (i) =>
+                                      _showReportDialog(visiblePosts[i].id),
+                                  onArchiveTap: (i) =>
+                                      _archivePost(visiblePosts[i].id),
+                                  onRecoverTap: (i) =>
+                                      _recoverPost(visiblePosts[i].id),
+                                  onDeletePermanentlyTap: (i) =>
+                                      _deletePostPermanently(
+                                        visiblePosts[i].id,
+                                      ),
+                                  onExpandFab: () =>
+                                      setState(() => _fabExpanded = true),
+                                  onCollapseFab: () =>
+                                      setState(() => _fabExpanded = false),
+                                  onCreatePost: _showArchived
+                                      ? null
+                                      : _showComposerDialog,
+                                ),
+                        ),
+                ),
               ),
             ],
           ),
