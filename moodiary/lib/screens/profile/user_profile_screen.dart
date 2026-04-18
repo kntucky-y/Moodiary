@@ -15,6 +15,7 @@ import '../../utils/streak_utils.dart';
 import '../../utils/transitions.dart';
 import '../../utils/user_cache.dart';
 import '../../widgets/app_sidebar.dart';
+import '../../widgets/glass.dart';
 import '../../widgets/user_profile_popup.dart';
 import '../calendar/calendar_screen.dart';
 import '../companion/companion_screen.dart';
@@ -427,72 +428,74 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
+                        SizedBox(
                           width: double.infinity,
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: context.mdSecondarySurface,
+                          child: GlassContainer(
+                            blurSigma: context.mdGlassBlurMedium,
                             borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Column(
-                            children: [
-                              Stack(
-                                children: [
-                                  CircleAvatar(
-                                    radius: 48,
-                                    backgroundImage: avatarImageProvider(
-                                      displayedAvatarUrl,
+                            backgroundColor: context.mdGlassSurface,
+                            borderColor: context.mdGlassBorder,
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              children: [
+                                Stack(
+                                  children: [
+                                    CircleAvatar(
+                                      radius: 48,
+                                      backgroundImage: avatarImageProvider(
+                                        displayedAvatarUrl,
+                                      ),
+                                      child:
+                                          avatarImageProvider(
+                                                displayedAvatarUrl,
+                                              ) ==
+                                              null
+                                          ? const Icon(Icons.person, size: 44)
+                                          : null,
                                     ),
-                                    child:
-                                        avatarImageProvider(
-                                              displayedAvatarUrl,
-                                            ) ==
-                                            null
-                                        ? const Icon(Icons.person, size: 44)
-                                        : null,
-                                  ),
-                                  if (_isEditing)
-                                    Positioned(
-                                      right: -2,
-                                      bottom: -2,
-                                      child: InkWell(
-                                        onTap: _pickAvatarImage,
-                                        child: Container(
-                                          padding: const EdgeInsets.all(6),
-                                          decoration: BoxDecoration(
-                                            color: cs.primary,
-                                            shape: BoxShape.circle,
-                                          ),
-                                          child: Icon(
-                                            Icons.photo_camera_outlined,
-                                            size: 16,
-                                            color: cs.onPrimary,
+                                    if (_isEditing)
+                                      Positioned(
+                                        right: -2,
+                                        bottom: -2,
+                                        child: InkWell(
+                                          onTap: _pickAvatarImage,
+                                          child: Container(
+                                            padding: const EdgeInsets.all(6),
+                                            decoration: BoxDecoration(
+                                              color: cs.primary,
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: Icon(
+                                              Icons.photo_camera_outlined,
+                                              size: 16,
+                                              color: cs.onPrimary,
+                                            ),
                                           ),
                                         ),
                                       ),
-                                    ),
-                                ],
-                              ),
-                              const SizedBox(height: 10),
-                              Text(
-                                (userData['name'] as String? ?? 'NAME')
-                                    .toUpperCase(),
-                                style: Theme.of(context).textTheme.titleSmall
-                                    ?.copyWith(fontWeight: FontWeight.w800),
-                              ),
-                            ],
+                                  ],
+                                ),
+                                const SizedBox(height: 10),
+                                Text(
+                                  (userData['name'] as String? ?? 'NAME')
+                                      .toUpperCase(),
+                                  style: Theme.of(context).textTheme.titleSmall
+                                      ?.copyWith(fontWeight: FontWeight.w800),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                         const SizedBox(height: 12),
                         Row(
                           children: [
                             Expanded(
-                              child: Container(
+                              child: GlassContainer(
+                                blurSigma: context.mdGlassBlurMedium,
+                                borderRadius: BorderRadius.circular(12),
+                                backgroundColor: context.mdGlassSurface,
+                                borderColor: context.mdGlassBorder,
                                 padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: cs.surfaceContainer,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
@@ -529,62 +532,70 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                               ),
                             ),
                             const SizedBox(width: 10),
-                            Container(
+                            SizedBox(
                               width: 120,
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: cs.surfaceContainer,
+                              child: GlassContainer(
+                                blurSigma: context.mdGlassBlurMedium,
                                 borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Mood Score',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .labelSmall
-                                        ?.copyWith(fontWeight: FontWeight.w700),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    '$_todayMoodScore',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .headlineMedium
-                                        ?.copyWith(
-                                          fontWeight: FontWeight.w900,
-                                          color: cs.primary,
-                                        ),
-                                  ),
-                                ],
+                                backgroundColor: context.mdGlassSurface,
+                                borderColor: context.mdGlassBorder,
+                                padding: const EdgeInsets.all(12),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Mood Score',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .labelSmall
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      '$_todayMoodScore',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .headlineMedium
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w900,
+                                            color: cs.primary,
+                                          ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ],
                         ),
                         const SizedBox(height: 10),
-                        Container(
+                        SizedBox(
                           width: double.infinity,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: cs.surfaceContainer,
+                          child: GlassContainer(
+                            blurSigma: context.mdGlassBlurMedium,
                             borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.local_fire_department_rounded,
-                                color: Color(0xFFEA580C),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  'Current streak: $_streakCount ${_streakCount == 1 ? 'day' : 'days'}',
-                                  style: Theme.of(context).textTheme.bodyMedium
-                                      ?.copyWith(fontWeight: FontWeight.w700),
+                            backgroundColor: context.mdGlassSurface,
+                            borderColor: context.mdGlassBorder,
+                            padding: const EdgeInsets.all(12),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.local_fire_department_rounded,
+                                  color: Color(0xFFEA580C),
                                 ),
-                              ),
-                            ],
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    'Current streak: $_streakCount ${_streakCount == 1 ? 'day' : 'days'}',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.copyWith(fontWeight: FontWeight.w700),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                         if (partner != null) ...[

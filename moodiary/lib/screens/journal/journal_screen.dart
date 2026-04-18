@@ -14,6 +14,7 @@ import '../../services/realtime_notifications.dart';
 import '../../services/theme_controller.dart';
 import '../../utils/transitions.dart';
 import '../../widgets/app_sidebar.dart';
+import '../../widgets/glass.dart';
 import '../../theme/moodiary_colors.dart';
 
 const _kPurple = Color(0xFFA076F9);
@@ -801,13 +802,13 @@ class _EntryCard extends StatelessWidget {
 
     return TapScale(
       onTap: onTap,
-      child: Container(
+      child: GlassContainer(
+        blurSigma: context.mdGlassBlurMedium,
+        borderRadius: BorderRadius.circular(20),
+        backgroundColor: context.mdGlassSurface,
+        borderColor: context.mdGlassBorder,
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: context.mdSecondarySurface,
-          borderRadius: BorderRadius.circular(20),
-        ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

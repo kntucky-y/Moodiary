@@ -1,10 +1,12 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+
+import '../../theme/moodiary_colors.dart';
+import '../../widgets/glass.dart';
 import '../auth/login_screen.dart';
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
-const _kBg = Color(0xFFF5F0E8);
 const _kPurple = Color(0xFF9B7FDB);
 const _kDark = Color(0xFF1A1A2E);
 const _kGreen = Color(0xFF5DB87A);
@@ -51,28 +53,46 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    final sideInset = width >= 700 ? 16.0 : 0.0;
+
     return Scaffold(
-      backgroundColor: _kBg,
-      body: PageView(
-        controller: _controller,
-        physics: const NeverScrollableScrollPhysics(),
-        onPageChanged: (i) => setState(() => _page = i),
-        children: [
-          _Page1(
-            onNext: _next,
-            dots: _Dots(current: _page),
+      backgroundColor: context.mdScaffold,
+      body: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              context.mdScaffold,
+              context.mdSecondarySurface.withValues(alpha: 0.38),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
-          _Page2(
-            onNext: _next,
-            onBack: _back,
-            dots: _Dots(current: _page),
+        ),
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: sideInset),
+          child: PageView(
+            controller: _controller,
+            physics: const NeverScrollableScrollPhysics(),
+            onPageChanged: (i) => setState(() => _page = i),
+            children: [
+              _Page1(
+                onNext: _next,
+                dots: _Dots(current: _page),
+              ),
+              _Page2(
+                onNext: _next,
+                onBack: _back,
+                dots: _Dots(current: _page),
+              ),
+              _Page3(
+                onNext: _next,
+                onBack: _back,
+                dots: _Dots(current: _page),
+              ),
+            ],
           ),
-          _Page3(
-            onNext: _next,
-            onBack: _back,
-            dots: _Dots(current: _page),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -87,7 +107,9 @@ class _Page1 extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final h = MediaQuery.of(context).size.height;
-    const sheetFraction = 0.38;
+    final w = MediaQuery.of(context).size.width;
+    final sheetFraction = h < 720 ? 0.46 : 0.38;
+    final iconSize = (w * 0.22).clamp(64.0, 92.0);
 
     return Stack(
       children: [
@@ -109,12 +131,12 @@ class _Page1 extends StatelessWidget {
                     children: [
                       _FloatingImage(
                         'assets/sad.png',
-                        size: 90,
+                        size: iconSize,
                         delayFraction: 0,
                       ),
                       _FloatingImage(
                         'assets/confused.png',
-                        size: 90,
+                        size: iconSize,
                         delayFraction: 0.25,
                       ),
                     ],
@@ -139,12 +161,12 @@ class _Page1 extends StatelessWidget {
                     children: [
                       _FloatingImage(
                         'assets/love.png',
-                        size: 90,
+                        size: iconSize,
                         delayFraction: 0.5,
                       ),
                       _FloatingImage(
                         'assets/angry.png',
-                        size: 90,
+                        size: iconSize,
                         delayFraction: 0.75,
                       ),
                     ],
@@ -200,7 +222,7 @@ class _Page2 extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final h = MediaQuery.of(context).size.height;
-    const sheetFraction = 0.44;
+    final sheetFraction = h < 760 ? 0.5 : 0.44;
 
     return Stack(
       children: [
@@ -327,7 +349,7 @@ class _Page3 extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final h = MediaQuery.of(context).size.height;
-    const sheetFraction = 0.47;
+    final sheetFraction = h < 760 ? 0.54 : 0.47;
 
     return Stack(
       children: [
@@ -550,32 +572,38 @@ class _Sheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final width = MediaQuery.of(context).size.width;
+    final horizontalPadding = width >= 700 ? 36.0 : 28.0;
+
+    return SizedBox(
       height: height,
       width: double.infinity,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-      ),
-      child: Column(
-        children: [
-          const SizedBox(height: 12),
-          Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: const Color(0xFFDDDDDD),
-              borderRadius: BorderRadius.circular(2),
+      child: GlassContainer(
+        blurSigma: context.mdGlassBlurMedium,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+        backgroundColor: context.mdGlassSurfaceStrong,
+        borderColor: context.mdGlassBorder,
+        padding: EdgeInsets.zero,
+        child: Column(
+          children: [
+            const SizedBox(height: 12),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: context.mdInputBorder,
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 28),
-              child: child,
+            const SizedBox(height: 8),
+            Expanded(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+                child: child,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -641,10 +669,17 @@ class _EmojiGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    final count = width >= 900
+        ? 5
+        : width >= 700
+        ? 4
+        : 3;
+
     return GridView.count(
-      crossAxisCount: 3,
+      crossAxisCount: count,
       physics: const NeverScrollableScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: 24),
+      padding: EdgeInsets.symmetric(horizontal: width >= 700 ? 28 : 24),
       children: images
           .map(
             (path) => Padding(

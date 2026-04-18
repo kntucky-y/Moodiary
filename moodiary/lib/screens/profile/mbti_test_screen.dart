@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../services/auth_service.dart';
+import '../../theme/moodiary_colors.dart';
 import '../../utils/transitions.dart';
+import '../../widgets/glass.dart';
 import '../app_shell.dart';
 
 class MbtiTestScreen extends StatefulWidget {
@@ -308,11 +310,13 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
                 crossAxisSpacing: isWide ? 12 : 10,
                 mainAxisSpacing: isWide ? 12 : 10,
               ),
-              itemBuilder: (context, i) => Container(
-                decoration: BoxDecoration(
-                  color: previewColors[i % previewColors.length],
-                  borderRadius: BorderRadius.circular(14),
-                ),
+              itemBuilder: (context, i) => GlassContainer(
+                blurSigma: context.mdGlassBlurMedium,
+                borderRadius: BorderRadius.circular(14),
+                backgroundColor: previewColors[i % previewColors.length]
+                    .withValues(alpha: context.isDarkMode ? 0.2 : 0.6),
+                borderColor: context.mdGlassBorder,
+                padding: EdgeInsets.zero,
                 child: Center(
                   child: Image.asset(
                     'assets/doodle${i + 1}.png',
@@ -361,7 +365,9 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('MBTI Questions')),
       body: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(
+          MediaQuery.of(context).size.width >= 700 ? 20 : 16,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -372,18 +378,20 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
               style: Theme.of(context).textTheme.labelLarge,
             ),
             const SizedBox(height: 14),
-            Container(
+            SizedBox(
               width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: cs.surfaceContainerHighest,
+              child: GlassContainer(
+                blurSigma: context.mdGlassBlurMedium,
                 borderRadius: BorderRadius.circular(14),
-              ),
-              child: Text(
-                question.title,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+                backgroundColor: context.mdGlassSurface,
+                borderColor: context.mdGlassBorder,
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  question.title,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+                ),
               ),
             ),
             const SizedBox(height: 10),
@@ -403,17 +411,15 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
                 child: InkWell(
                   borderRadius: BorderRadius.circular(12),
                   onTap: () => setState(() => _answers[_index] = value),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? cs.primaryContainer
-                          : cs.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: isSelected ? cs.primary : Colors.transparent,
-                        width: 1.1,
-                      ),
-                    ),
+                  child: GlassContainer(
+                    blurSigma: context.mdGlassBlurMedium,
+                    borderRadius: BorderRadius.circular(12),
+                    backgroundColor: isSelected
+                        ? cs.primaryContainer.withValues(alpha: 0.55)
+                        : context.mdGlassSurface,
+                    borderColor: isSelected
+                        ? cs.primary
+                        : context.mdGlassBorder,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 14,
                       vertical: 12,
@@ -510,14 +516,23 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
   Widget _buildMatching(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Matching Companions')),
-      body: const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text('Finding the companion who understands you...'),
-          ],
+      body: Center(
+        child: GlassContainer(
+          blurSigma: context.mdGlassBlurMedium,
+          borderRadius: BorderRadius.circular(20),
+          backgroundColor: context.mdGlassSurface,
+          borderColor: context.mdGlassBorder,
+          child: const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Finding the companion who understands you...'),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -541,7 +556,11 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          Card(
+          GlassContainer(
+            blurSigma: context.mdGlassBlurMedium,
+            borderRadius: BorderRadius.circular(16),
+            backgroundColor: context.mdGlassSurface,
+            borderColor: context.mdGlassBorder,
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -581,15 +600,14 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
           ...suggested.map((companion) {
             final companionId = companionIdOf(companion);
             final isSelected = _selectedCompanion?['id'] == companion['id'];
-            return Card(
-              color: isSelected ? cs.primaryContainer : null,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: BorderSide(
-                  color: isSelected ? cs.primary : Colors.transparent,
-                  width: 1.2,
-                ),
-              ),
+            return GlassContainer(
+              blurSigma: context.mdGlassBlurMedium,
+              borderRadius: BorderRadius.circular(12),
+              backgroundColor: isSelected
+                  ? cs.primaryContainer.withValues(alpha: 0.55)
+                  : context.mdGlassSurface,
+              borderColor: isSelected ? cs.primary : context.mdGlassBorder,
+              padding: EdgeInsets.zero,
               child: ListTile(
                 selected: isSelected,
                 leading: CircleAvatar(
@@ -619,8 +637,11 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
           }),
           const SizedBox(height: 8),
           if (_selectedCompanion != null)
-            Card(
-              color: cs.primaryContainer,
+            GlassContainer(
+              blurSigma: context.mdGlassBlurMedium,
+              borderRadius: BorderRadius.circular(12),
+              backgroundColor: cs.primaryContainer.withValues(alpha: 0.58),
+              borderColor: context.mdGlassBorder,
               child: Padding(
                 padding: const EdgeInsets.all(14),
                 child: Column(

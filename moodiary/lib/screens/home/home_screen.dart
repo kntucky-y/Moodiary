@@ -872,11 +872,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           if (_sidebarOpen)
             GestureDetector(
               onTap: () => setState(() => _sidebarOpen = false),
-              child: Container(
-                color: Colors.black.withValues(
-                  alpha: context.isDarkMode ? 0.65 : 0.45,
-                ),
-              ),
+              child: Container(color: context.mdOverlayBarrier),
             ),
           AnimatedPositioned(
             duration: const Duration(milliseconds: 300),
@@ -1285,8 +1281,6 @@ class _TaskCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final primaryText = context.mdPrimaryText;
     final subtleText = context.mdSecondaryText;
-    final cardColor = context.mdSurface;
-    final cardShadow = context.mdCardGlow;
     final badgeBg = context.isDarkMode
         ? const Color(0xFF2C2F45)
         : const Color(0xFFF3F0FB);
@@ -1296,20 +1290,13 @@ class _TaskCard extends StatelessWidget {
       child: AnimatedOpacity(
         opacity: completed ? 0.65 : 1.0,
         duration: const Duration(milliseconds: 300),
-        child: Container(
+        child: GlassContainer(
+          blurSigma: context.mdGlassBlurMedium,
+          backgroundColor: context.mdGlassSurface,
+          borderColor: context.mdGlassBorder,
+          borderRadius: BorderRadius.circular(20),
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: cardColor,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: cardShadow,
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
           child: Row(
             children: [
               _TaskArtwork(task: task, size: 48),
@@ -1426,24 +1413,17 @@ class _MoodScoreCard extends StatelessWidget {
     final gradientColors = context.isDarkMode
         ? [const Color(0xFF1E2234), const Color(0xFF121424)]
         : [const Color(0xFFF3F0FB), const Color(0xFFEDE9FE)];
-    final cardShadow = context.mdCardGlow;
 
-    return Container(
+    return GlassContainer(
+      blurSigma: context.mdGlassBlurMedium,
+      borderRadius: BorderRadius.circular(20),
+      backgroundColor: context.mdGlassSurface,
+      borderColor: context.mdGlassBorder,
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: gradientColors,
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: cardShadow,
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+      gradient: LinearGradient(
+        colors: gradientColors,
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1826,7 +1806,6 @@ class _CompanionChatState extends State<_CompanionChat> {
   @override
   Widget build(BuildContext context) {
     final bool showPrompts = _messages.length <= 1;
-    final sheetColor = context.mdSurface;
     final secondarySurface = context.mdSecondarySurface;
     final primaryText = context.mdPrimaryText;
     final subtleText = context.mdSecondaryText;
@@ -1843,179 +1822,189 @@ class _CompanionChatState extends State<_CompanionChat> {
         ? Colors.white24
         : const Color(0xFFDDDDDD);
 
-    return Container(
+    final width = MediaQuery.of(context).size.width;
+    final horizontalInset = width >= 700 ? 20.0 : 12.0;
+
+    return SizedBox(
       height: MediaQuery.of(context).size.height * 0.72,
-      decoration: BoxDecoration(
-        color: sheetColor,
+      child: GlassContainer(
+        blurSigma: context.mdGlassBlurMedium,
+        margin: EdgeInsets.fromLTRB(horizontalInset, 0, horizontalInset, 8),
         borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      child: Column(
-        children: [
-          // ── Handle bar
-          const SizedBox(height: 8),
-          Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: handleColor,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          // ── Header
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            child: Row(
-              children: [
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: secondarySurface,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                    child: Image.asset(
-                      widget.companionAsset,
-                      width: 32,
-                      height: 32,
-                      fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) => Icon(
-                        Icons.sentiment_satisfied_alt,
-                        color: subtleText,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  widget.companionName,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: primaryText,
-                  ),
-                ),
-                const Spacer(),
-                IconButton(
-                  icon: Icon(Icons.close, color: subtleText),
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
-              ],
-            ),
-          ),
-          Divider(height: 1, color: dividerColor),
-
-          // ── Messages
-          Expanded(
-            child: ListView.builder(
-              controller: _scroll,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              itemCount: _messages.length + (_loading ? 1 : 0),
-              itemBuilder: (_, i) {
-                if (i == _messages.length) {
-                  return _TypingBubble(companionAsset: widget.companionAsset);
-                }
-                final m = _messages[i];
-                return _ChatBubble(message: m);
-              },
-            ),
-          ),
-
-          // ── Quick prompts (only before first user message)
-          if (showPrompts)
+        backgroundColor: context.mdGlassSurfaceStrong,
+        borderColor: context.mdGlassBorder,
+        padding: EdgeInsets.zero,
+        child: Column(
+          children: [
+            // ── Handle bar
+            const SizedBox(height: 8),
             Container(
-              height: 36,
-              margin: const EdgeInsets.only(bottom: 8),
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: _prompts.length,
-                separatorBuilder: (_, _) => const SizedBox(width: 8),
-                itemBuilder: (_, i) => TapScale(
-                  onTap: () => _send(_prompts[i]),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: promptBg,
-                      borderRadius: BorderRadius.circular(50),
-                    ),
-                    child: Text(
-                      _prompts[i],
-                      style: TextStyle(color: promptText, fontSize: 12),
-                    ),
-                  ),
-                ),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: handleColor,
+                borderRadius: BorderRadius.circular(2),
               ),
             ),
-
-          // ── Input row
-          Divider(height: 1, color: dividerColor),
-          Padding(
-            padding: EdgeInsets.fromLTRB(
-              16,
-              8,
-              16,
-              MediaQuery.of(context).padding.bottom + 8,
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _input,
-                    textCapitalization: TextCapitalization.sentences,
-                    onSubmitted: _send,
-                    style: TextStyle(color: primaryText),
-                    decoration: InputDecoration(
-                      hintText: 'Say something…',
-                      hintStyle: TextStyle(color: subtleText),
-                      filled: true,
-                      fillColor: inputFill,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 10,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(50),
-                        borderSide: BorderSide(color: inputBorder),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(50),
-                        borderSide: BorderSide(color: inputBorder),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(50),
-                        borderSide: const BorderSide(
-                          color: _kPurple,
-                          width: 1.5,
+            // ── Header
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              child: Row(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: secondarySurface,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Center(
+                      child: Image.asset(
+                        widget.companionAsset,
+                        width: 32,
+                        height: 32,
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) => Icon(
+                          Icons.sentiment_satisfied_alt,
+                          color: subtleText,
                         ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                TapScale(
-                  onTap: () => _send(_input.text),
-                  child: Container(
-                    width: 44,
-                    height: 44,
-                    decoration: const BoxDecoration(
-                      color: _kPurple,
-                      shape: BoxShape.circle,
+                  const SizedBox(width: 12),
+                  Text(
+                    widget.companionName,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: primaryText,
                     ),
-                    child: const Icon(
-                      Icons.send_rounded,
-                      color: Colors.white,
-                      size: 20,
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    icon: Icon(Icons.close, color: subtleText),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
+              ),
+            ),
+            Divider(height: 1, color: dividerColor),
+
+            // ── Messages
+            Expanded(
+              child: ListView.builder(
+                controller: _scroll,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                itemCount: _messages.length + (_loading ? 1 : 0),
+                itemBuilder: (_, i) {
+                  if (i == _messages.length) {
+                    return _TypingBubble(companionAsset: widget.companionAsset);
+                  }
+                  final m = _messages[i];
+                  return _ChatBubble(message: m);
+                },
+              ),
+            ),
+
+            // ── Quick prompts (only before first user message)
+            if (showPrompts)
+              Container(
+                height: 36,
+                margin: const EdgeInsets.only(bottom: 8),
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: _prompts.length,
+                  separatorBuilder: (_, _) => const SizedBox(width: 8),
+                  itemBuilder: (_, i) => TapScale(
+                    onTap: () => _send(_prompts[i]),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: promptBg,
+                        borderRadius: BorderRadius.circular(50),
+                      ),
+                      child: Text(
+                        _prompts[i],
+                        style: TextStyle(color: promptText, fontSize: 12),
+                      ),
                     ),
                   ),
                 ),
-              ],
+              ),
+
+            // ── Input row
+            Divider(height: 1, color: dividerColor),
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                16,
+                8,
+                16,
+                MediaQuery.of(context).padding.bottom + 8,
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _input,
+                      textCapitalization: TextCapitalization.sentences,
+                      onSubmitted: _send,
+                      style: TextStyle(color: primaryText),
+                      decoration: InputDecoration(
+                        hintText: 'Say something…',
+                        hintStyle: TextStyle(color: subtleText),
+                        filled: true,
+                        fillColor: inputFill,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(50),
+                          borderSide: BorderSide(color: inputBorder),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(50),
+                          borderSide: BorderSide(color: inputBorder),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(50),
+                          borderSide: const BorderSide(
+                            color: _kPurple,
+                            width: 1.5,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  TapScale(
+                    onTap: () => _send(_input.text),
+                    child: Container(
+                      width: 44,
+                      height: 44,
+                      decoration: const BoxDecoration(
+                        color: _kPurple,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.send_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
