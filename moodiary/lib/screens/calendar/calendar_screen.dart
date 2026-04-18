@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'dart:math' as math;
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
@@ -16,12 +16,13 @@ import '../../services/auth_service.dart';
 import '../../services/realtime_notifications.dart';
 import '../../services/theme_controller.dart';
 import '../../theme/moodiary_colors.dart';
+import '../../widgets/glass.dart';
 
 const _kPurple = Color(0xFFA076F9);
 const _kSubtle = Color(0xFF8A8A8D);
 const _kBaseUrl = kBackendBaseUrl;
 
-// ─── Activity data ────────────────────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇ Activity data ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 class _Activity {
   final String name;
   final int score;
@@ -85,7 +86,7 @@ final _activityScoreMap = Map.fromEntries(
 // Terrible=5, Bad=10, Okay=20, Good=35, Excellent=50
 const _moodLevelPoints = [5, 10, 20, 35, 50];
 
-// ─── MoodLog model ────────────────────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇ MoodLog model ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 class _MoodLog {
   final String dateKey;
   final int moodLevel;
@@ -112,7 +113,7 @@ class _MoodLog {
   );
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇ Helpers ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 Color _dotColor(int score) {
   if (score >= 70) return const Color(0xFF10B981);
   if (score >= 40) return const Color(0xFF84CC16);
@@ -139,7 +140,7 @@ const _monthNames = [
   'December',
 ];
 
-// ─── CalendarScreen ───────────────────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇ CalendarScreen ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 class CalendarScreen extends StatefulWidget {
   final String userName;
   final int companionId;
@@ -348,6 +349,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      barrierColor: context.mdOverlayBarrier,
       builder: (_) => _LogModal(
         day: day,
         existing: _logs[key],
@@ -381,13 +383,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
             children: [
               _buildHeader(),
               Expanded(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: context.mdSurface,
-                    borderRadius: BorderRadius.vertical(
-                      top: Radius.circular(40),
-                    ),
+                child: GlassContainer(
+                  blurSigma: context.mdGlassBlurMedium,
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(40),
                   ),
+                  backgroundColor: context.mdGlassSurface,
+                  borderColor: context.mdGlassBorder,
+                  padding: EdgeInsets.zero,
                   child: _loading
                       ? const Center(
                           child: CircularProgressIndicator(color: _kPurple),
@@ -449,7 +452,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-  // ── Header ──────────────────────────────────────────────────────────────────
+  // ΓöÇΓöÇ Header ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   Widget _buildHeader() {
     final primaryText = context.mdPrimaryText;
     final secondaryText = context.mdSecondaryText;
@@ -513,7 +516,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-  // ── Calendar ─────────────────────────────────────────────────────────────────
+  // ΓöÇΓöÇ Calendar ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   Widget _buildCalendar() {
     final primaryText = context.mdPrimaryText;
     final secondaryText = context.mdSecondaryText;
@@ -663,7 +666,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-  // ── Trend Chart ───────────────────────────────────────────────────────────────
+  // ΓöÇΓöÇ Trend Chart ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   Widget _buildTrendChart() {
     final primaryText = context.mdPrimaryText;
     final trendLogs = _trendLogs;
@@ -693,12 +696,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
           ),
         ),
         const SizedBox(height: 12),
-        Container(
+        GlassContainer(
+          blurSigma: context.mdGlassBlurMedium,
+          borderRadius: BorderRadius.circular(20),
+          backgroundColor: context.mdGlassSurfaceStrong,
+          borderColor: context.mdGlassBorder,
           padding: const EdgeInsets.fromLTRB(12, 16, 16, 8),
-          decoration: BoxDecoration(
-            color: context.mdSecondarySurface,
-            borderRadius: BorderRadius.circular(20),
-          ),
           child: trendLogs.isEmpty
               ? const Padding(
                   padding: EdgeInsets.all(24),
@@ -806,7 +809,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 }
 
-// ─── Legend dot ───────────────────────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇ Legend dot ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 class _LegendDot extends StatelessWidget {
   final Color color;
   final String label;
@@ -829,7 +832,7 @@ class _LegendDot extends StatelessWidget {
   }
 }
 
-// ─── Log Modal ────────────────────────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇ Log Modal ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 class _LogModal extends StatefulWidget {
   final DateTime day;
   final _MoodLog? existing;
@@ -885,25 +888,28 @@ class _LogModalState extends State<_LogModal> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SizedBox(
       height: MediaQuery.of(context).size.height * 0.88,
-      decoration: BoxDecoration(
-        color: context.mdSurface,
+      child: GlassContainer(
+        blurSigma: context.mdGlassBlurMedium,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      child: Column(
-        children: [
-          const SizedBox(height: 10),
-          Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: context.mdInputBorder,
-              borderRadius: BorderRadius.circular(2),
+        backgroundColor: context.mdGlassSurfaceStrong,
+        borderColor: context.mdGlassBorder,
+        padding: EdgeInsets.zero,
+        child: Column(
+          children: [
+            const SizedBox(height: 10),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: context.mdInputBorder,
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
-          ),
-          Expanded(child: _showAll ? _buildAllView() : _buildMainView()),
-        ],
+            Expanded(child: _showAll ? _buildAllView() : _buildMainView()),
+          ],
+        ),
       ),
     );
   }
@@ -1223,7 +1229,7 @@ class _LogModalState extends State<_LogModal> {
   }
 }
 
-// ─── Activity chip ────────────────────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇ Activity chip ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 class _ActivityChip extends StatelessWidget {
   final String name;
   final bool selected;

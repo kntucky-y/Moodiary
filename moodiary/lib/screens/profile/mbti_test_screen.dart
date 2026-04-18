@@ -311,18 +311,19 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
                 mainAxisSpacing: isWide ? 12 : 10,
               ),
               itemBuilder: (context, i) => GlassContainer(
-                blurSigma: context.mdGlassBlurMedium,
+                blurSigma: 0,
                 borderRadius: BorderRadius.circular(14),
                 backgroundColor: previewColors[i % previewColors.length]
-                    .withValues(alpha: context.isDarkMode ? 0.2 : 0.6),
+                    .withValues(alpha: context.isDarkMode ? 0.28 : 0.86),
                 borderColor: context.mdGlassBorder,
                 padding: EdgeInsets.zero,
                 child: Center(
                   child: Image.asset(
                     'assets/doodle${i + 1}.png',
-                    width: 52,
-                    height: 52,
+                    width: 56,
+                    height: 56,
                     fit: BoxFit.contain,
+                    filterQuality: FilterQuality.high,
                     errorBuilder: (context, error, stackTrace) =>
                         const Icon(Icons.sentiment_satisfied_alt_rounded),
                   ),
@@ -601,7 +602,7 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
             final companionId = companionIdOf(companion);
             final isSelected = _selectedCompanion?['id'] == companion['id'];
             return GlassContainer(
-              blurSigma: context.mdGlassBlurMedium,
+              blurSigma: 4,
               borderRadius: BorderRadius.circular(12),
               backgroundColor: isSelected
                   ? cs.primaryContainer.withValues(alpha: 0.55)
@@ -614,9 +615,10 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
                   backgroundColor: Colors.white,
                   child: Image.asset(
                     'assets/doodle$companionId.png',
-                    width: 30,
-                    height: 30,
+                    width: 34,
+                    height: 34,
                     fit: BoxFit.contain,
+                    filterQuality: FilterQuality.high,
                     errorBuilder: (context, error, stackTrace) => const Icon(
                       Icons.sentiment_satisfied_alt_rounded,
                       size: 20,
@@ -638,7 +640,7 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
           const SizedBox(height: 8),
           if (_selectedCompanion != null)
             GlassContainer(
-              blurSigma: context.mdGlassBlurMedium,
+              blurSigma: 4,
               borderRadius: BorderRadius.circular(12),
               backgroundColor: cs.primaryContainer.withValues(alpha: 0.58),
               borderColor: context.mdGlassBorder,
@@ -654,9 +656,10 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
                           backgroundColor: Colors.white,
                           child: Image.asset(
                             'assets/doodle${companionIdOf(_selectedCompanion!)}.png',
-                            width: 20,
-                            height: 20,
+                            width: 24,
+                            height: 24,
                             fit: BoxFit.contain,
+                            filterQuality: FilterQuality.high,
                             errorBuilder: (context, error, stackTrace) =>
                                 const Icon(
                                   Icons.sentiment_satisfied_alt_rounded,

@@ -516,13 +516,14 @@ class _JournalScreenState extends State<JournalScreen> {
               ),
               // ── Entry list ──────────────────────────────────────────────────
               Expanded(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: context.mdSurface,
-                    borderRadius: BorderRadius.vertical(
-                      top: Radius.circular(36),
-                    ),
+                child: GlassContainer(
+                  blurSigma: context.mdGlassBlurMedium,
+                  borderRadius: BorderRadius.vertical(
+                    top: Radius.circular(context.mdRadiusXl),
                   ),
+                  backgroundColor: context.mdGlassSurface,
+                  borderColor: context.mdGlassBorder,
+                  padding: EdgeInsets.zero,
                   child: _loading
                       ? shownEntries.isEmpty
                             ? const Center(child: CircularProgressIndicator())
@@ -630,19 +631,19 @@ class _JournalScreenState extends State<JournalScreen> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             // Speech bubble
-                            Container(
+                            GlassContainer(
+                              blurSigma: context.mdGlassBlurMedium,
+                              borderRadius: BorderRadius.circular(12),
+                              backgroundColor: context.mdGlassSurfaceStrong,
+                              borderColor: context.mdGlassBorder,
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 12,
                                 vertical: 8,
                               ),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF3D3B40),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Text(
+                              child: Text(
                                 "What's on your mind today?",
                                 style: TextStyle(
-                                  color: Colors.white,
+                                  color: context.mdPrimaryText,
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -673,24 +674,21 @@ class _JournalScreenState extends State<JournalScreen> {
                                 // Add
                                 GestureDetector(
                                   onTap: () => _openEditor(),
-                                  child: Container(
+                                  child: SizedBox(
                                     width: 52,
                                     height: 52,
-                                    decoration: BoxDecoration(
-                                      color: context.mdSurface,
-                                      shape: BoxShape.circle,
-                                      boxShadow: const [
-                                        BoxShadow(
-                                          color: Color(0x22000000),
-                                          blurRadius: 8,
-                                          offset: Offset(0, 2),
-                                        ),
-                                      ],
-                                    ),
-                                    child: Icon(
-                                      Icons.add,
-                                      color: context.mdPrimaryText,
-                                      size: 28,
+                                    child: GlassContainer(
+                                      blurSigma: context.mdGlassBlurMedium,
+                                      borderRadius: BorderRadius.circular(26),
+                                      backgroundColor:
+                                          context.mdGlassSurfaceStrong,
+                                      borderColor: context.mdGlassBorder,
+                                      padding: EdgeInsets.zero,
+                                      child: Icon(
+                                        Icons.add,
+                                        color: context.mdPrimaryText,
+                                        size: 28,
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -702,24 +700,20 @@ class _JournalScreenState extends State<JournalScreen> {
                     )
                   : GestureDetector(
                       onTap: () => setState(() => _fabExpanded = true),
-                      child: Container(
+                      child: SizedBox(
                         width: 60,
                         height: 60,
-                        decoration: const BoxDecoration(
-                          color: _kPurple,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Color(0x44A076F9),
-                              blurRadius: 12,
-                              offset: Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: const Icon(
-                          Icons.add,
-                          color: Colors.white,
-                          size: 32,
+                        child: GlassContainer(
+                          blurSigma: context.mdGlassBlurMedium,
+                          borderRadius: BorderRadius.circular(30),
+                          backgroundColor: _kPurple.withValues(alpha: 0.88),
+                          borderColor: context.mdGlassBorder,
+                          padding: EdgeInsets.zero,
+                          child: const Icon(
+                            Icons.add,
+                            color: Colors.white,
+                            size: 32,
+                          ),
                         ),
                       ),
                     ),
@@ -1070,21 +1064,14 @@ class _JournalEditorScreenState extends State<_JournalEditorScreen> {
                         )
                       : GestureDetector(
                           onTap: _save,
-                          child: Container(
+                          child: GlassContainer(
+                            blurSigma: context.mdGlassBlurMedium,
+                            borderRadius: BorderRadius.circular(20),
+                            backgroundColor: context.mdGlassSurface,
+                            borderColor: context.mdGlassBorder,
                             padding: const EdgeInsets.symmetric(
                               horizontal: 20,
                               vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: context.mdSurface,
-                              borderRadius: BorderRadius.circular(20),
-                              boxShadow: const [
-                                BoxShadow(
-                                  color: Color(0x18000000),
-                                  blurRadius: 6,
-                                  offset: Offset(0, 2),
-                                ),
-                              ],
                             ),
                             child: const Text(
                               'Done',
@@ -1173,20 +1160,13 @@ class _TagPicker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final primaryText = context.mdPrimaryText;
-    return Container(
+    return GlassContainer(
+      blurSigma: context.mdGlassBlurMedium,
       margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+      borderRadius: BorderRadius.circular(20),
+      backgroundColor: context.mdGlassSurface,
+      borderColor: context.mdGlassBorder,
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-      decoration: BoxDecoration(
-        color: context.mdSurface,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x10000000),
-            blurRadius: 8,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
       child: Column(
         children: [
           Text(
