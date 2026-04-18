@@ -626,7 +626,7 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
                   borderRadius: BorderRadius.circular(16),
                   backgroundColor: Theme.of(
                     context,
-                  ).colorScheme.errorContainer.withValues(alpha: 0.6),
+                  ).colorScheme.errorContainer.withValues(alpha: 0.5),
                   borderColor: Theme.of(
                     context,
                   ).colorScheme.error.withValues(alpha: 0.45),

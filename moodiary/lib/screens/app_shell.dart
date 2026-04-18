@@ -108,7 +108,7 @@ class _MoodiaryShellState extends State<MoodiaryShell> {
             onDestinationSelected: (index) => setState(() => _index = index),
             height: 58,
             backgroundColor: Colors.transparent,
-            indicatorColor: cs.primaryContainer.withValues(alpha: 0.72),
+            indicatorColor: cs.primaryContainer.withValues(alpha: 0.56),
             elevation: 0,
             labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
             destinations: const [

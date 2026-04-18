@@ -1193,7 +1193,7 @@ class _ForumListView extends StatelessWidget {
               child: GlassContainer(
                 blurSigma: context.mdGlassBlurMedium,
                 borderRadius: BorderRadius.circular(27),
-                backgroundColor: _kPurple.withValues(alpha: 0.72),
+                backgroundColor: _kPurple.withValues(alpha: 0.58),
                 borderColor: context.mdGlassBorder,
                 padding: EdgeInsets.zero,
                 child: Material(
@@ -1389,7 +1389,7 @@ class _ForumDetailViewState extends State<_ForumDetailView> {
                     child: GlassContainer(
                       blurSigma: context.mdGlassBlurSmall,
                       borderRadius: BorderRadius.circular(23),
-                      backgroundColor: _kPurple.withValues(alpha: 0.7),
+                      backgroundColor: _kPurple.withValues(alpha: 0.58),
                       borderColor: context.mdGlassBorder,
                       padding: EdgeInsets.zero,
                       child: Material(

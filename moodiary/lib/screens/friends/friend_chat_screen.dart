@@ -606,7 +606,7 @@ class _MessageComposer extends StatelessWidget {
                 borderRadius: BorderRadius.circular(23),
                 backgroundColor: sending
                     ? _kPurple.withValues(alpha: 0.44)
-                    : _kPurple.withValues(alpha: 0.70),
+                    : _kPurple.withValues(alpha: 0.58),
                 borderColor: context.mdGlassBorder,
                 padding: EdgeInsets.zero,
                 child: Material(

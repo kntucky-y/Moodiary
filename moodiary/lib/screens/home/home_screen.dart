@@ -1992,7 +1992,7 @@ class _CompanionChatState extends State<_CompanionChat> {
                       child: GlassContainer(
                         blurSigma: context.mdGlassBlurSmall,
                         borderRadius: BorderRadius.circular(23),
-                        backgroundColor: _kPurple.withValues(alpha: 0.70),
+                        backgroundColor: _kPurple.withValues(alpha: 0.58),
                         borderColor: context.mdGlassBorder,
                         padding: EdgeInsets.zero,
                         child: const Center(

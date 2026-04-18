@@ -706,7 +706,7 @@ class _JournalScreenState extends State<JournalScreen> {
                         child: GlassContainer(
                           blurSigma: context.mdGlassBlurMedium,
                           borderRadius: BorderRadius.circular(30),
-                          backgroundColor: _kPurple.withValues(alpha: 0.88),
+                          backgroundColor: _kPurple.withValues(alpha: 0.60),
                           borderColor: context.mdGlassBorder,
                           padding: EdgeInsets.zero,
                           child: const Icon(
