@@ -1001,7 +1001,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           if (_sidebarOpen)
             GestureDetector(
               onTap: () => setState(() => _sidebarOpen = false),
-              child: Container(color: Colors.black54),
+              child: Container(color: context.mdOverlayBarrier),
             ),
           AnimatedPositioned(
             duration: const Duration(milliseconds: 300),

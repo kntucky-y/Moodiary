@@ -13,6 +13,7 @@ import 'services/local_notifications_service.dart';
 import 'services/push_notifications_service.dart';
 import 'services/realtime_notifications.dart';
 import 'services/theme_controller.dart';
+import 'theme/moodiary_colors.dart';
 import 'utils/transitions.dart';
 import 'utils/in_app_notifications.dart';
 import 'utils/user_cache.dart';
@@ -86,6 +87,7 @@ class MoodiaryApp extends StatelessWidget {
           themeMode: mode,
           theme: _buildLightTheme(),
           darkTheme: _buildDarkTheme(),
+          builder: (context, child) => _AdaptiveAppFrame(child: child),
           home: showResetPasswordScreen
               ? ResetPasswordScreen(initialToken: initialResetToken)
               : const StartupGate(),
@@ -95,11 +97,40 @@ class MoodiaryApp extends StatelessWidget {
   }
 
   ThemeData _buildLightTheme() {
-    return ThemeData(
+    final base = ThemeData(
       colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF9B7FDB)),
       scaffoldBackgroundColor: const Color(0xFFF7F5F2),
       useMaterial3: true,
       textTheme: GoogleFonts.lexendTextTheme(),
+    );
+    return base.copyWith(
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+      ),
+      cardTheme: CardThemeData(
+        color: Colors.white.withValues(alpha: 0.74),
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.7)),
+        ),
+      ),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: base.colorScheme.surface.withValues(alpha: 0.92),
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: Colors.white.withValues(alpha: 0.78),
+        indicatorColor: base.colorScheme.primaryContainer.withValues(
+          alpha: 0.75,
+        ),
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+      ),
     );
   }
 
@@ -118,6 +149,33 @@ class MoodiaryApp extends StatelessWidget {
     return base.copyWith(
       scaffoldBackgroundColor: const Color(0xFF0F1119),
       cardColor: const Color(0xFF1B1E2C),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+      ),
+      cardTheme: CardThemeData(
+        color: Colors.white.withValues(alpha: 0.1),
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.18)),
+        ),
+      ),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: const Color(0xFF1B1F2C).withValues(alpha: 0.9),
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: const Color(0xFF1B1F2C).withValues(alpha: 0.75),
+        indicatorColor: base.colorScheme.primaryContainer.withValues(
+          alpha: 0.62,
+        ),
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+      ),
     );
   }
 }
@@ -207,8 +265,20 @@ class _StartupGateState extends State<StartupGate> {
       future: _startupFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
+          return Scaffold(
+            body: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    context.mdScaffold,
+                    context.mdSecondarySurface.withValues(alpha: 0.55),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+              child: const Center(child: CircularProgressIndicator()),
+            ),
           );
         }
 
@@ -251,6 +321,59 @@ class _StartupGateState extends State<StartupGate> {
 
         return snapshot.data ?? const OnboardingScreen();
       },
+    );
+  }
+}
+
+class _AdaptiveAppFrame extends StatelessWidget {
+  final Widget? child;
+
+  const _AdaptiveAppFrame({required this.child});
+
+  double _resolveMaxWidth(double width) {
+    if (width >= 1400) return 900;
+    if (width >= 1000) return 820;
+    if (width >= 700) return 720;
+    return width;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final content = child;
+    if (content == null) {
+      return const SizedBox.shrink();
+    }
+
+    final media = MediaQuery.of(context);
+    final width = media.size.width;
+    final maxWidth = _resolveMaxWidth(width);
+    final sideInset = width >= 1000
+        ? 24.0
+        : width >= 700
+        ? 16.0
+        : 0.0;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            context.mdScaffold,
+            context.mdSecondarySurface.withValues(alpha: 0.28),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: sideInset),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: maxWidth),
+            child: content,
+          ),
+        ),
+      ),
     );
   }
 }

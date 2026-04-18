@@ -15,6 +15,7 @@ import '../../services/theme_controller.dart';
 import '../../theme/moodiary_colors.dart';
 import '../../utils/transitions.dart';
 import '../../widgets/app_sidebar.dart';
+import '../../widgets/glass.dart';
 import '../../services/realtime_notifications.dart';
 import '../settings/settings_screen.dart';
 import '../../utils/avatar_utils.dart';
@@ -1610,42 +1611,57 @@ class _BottomNav extends StatelessWidget {
         : const Color(0xFFF0F0F0);
     final inactiveColor = context.mdSecondaryText;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: navBg,
-        border: Border(top: BorderSide(color: borderColor, width: 1.5)),
+    final media = MediaQuery.of(context);
+    final width = media.size.width;
+    final horizontalInset = width >= 700 ? 18.0 : 14.0;
+    final bottomInset = media.padding.bottom > 0 ? 12.0 : 18.0;
+
+    return SafeArea(
+      minimum: EdgeInsets.fromLTRB(
+        horizontalInset,
+        8,
+        horizontalInset,
+        bottomInset,
       ),
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: items
-            .map(
-              (item) => TapScale(
-                onTap: item.onTap,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      item.icon,
-                      color: item.active ? _kPurple : inactiveColor,
-                      size: 26,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      item.label,
-                      style: TextStyle(
-                        fontSize: 10,
+      child: GlassContainer(
+        blurSigma: context.mdGlassBlurMedium,
+        borderRadius: BorderRadius.circular(context.mdRadiusXl),
+        backgroundColor: navBg.withValues(
+          alpha: context.isDarkMode ? 0.62 : 0.78,
+        ),
+        borderColor: borderColor,
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: items
+              .map(
+                (item) => TapScale(
+                  onTap: item.onTap,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        item.icon,
                         color: item.active ? _kPurple : inactiveColor,
-                        fontWeight: item.active
-                            ? FontWeight.bold
-                            : FontWeight.normal,
+                        size: 26,
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 2),
+                      Text(
+                        item.label,
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: item.active ? _kPurple : inactiveColor,
+                          fontWeight: item.active
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            )
-            .toList(),
+              )
+              .toList(),
+        ),
       ),
     );
   }

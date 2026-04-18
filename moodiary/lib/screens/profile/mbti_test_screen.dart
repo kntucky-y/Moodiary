@@ -244,6 +244,13 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
 
   Widget _buildIntro(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final width = MediaQuery.of(context).size.width;
+    final isWide = width >= 700;
+    final gridCount = width >= 900
+        ? 6
+        : width >= 700
+        ? 4
+        : 3;
     const previewColors = [
       Color(0xFFE9D5FF),
       Color(0xFFBFDBFE),
@@ -256,7 +263,7 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('MBTI Companion Test')),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+        padding: EdgeInsets.all(isWide ? 24 : 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -296,10 +303,10 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
               itemCount: 12,
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 10,
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: gridCount,
+                crossAxisSpacing: isWide ? 12 : 10,
+                mainAxisSpacing: isWide ? 12 : 10,
               ),
               itemBuilder: (context, i) => Container(
                 decoration: BoxDecoration(
@@ -323,7 +330,12 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
         ),
       ),
       bottomNavigationBar: SafeArea(
-        minimum: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+        minimum: EdgeInsets.fromLTRB(
+          isWide ? 24 : 20,
+          10,
+          isWide ? 24 : 20,
+          MediaQuery.of(context).padding.bottom > 0 ? 14 : 18,
+        ),
         child: SizedBox(
           width: double.infinity,
           child: ElevatedButton(

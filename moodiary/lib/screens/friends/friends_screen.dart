@@ -722,7 +722,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
           if (_sidebarOpen)
             GestureDetector(
               onTap: _closeSidebar,
-              child: Container(color: Colors.black54),
+              child: Container(color: context.mdOverlayBarrier),
             ),
           AnimatedPositioned(
             duration: const Duration(milliseconds: 300),

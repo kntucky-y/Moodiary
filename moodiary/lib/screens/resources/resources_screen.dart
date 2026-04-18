@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../services/auth_service.dart';
 import '../../theme/moodiary_colors.dart';
+import '../../widgets/glass.dart';
 
 class ResourcesScreen extends StatefulWidget {
   const ResourcesScreen({super.key});
@@ -241,6 +242,16 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
     return '${km.toStringAsFixed(km >= 10 ? 0 : 1)} km away';
   }
 
+  double _responsiveWidth({
+    required double mobileFraction,
+    required double min,
+    required double max,
+  }) {
+    final width = MediaQuery.of(context).size.width;
+    final candidate = width * mobileFraction;
+    return candidate.clamp(min, max).toDouble();
+  }
+
   Widget _buildClinicPreviewCards() {
     if (_clinics.isEmpty) return const SizedBox.shrink();
 
@@ -254,73 +265,67 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
         itemBuilder: (context, index) {
           final clinic = _clinics[index];
           final isSelected = _selectedClinic == clinic;
+          final cardWidth = _responsiveWidth(
+            mobileFraction: 0.64,
+            min: 220,
+            max: 320,
+          );
           return SizedBox(
-            width: 230,
-            child: Card(
-              elevation: 0,
-              color: isSelected
-                  ? context.mdAccentPurple.withValues(alpha: 0.12)
-                  : context.mdSurface,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-                side: BorderSide(
-                  color: isSelected
-                      ? context.mdAccentPurple
-                      : context.mdInputBorder,
-                ),
-              ),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(16),
-                onTap: () {
-                  setState(() => _selectedClinic = clinic);
-                  _moveMapSafely(_clinicPoint(clinic), 14.5);
-                  _showClinicDetails(clinic);
-                },
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+            width: cardWidth,
+            child: GlassCard(
+              borderRadius: BorderRadius.circular(16),
+              backgroundColor: isSelected
+                  ? context.mdAccentPurple.withValues(alpha: 0.2)
+                  : context.mdGlassSurface,
+              borderColor: isSelected
+                  ? context.mdAccentPurple
+                  : context.mdGlassBorder,
+              padding: const EdgeInsets.all(12),
+              onTap: () {
+                setState(() => _selectedClinic = clinic);
+                _moveMapSafely(_clinicPoint(clinic), 14.5);
+                _showClinicDetails(clinic);
+              },
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    clinic['name'] as String? ?? 'Clinic',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: context.mdPrimaryText,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    _formatDistance(_distanceKm(clinic)),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: context.mdSecondaryText,
+                    ),
+                  ),
+                  const Spacer(),
+                  Row(
                     children: [
-                      Text(
-                        clinic['name'] as String? ?? 'Clinic',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: context.mdPrimaryText,
-                        ),
+                      Icon(
+                        Icons.location_on_outlined,
+                        size: 16,
+                        color: context.mdSecondaryText,
                       ),
-                      const SizedBox(height: 6),
-                      Text(
-                        _formatDistance(_distanceKm(clinic)),
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: context.mdSecondaryText,
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          clinic['address'] as String? ?? 'Address unavailable',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(color: context.mdSecondaryText),
                         ),
-                      ),
-                      const Spacer(),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.location_on_outlined,
-                            size: 16,
-                            color: context.mdSecondaryText,
-                          ),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              clinic['address'] as String? ??
-                                  'Address unavailable',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.labelSmall
-                                  ?.copyWith(color: context.mdSecondaryText),
-                            ),
-                          ),
-                        ],
                       ),
                     ],
                   ),
-                ),
+                ],
               ),
             ),
           );
@@ -335,9 +340,15 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: context.mdOverlayBarrier,
       builder: (context) {
         return SafeArea(
-          child: Padding(
+          child: GlassContainer(
+            blurSigma: context.mdGlassBlurMedium,
+            borderRadius: BorderRadius.circular(context.mdRadiusXl),
+            backgroundColor: context.mdGlassSurfaceStrong,
+            margin: const EdgeInsets.fromLTRB(12, 0, 12, 10),
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -519,7 +530,7 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
         point: center,
         width: 44,
         height: 44,
-        child: const Icon(Icons.my_location, color: Colors.blue, size: 28),
+        child: Icon(Icons.my_location, color: context.mdAccentPurple, size: 28),
       ),
       ..._clinics.map(
         (clinic) => Marker(
@@ -535,7 +546,7 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
               Icons.location_pin,
               color: _selectedClinic == clinic
                   ? context.mdAccentPurple
-                  : Colors.redAccent,
+                  : context.mdSecondaryText,
               size: 34,
             ),
           ),
@@ -543,13 +554,12 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
       ),
     ];
 
-    return Card(
-      elevation: 0,
-      color: context.mdSurface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(24),
-        side: BorderSide(color: context.mdInputBorder),
-      ),
+    return GlassContainer(
+      blurSigma: context.mdGlassBlurMedium,
+      borderRadius: BorderRadius.circular(context.mdRadiusXl),
+      backgroundColor: context.mdGlassSurface,
+      borderColor: context.mdGlassBorder,
+      padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -750,75 +760,64 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
         .map(
           (resource) => Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-            child: Card(
-              elevation: 0,
-              color: context.mdSurface,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-                side: BorderSide(color: context.mdInputBorder),
-              ),
-              child: InkWell(
-                onTap: () => _launchUrl(resource['url'] as String? ?? ''),
-                borderRadius: BorderRadius.circular(20),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+            child: GlassCard(
+              borderRadius: BorderRadius.circular(20),
+              backgroundColor: context.mdGlassSurface,
+              borderColor: context.mdGlassBorder,
+              onTap: () => _launchUrl(resource['url'] as String? ?? ''),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
                     children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (resource['featured'] as bool? ?? false)
-                                  Padding(
-                                    padding: const EdgeInsets.only(bottom: 8),
-                                    child: _SummaryChip(
-                                      icon: Icons.star_rounded,
-                                      label: 'Featured',
-                                      compact: true,
-                                    ),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (resource['featured'] as bool? ?? false)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 8),
+                                child: _SummaryChip(
+                                  icon: Icons.star_rounded,
+                                  label: 'Featured',
+                                  compact: true,
+                                ),
+                              ),
+                            Text(
+                              resource['title'] as String? ?? '',
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    color: context.mdPrimaryText,
                                   ),
-                                Text(
-                                  resource['title'] as String? ?? '',
-                                  style: Theme.of(context).textTheme.titleMedium
-                                      ?.copyWith(
-                                        fontWeight: FontWeight.w700,
-                                        color: context.mdPrimaryText,
-                                      ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  resource['category'] as String? ?? '',
-                                  style: Theme.of(context).textTheme.labelSmall
-                                      ?.copyWith(
-                                        color: context.mdSecondaryText,
-                                      ),
-                                ),
-                              ],
                             ),
-                          ),
-                          Icon(
-                            Icons.open_in_new,
-                            size: 20,
-                            color: context.mdSecondaryText,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        resource['description'] as String? ?? '',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: context.mdSecondaryText,
-                          height: 1.4,
+                            const SizedBox(height: 4),
+                            Text(
+                              resource['category'] as String? ?? '',
+                              style: Theme.of(context).textTheme.labelSmall
+                                  ?.copyWith(color: context.mdSecondaryText),
+                            ),
+                          ],
                         ),
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Icon(
+                        Icons.open_in_new,
+                        size: 20,
+                        color: context.mdSecondaryText,
                       ),
                     ],
                   ),
-                ),
+                  const SizedBox(height: 12),
+                  Text(
+                    resource['description'] as String? ?? '',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: context.mdSecondaryText,
+                      height: 1.4,
+                    ),
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ),
             ),
           ),
@@ -828,6 +827,8 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final pagePadding = MediaQuery.of(context).size.width >= 700 ? 20.0 : 16.0;
+
     return Scaffold(
       backgroundColor: context.mdScaffold,
       appBar: AppBar(
@@ -844,27 +845,14 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
             SliverToBoxAdapter(
-              child: Container(
-                margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              child: GlassContainer(
+                blurSigma: context.mdGlassBlurMedium,
+                margin: EdgeInsets.fromLTRB(pagePadding, 12, pagePadding, 8),
+                borderRadius: BorderRadius.circular(context.mdRadiusXl),
+                backgroundColor: context.mdGlassSurface,
+                borderColor: context.mdGlassBorder,
                 padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [context.mdSecondarySurface, context.mdSurface],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: context.mdCardGlow,
-                      blurRadius: 18,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                  border: Border.all(
-                    color: context.mdInputBorder.withValues(alpha: 0.5),
-                  ),
-                ),
+                gradient: context.mdGlassHeroGradient,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -930,7 +918,7 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
             SliverToBoxAdapter(child: _buildCategoryChips()),
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 18, 16, 0),
+                padding: EdgeInsets.fromLTRB(pagePadding, 18, pagePadding, 0),
                 child: _SectionTitle(
                   title: 'Featured guides',
                   subtitle: 'Curated reads for quick support and coping tools.',
@@ -940,13 +928,13 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
             SliverToBoxAdapter(child: _buildFeaturedGuidesSection()),
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
+                padding: EdgeInsets.fromLTRB(pagePadding, 24, pagePadding, 0),
                 child: _buildNearbyClinicsSection(),
               ),
             ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+                padding: EdgeInsets.fromLTRB(pagePadding, 24, pagePadding, 8),
                 child: _SectionTitle(
                   title: 'All resources',
                   subtitle: _selectedCategory == 'All'
@@ -1018,6 +1006,7 @@ class _SummaryChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: context.mdAccentPurple.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: context.mdGlassBorder),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1045,51 +1034,45 @@ class _GuideCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    final cardWidth = (width * 0.7).clamp(230.0, 340.0);
+
     return SizedBox(
-      width: 250,
-      child: Card(
-        elevation: 0,
-        color: context.mdSurface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: BorderSide(color: context.mdInputBorder),
-        ),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(20),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const _SummaryChip(
-                  icon: Icons.star_rounded,
-                  label: 'Featured',
-                  compact: true,
-                ),
-                const Spacer(),
-                Text(
-                  resource['title'] as String? ?? '',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: context.mdPrimaryText,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  resource['description'] as String? ?? '',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: context.mdSecondaryText,
-                    height: 1.35,
-                  ),
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
+      width: cardWidth,
+      child: GlassCard(
+        borderRadius: BorderRadius.circular(20),
+        backgroundColor: context.mdGlassSurface,
+        borderColor: context.mdGlassBorder,
+        onTap: onTap,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const _SummaryChip(
+              icon: Icons.star_rounded,
+              label: 'Featured',
+              compact: true,
             ),
-          ),
+            const Spacer(),
+            Text(
+              resource['title'] as String? ?? '',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: context.mdPrimaryText,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              resource['description'] as String? ?? '',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: context.mdSecondaryText,
+                height: 1.35,
+              ),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
         ),
       ),
     );
@@ -1101,13 +1084,11 @@ class _LoadingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 0,
-      color: context.mdSurface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: BorderSide(color: context.mdInputBorder),
-      ),
+    return GlassContainer(
+      blurSigma: context.mdGlassBlurMedium,
+      borderRadius: BorderRadius.circular(20),
+      backgroundColor: context.mdGlassSurface,
+      borderColor: context.mdGlassBorder,
       child: const Padding(
         padding: EdgeInsets.all(24),
         child: Center(child: CircularProgressIndicator()),
@@ -1129,13 +1110,11 @@ class _EmptyStateCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 0,
-      color: context.mdSurface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: BorderSide(color: context.mdInputBorder),
-      ),
+    return GlassContainer(
+      blurSigma: context.mdGlassBlurMedium,
+      borderRadius: BorderRadius.circular(20),
+      backgroundColor: context.mdGlassSurface,
+      borderColor: context.mdGlassBorder,
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -1182,13 +1161,11 @@ class _ErrorStateCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 0,
-      color: context.mdSurface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: BorderSide(color: context.mdInputBorder),
-      ),
+    return GlassContainer(
+      blurSigma: context.mdGlassBlurMedium,
+      borderRadius: BorderRadius.circular(20),
+      backgroundColor: context.mdGlassSurface,
+      borderColor: context.mdGlassBorder,
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(

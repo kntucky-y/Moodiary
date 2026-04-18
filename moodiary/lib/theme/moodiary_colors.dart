@@ -20,4 +20,50 @@ extension MoodiaryColors on BuildContext {
   Color get mdInputBorder =>
       isDarkMode ? Colors.white24 : const Color(0xFFDDDDDD);
   Color get mdAccentPurple => const Color(0xFFA076F9);
+
+  Color get mdGlassSurface => isDarkMode
+      ? Colors.white.withValues(alpha: 0.08)
+      : Colors.white.withValues(alpha: 0.68);
+  Color get mdGlassSurfaceStrong => isDarkMode
+      ? Colors.white.withValues(alpha: 0.12)
+      : Colors.white.withValues(alpha: 0.82);
+  Color get mdGlassBorder => isDarkMode
+      ? Colors.white.withValues(alpha: 0.2)
+      : Colors.white.withValues(alpha: 0.75);
+  Color get mdGlassHighlight => isDarkMode
+      ? Colors.white.withValues(alpha: 0.08)
+      : Colors.white.withValues(alpha: 0.35);
+  Color get mdOverlayBarrier => isDarkMode
+      ? Colors.black.withValues(alpha: 0.5)
+      : Colors.black.withValues(alpha: 0.24);
+
+  double get mdGlassBlurMedium => 14;
+  double get mdRadiusSm => 12;
+  double get mdRadiusMd => 16;
+  double get mdRadiusLg => 20;
+  double get mdRadiusXl => 24;
+
+  List<BoxShadow> get mdGlassShadows => [
+    BoxShadow(
+      color: isDarkMode
+          ? Colors.black.withValues(alpha: 0.25)
+          : Colors.black.withValues(alpha: 0.08),
+      blurRadius: 18,
+      offset: const Offset(0, 8),
+    ),
+    BoxShadow(
+      color: mdGlassHighlight,
+      blurRadius: 4,
+      offset: const Offset(0, 1),
+    ),
+  ];
+
+  Gradient get mdGlassHeroGradient => LinearGradient(
+    colors: [
+      mdSecondarySurface.withValues(alpha: isDarkMode ? 0.82 : 0.92),
+      mdGlassSurfaceStrong,
+    ],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
 }

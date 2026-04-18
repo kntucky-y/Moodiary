@@ -3,6 +3,9 @@ import 'dart:collection';
 
 import 'package:flutter/material.dart';
 
+import '../theme/moodiary_colors.dart';
+import '../widgets/glass.dart';
+
 class InAppNotifications {
   InAppNotifications._();
 
@@ -129,57 +132,48 @@ class _InAppBannerState extends State<_InAppBanner>
           onTap: _close,
           child: Material(
             color: Colors.transparent,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(18),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.12),
-                    blurRadius: 18,
-                    offset: const Offset(0, 10),
+            child: GlassContainer(
+              blurSigma: context.mdGlassBlurMedium,
+              borderRadius: BorderRadius.circular(18),
+              backgroundColor: context.mdGlassSurfaceStrong,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+              child: Row(
+                children: [
+                  Icon(widget.payload.icon, color: context.mdAccentPurple),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          widget.payload.title,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            color: context.mdPrimaryText,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          widget.payload.message,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: context.mdSecondaryText,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: _close,
+                    icon: Icon(
+                      Icons.close,
+                      size: 18,
+                      color: context.mdSecondaryText,
+                    ),
                   ),
                 ],
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 18,
-                  vertical: 14,
-                ),
-                child: Row(
-                  children: [
-                    Icon(widget.payload.icon, color: const Color(0xFF6D28D9)),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            widget.payload.title,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                              color: Color(0xFF1F2937),
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            widget.payload.message,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Color(0xFF4B5563),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: _close,
-                      icon: const Icon(Icons.close, size: 18),
-                    ),
-                  ],
-                ),
               ),
             ),
           ),

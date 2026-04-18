@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../theme/moodiary_colors.dart';
+import '../widgets/glass.dart';
 import 'friends/friends_screen.dart';
 import 'forums/forums_screen.dart';
 import 'home/home_screen.dart';
@@ -82,41 +84,60 @@ class _MoodiaryShellState extends State<MoodiaryShell> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final media = MediaQuery.of(context);
+    final width = media.size.width;
+    final horizontalInset = width >= 700 ? 18.0 : 14.0;
+    final bottomInset = media.padding.bottom > 0 ? 12.0 : 18.0;
 
     return Scaffold(
       body: IndexedStack(index: _index, children: _pages),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: (index) => setState(() => _index = index),
-        backgroundColor: cs.surface,
-        indicatorColor: cs.primaryContainer,
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.account_circle_outlined),
-            selectedIcon: Icon(Icons.account_circle),
-            label: 'Profile',
+      bottomNavigationBar: SafeArea(
+        minimum: EdgeInsets.fromLTRB(
+          horizontalInset,
+          8,
+          horizontalInset,
+          bottomInset,
+        ),
+        child: GlassContainer(
+          blurSigma: context.mdGlassBlurMedium,
+          borderRadius: BorderRadius.circular(context.mdRadiusXl),
+          backgroundColor: context.mdGlassSurfaceStrong,
+          padding: EdgeInsets.zero,
+          child: NavigationBar(
+            selectedIndex: _index,
+            onDestinationSelected: (index) => setState(() => _index = index),
+            backgroundColor: Colors.transparent,
+            indicatorColor: cs.primaryContainer.withValues(alpha: 0.72),
+            elevation: 0,
+            destinations: const [
+              NavigationDestination(
+                icon: Icon(Icons.account_circle_outlined),
+                selectedIcon: Icon(Icons.account_circle),
+                label: 'Profile',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.people_alt_outlined),
+                selectedIcon: Icon(Icons.people_alt),
+                label: 'Buddies',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.home_outlined),
+                selectedIcon: Icon(Icons.home),
+                label: 'Home',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.chat_bubble_outline),
+                selectedIcon: Icon(Icons.chat_bubble),
+                label: 'Forums',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.folder_outlined),
+                selectedIcon: Icon(Icons.folder),
+                label: 'Resources',
+              ),
+            ],
           ),
-          NavigationDestination(
-            icon: Icon(Icons.people_alt_outlined),
-            selectedIcon: Icon(Icons.people_alt),
-            label: 'Buddies',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.chat_bubble_outline),
-            selectedIcon: Icon(Icons.chat_bubble),
-            label: 'Forums',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.folder_outlined),
-            selectedIcon: Icon(Icons.folder),
-            label: 'Resources',
-          ),
-        ],
+        ),
       ),
     );
   }

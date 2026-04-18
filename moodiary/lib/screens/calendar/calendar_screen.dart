@@ -411,7 +411,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
           if (_sidebarOpen)
             GestureDetector(
               onTap: _closeSidebar,
-              child: Container(color: Colors.black54),
+              child: Container(color: context.mdOverlayBarrier),
             ),
           AnimatedPositioned(
             duration: const Duration(milliseconds: 300),
