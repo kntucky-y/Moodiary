@@ -1592,20 +1592,13 @@ class _BottomNav extends StatelessWidget {
     final inactiveColor = context.mdSecondaryText;
 
     final media = MediaQuery.of(context);
-    final width = media.size.width;
-    final horizontalInset = width >= 700 ? 18.0 : 14.0;
-    final bottomInset = media.padding.bottom > 0 ? 12.0 : 18.0;
+    final bottomInset = media.padding.bottom > 0 ? 8.0 : 12.0;
 
     return SafeArea(
-      minimum: EdgeInsets.fromLTRB(
-        horizontalInset,
-        8,
-        horizontalInset,
-        bottomInset,
-      ),
+      minimum: EdgeInsets.fromLTRB(0, 0, 0, bottomInset),
       child: GlassContainer(
         blurSigma: context.mdGlassBlurMedium,
-        borderRadius: BorderRadius.circular(context.mdRadiusXl),
+        borderRadius: BorderRadius.circular(context.mdRadiusLg),
         backgroundColor: navBg.withValues(
           alpha: context.isDarkMode ? 0.62 : 0.78,
         ),
@@ -1986,17 +1979,22 @@ class _CompanionChatState extends State<_CompanionChat> {
                   const SizedBox(width: 8),
                   TapScale(
                     onTap: () => _send(_input.text),
-                    child: Container(
-                      width: 44,
-                      height: 44,
-                      decoration: const BoxDecoration(
-                        color: _kPurple,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.send_rounded,
-                        color: Colors.white,
-                        size: 20,
+                    child: SizedBox(
+                      width: 46,
+                      height: 46,
+                      child: GlassContainer(
+                        blurSigma: context.mdGlassBlurSmall,
+                        borderRadius: BorderRadius.circular(23),
+                        backgroundColor: _kPurple.withValues(alpha: 0.70),
+                        borderColor: context.mdGlassBorder,
+                        padding: EdgeInsets.zero,
+                        child: const Center(
+                          child: Icon(
+                            Icons.send_rounded,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
                       ),
                     ),
                   ),

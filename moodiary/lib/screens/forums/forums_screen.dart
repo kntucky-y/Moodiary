@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'dart:math' show Random;
 
 import 'package:flutter/material.dart';
@@ -852,97 +852,111 @@ class _ForumsScreenState extends State<ForumsScreen> {
                 bottom: false,
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 10, 20, 8),
-                  child: Container(
+                  child: SizedBox(
                     width: double.infinity,
-                    padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-                    decoration: BoxDecoration(
-                      color: context.mdSecondarySurface,
+                    child: GlassContainer(
+                      blurSigma: context.mdGlassBlurMedium,
                       borderRadius: BorderRadius.circular(22),
-                    ),
-                    child: Column(
-                      children: [
-                        Row(
-                          children: [
-                            IconButton(
-                              onPressed: _openSidebar,
-                              icon: Icon(
-                                Icons.menu,
-                                color: primaryText,
-                                size: 26,
-                              ),
-                              tooltip: 'Open menu',
-                            ),
-                            const Spacer(),
-                            Text(
-                              _todayStr(),
-                              style: TextStyle(
-                                color: primaryText,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const Spacer(),
-                            IconButton(
-                              onPressed: _toggleArchived,
-                              icon: Icon(
-                                _showArchived
-                                    ? Icons.unarchive_outlined
-                                    : Icons.archive_outlined,
-                                color: _showArchived ? _kPurple : primaryText,
-                                size: 22,
-                              ),
-                              tooltip: _showArchived
-                                  ? 'Show active posts'
-                                  : 'Show archived posts',
-                            ),
-                            IconButton(
-                              onPressed: () => _fetchPosts(silent: false),
-                              icon: Icon(
-                                Icons.refresh_rounded,
-                                color: primaryText,
-                                size: 22,
-                              ),
-                              tooltip: 'Refresh forums',
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            'Forums',
-                            style: Theme.of(context).textTheme.headlineMedium
-                                ?.copyWith(
-                                  fontWeight: FontWeight.w700,
+                      backgroundColor: context.mdGlassSurfaceStrong,
+                      borderColor: context.mdGlassBorder,
+                      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              IconButton(
+                                onPressed: _openSidebar,
+                                icon: Icon(
+                                  Icons.menu,
                                   color: primaryText,
+                                  size: 26,
                                 ),
+                                tooltip: 'Open menu',
+                              ),
+                              Expanded(
+                                child: Center(
+                                  child: Text(
+                                    _todayStr(),
+                                    style: TextStyle(
+                                      color: primaryText,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    onPressed: _toggleArchived,
+                                    icon: Icon(
+                                      _showArchived
+                                          ? Icons.unarchive_outlined
+                                          : Icons.archive_outlined,
+                                      color: _showArchived
+                                          ? _kPurple
+                                          : primaryText,
+                                      size: 22,
+                                    ),
+                                    tooltip: _showArchived
+                                        ? 'Show active posts'
+                                        : 'Show archived posts',
+                                  ),
+                                  IconButton(
+                                    onPressed: () => _fetchPosts(silent: false),
+                                    icon: Icon(
+                                      Icons.refresh_rounded,
+                                      color: primaryText,
+                                      size: 22,
+                                    ),
+                                    tooltip: 'Refresh forums',
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
-                        ),
-                        const SizedBox(height: 2),
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            _showArchived
-                                ? 'Archived forum posts'
-                                : 'A safe space to share and connect',
-                            style: TextStyle(
-                              color: secondaryText,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        if (!_showArchived && _showMineOnly)
+                          const SizedBox(height: 8),
                           Align(
                             alignment: Alignment.centerLeft,
-                            child: TextButton.icon(
-                              onPressed: () =>
-                                  setState(() => _showMineOnly = false),
-                              icon: const Icon(Icons.filter_alt_off, size: 18),
-                              label: const Text('Showing only my posts'),
+                            child: Text(
+                              'Forums',
+                              style: Theme.of(context).textTheme.headlineMedium
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    color: primaryText,
+                                  ),
                             ),
                           ),
-                      ],
+                          const SizedBox(height: 2),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              _showArchived
+                                  ? 'Archived forum posts'
+                                  : 'A safe space to share and connect',
+                              style: TextStyle(
+                                color: secondaryText,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          if (!_showArchived && _showMineOnly)
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: TextButton.icon(
+                                onPressed: () =>
+                                    setState(() => _showMineOnly = false),
+                                icon: const Icon(
+                                  Icons.filter_alt_off,
+                                  size: 18,
+                                ),
+                                label: const Text('Showing only my posts'),
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -1166,12 +1180,28 @@ class _ForumListView extends StatelessWidget {
         ),
         if (onCreatePost != null)
           Positioned(
-            bottom: 24,
-            right: 18,
-            child: FloatingActionButton(
-              onPressed: onCreatePost,
-              backgroundColor: _kPurple,
-              child: const Icon(Icons.add, color: Colors.white),
+            bottom: 20,
+            right: 16,
+            child: SizedBox(
+              width: 54,
+              height: 54,
+              child: GlassContainer(
+                blurSigma: context.mdGlassBlurMedium,
+                borderRadius: BorderRadius.circular(27),
+                backgroundColor: _kPurple.withValues(alpha: 0.72),
+                borderColor: context.mdGlassBorder,
+                padding: EdgeInsets.zero,
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(27),
+                    onTap: onCreatePost,
+                    child: const Center(
+                      child: Icon(Icons.add, color: Colors.white, size: 30),
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
       ],
@@ -1316,8 +1346,15 @@ class _ForumDetailViewState extends State<_ForumDetailView> {
           ),
           SafeArea(
             top: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(14, 6, 14, 10),
+            child: GlassContainer(
+              blurSigma: context.mdGlassBlurMedium,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(24),
+              ),
+              backgroundColor: context.mdGlassSurfaceStrong,
+              borderColor: context.mdGlassBorder,
+              margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
               child: Row(
                 children: [
                   Expanded(
@@ -1341,42 +1378,49 @@ class _ForumDetailViewState extends State<_ForumDetailView> {
                     ),
                   ),
                   const SizedBox(width: 10),
-                  GestureDetector(
-                    onTap: _submittingComment
-                        ? null
-                        : () async {
-                            final text = _commentCtrl.text;
-                            if (text.trim().isEmpty) return;
-                            setState(() => _submittingComment = true);
-                            await widget.onAddComment(text);
-                            if (!mounted) return;
-                            _commentCtrl.clear();
-                            setState(() => _submittingComment = false);
-                          },
-                    child: SizedBox(
-                      width: 44,
-                      height: 44,
-                      child: GlassContainer(
-                        blurSigma: context.mdGlassBlurSmall,
-                        borderRadius: BorderRadius.circular(22),
-                        backgroundColor: _kPurple.withValues(alpha: 0.66),
-                        borderColor: context.mdGlassBorder,
-                        padding: EdgeInsets.zero,
-                        child: _submittingComment
-                            ? const Padding(
-                                padding: EdgeInsets.all(12),
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation(
-                                    Colors.white,
+                  SizedBox(
+                    width: 46,
+                    height: 46,
+                    child: GlassContainer(
+                      blurSigma: context.mdGlassBlurSmall,
+                      borderRadius: BorderRadius.circular(23),
+                      backgroundColor: _kPurple.withValues(alpha: 0.7),
+                      borderColor: context.mdGlassBorder,
+                      padding: EdgeInsets.zero,
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(23),
+                          onTap: _submittingComment
+                              ? null
+                              : () async {
+                                  final text = _commentCtrl.text;
+                                  if (text.trim().isEmpty) return;
+                                  setState(() => _submittingComment = true);
+                                  await widget.onAddComment(text);
+                                  if (!mounted) return;
+                                  _commentCtrl.clear();
+                                  setState(() => _submittingComment = false);
+                                },
+                          child: Center(
+                            child: _submittingComment
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation(
+                                        Colors.white,
+                                      ),
+                                    ),
+                                  )
+                                : const Icon(
+                                    Icons.arrow_upward_rounded,
+                                    color: Colors.white,
+                                    size: 22,
                                   ),
-                                ),
-                              )
-                            : const Icon(
-                                Icons.arrow_upward_rounded,
-                                color: Colors.white,
-                                size: 22,
-                              ),
+                          ),
+                        ),
                       ),
                     ),
                   ),

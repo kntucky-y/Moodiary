@@ -598,31 +598,37 @@ class _MessageComposer extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 12),
-            InkWell(
-              onTap: sending ? null : onSend,
-              borderRadius: BorderRadius.circular(28),
-              child: SizedBox(
-                width: 48,
-                height: 48,
-                child: GlassContainer(
-                  blurSigma: context.mdGlassBlurSmall,
-                  borderRadius: BorderRadius.circular(24),
-                  backgroundColor: sending
-                      ? _kPurple.withValues(alpha: 0.44)
-                      : _kPurple.withValues(alpha: 0.68),
-                  borderColor: context.mdGlassBorder,
-                  padding: EdgeInsets.zero,
-                  child: sending
-                      ? const Padding(
-                          padding: EdgeInsets.all(12),
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.white,
-                            ),
-                          ),
-                        )
-                      : const Icon(Icons.send_rounded, color: Colors.white),
+            SizedBox(
+              width: 46,
+              height: 46,
+              child: GlassContainer(
+                blurSigma: context.mdGlassBlurSmall,
+                borderRadius: BorderRadius.circular(23),
+                backgroundColor: sending
+                    ? _kPurple.withValues(alpha: 0.44)
+                    : _kPurple.withValues(alpha: 0.70),
+                borderColor: context.mdGlassBorder,
+                padding: EdgeInsets.zero,
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(23),
+                    onTap: sending ? null : onSend,
+                    child: Center(
+                      child: sending
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
+                              ),
+                            )
+                          : const Icon(Icons.send_rounded, color: Colors.white),
+                    ),
+                  ),
                 ),
               ),
             ),
