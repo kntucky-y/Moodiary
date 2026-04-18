@@ -2,14 +2,35 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../services/auth_service.dart';
+import '../../services/local_notifications_service.dart';
+import '../../services/realtime_notifications.dart';
+import '../../services/theme_controller.dart';
 import '../../theme/moodiary_colors.dart';
+import '../../utils/transitions.dart';
+import '../../widgets/app_sidebar.dart';
 import '../../widgets/glass.dart';
+import '../app_shell.dart';
+import '../calendar/calendar_screen.dart';
+import '../companion/companion_screen.dart';
+import '../journal/journal_screen.dart';
+import '../onboarding/onboarding_screen.dart';
+import '../settings/settings_screen.dart';
 
 class ResourcesScreen extends StatefulWidget {
-  const ResourcesScreen({super.key});
+  final String userName;
+  final int companionId;
+  final String companionName;
+
+  const ResourcesScreen({
+    super.key,
+    required this.userName,
+    required this.companionId,
+    required this.companionName,
+  });
 
   @override
   State<ResourcesScreen> createState() => _ResourcesScreenState();
@@ -18,6 +39,7 @@ class ResourcesScreen extends StatefulWidget {
 class _ResourcesScreenState extends State<ResourcesScreen> {
   final MapController _mapController = MapController();
   bool _isMapReady = false;
+  bool _sidebarOpen = false;
   LatLng? _pendingMapCenter;
   double _pendingMapZoom = 13;
 
@@ -248,6 +270,68 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
     final width = MediaQuery.of(context).size.width;
     final candidate = width * mobileFraction;
     return candidate.clamp(min, max).toDouble();
+  }
+
+  String _todayStr() {
+    const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    final now = DateTime.now();
+    return '${weekdays[now.weekday - 1]}, ${months[now.month - 1]} ${now.day}';
+  }
+
+  void _openSidebar() => setState(() => _sidebarOpen = true);
+
+  void _closeSidebar() => setState(() => _sidebarOpen = false);
+
+  void _openScreen(Widget page) {
+    _closeSidebar();
+    Navigator.of(context).push(FadeSlideRoute(page: page));
+  }
+
+  void _openShellTab(MoodiaryTab tab) {
+    _closeSidebar();
+    Navigator.of(context).pushAndRemoveUntil(
+      FadeSlideRoute(
+        page: MoodiaryShell(
+          userName: widget.userName,
+          companionId: widget.companionId,
+          companionName: widget.companionName,
+          initialTab: tab,
+        ),
+      ),
+      (_) => false,
+    );
+  }
+
+  Future<void> _logout() async {
+    _closeSidebar();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('token');
+    await prefs.remove('user_name');
+    await prefs.remove('user_id');
+    await prefs.remove('companion_id');
+    await prefs.remove('companion_name');
+    RealtimeNotifications.instance.disconnect();
+    await ThemeController.instance.resetToDefault();
+    await LocalNotificationsService.instance.cancelAllScheduled();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      FadeSlideRoute(page: const OnboardingScreen()),
+      (_) => false,
+    );
   }
 
   Widget _buildClinicPreviewCards() {
@@ -817,127 +901,257 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
   @override
   Widget build(BuildContext context) {
     final pagePadding = MediaQuery.of(context).size.width >= 700 ? 20.0 : 16.0;
+    final primaryText = context.mdPrimaryText;
+    final secondaryText = context.mdSecondaryText;
 
     return Scaffold(
       backgroundColor: context.mdScaffold,
-      appBar: AppBar(
-        title: const Text('Resources'),
-        centerTitle: false,
-        backgroundColor: context.mdScaffold,
-        foregroundColor: context.mdPrimaryText,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-      ),
-      body: RefreshIndicator(
-        onRefresh: _refreshAll,
-        child: CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          slivers: [
-            SliverToBoxAdapter(
-              child: GlassContainer(
-                blurSigma: context.mdGlassBlurMedium,
-                margin: EdgeInsets.fromLTRB(pagePadding, 12, pagePadding, 8),
-                borderRadius: BorderRadius.circular(context.mdRadiusXl),
-                backgroundColor: context.mdGlassSurface,
-                borderColor: context.mdGlassBorder,
-                padding: const EdgeInsets.all(18),
-                gradient: context.mdGlassHeroGradient,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        GlassContainer(
-                          blurSigma: context.mdGlassBlurSmall,
-                          borderRadius: BorderRadius.circular(16),
-                          backgroundColor: context.mdAccentPurple.withValues(
-                            alpha: 0.16,
-                          ),
-                          borderColor: context.mdGlassBorder,
-                          padding: const EdgeInsets.all(10),
-                          child: Icon(
-                            Icons.auto_awesome_rounded,
-                            color: context.mdAccentPurple,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            'Support that feels close, useful, and calm.',
-                            style: Theme.of(context).textTheme.titleMedium
-                                ?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                  color: context.mdPrimaryText,
+      body: Stack(
+        children: [
+          RefreshIndicator(
+            onRefresh: _refreshAll,
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              slivers: [
+                SliverToBoxAdapter(
+                  child: SafeArea(
+                    bottom: false,
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        pagePadding,
+                        10,
+                        pagePadding,
+                        8,
+                      ),
+                      child: GlassContainer(
+                        blurSigma: context.mdGlassBlurSmall,
+                        borderRadius: BorderRadius.circular(22),
+                        backgroundColor: context.mdGlassSurfaceStrong,
+                        borderColor: context.mdGlassBorder,
+                        padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                        child: Column(
+                          children: [
+                            Row(
+                              children: [
+                                IconButton(
+                                  onPressed: _openSidebar,
+                                  icon: Icon(
+                                    Icons.menu,
+                                    color: primaryText,
+                                    size: 26,
+                                  ),
+                                  tooltip: 'Open menu',
                                 ),
-                          ),
+                                Expanded(
+                                  child: Center(
+                                    child: Text(
+                                      _todayStr(),
+                                      style: TextStyle(
+                                        color: primaryText,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                IconButton(
+                                  onPressed: _refreshAll,
+                                  icon: Icon(
+                                    Icons.refresh_rounded,
+                                    color: primaryText,
+                                    size: 22,
+                                  ),
+                                  tooltip: 'Refresh resources',
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                'Resources',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .headlineMedium
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                      color: primaryText,
+                                    ),
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                'Support that feels close, useful, and calm.',
+                                style: TextStyle(
+                                  color: secondaryText,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Browse curated self-help guides or open the map to find nearby mental health clinics without leaving the app.',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: context.mdSecondaryText,
-                        height: 1.4,
                       ),
                     ),
-                    const SizedBox(height: 14),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
+                  ),
+                ),
+                SliverToBoxAdapter(
+                  child: GlassContainer(
+                    blurSigma: context.mdGlassBlurMedium,
+                    margin: EdgeInsets.fromLTRB(pagePadding, 4, pagePadding, 8),
+                    borderRadius: BorderRadius.circular(context.mdRadiusXl),
+                    backgroundColor: context.mdGlassSurface,
+                    borderColor: context.mdGlassBorder,
+                    padding: const EdgeInsets.all(18),
+                    gradient: context.mdGlassHeroGradient,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _SummaryChip(
-                          icon: Icons.menu_book_outlined,
-                          label: '${_filteredResources.length} guides',
+                        Row(
+                          children: [
+                            GlassContainer(
+                              blurSigma: context.mdGlassBlurSmall,
+                              borderRadius: BorderRadius.circular(16),
+                              backgroundColor: context.mdAccentPurple
+                                  .withValues(alpha: 0.16),
+                              borderColor: context.mdGlassBorder,
+                              padding: const EdgeInsets.all(10),
+                              child: Icon(
+                                Icons.auto_awesome_rounded,
+                                color: context.mdAccentPurple,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Browse curated guides and nearby clinic support.',
+                                style: Theme.of(context).textTheme.titleMedium
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                      color: context.mdPrimaryText,
+                                    ),
+                              ),
+                            ),
+                          ],
                         ),
-                        _SummaryChip(
-                          icon: Icons.local_hospital_outlined,
-                          label: '${_clinics.length} clinics',
-                        ),
-                        _SummaryChip(
-                          icon: Icons.place_outlined,
-                          label: '${_radiusMeters ~/ 1000} km radius',
+                        const SizedBox(height: 14),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            _SummaryChip(
+                              icon: Icons.menu_book_outlined,
+                              label: '${_filteredResources.length} guides',
+                            ),
+                            _SummaryChip(
+                              icon: Icons.local_hospital_outlined,
+                              label: '${_clinics.length} clinics',
+                            ),
+                            _SummaryChip(
+                              icon: Icons.place_outlined,
+                              label: '${_radiusMeters ~/ 1000} km radius',
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  ],
+                  ),
+                ),
+                SliverToBoxAdapter(child: _buildCategoryChips()),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      pagePadding,
+                      18,
+                      pagePadding,
+                      0,
+                    ),
+                    child: _SectionTitle(
+                      title: 'Featured guides',
+                      subtitle:
+                          'Curated reads for quick support and coping tools.',
+                    ),
+                  ),
+                ),
+                SliverToBoxAdapter(child: _buildFeaturedGuidesSection()),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      pagePadding,
+                      24,
+                      pagePadding,
+                      0,
+                    ),
+                    child: _buildNearbyClinicsSection(),
+                  ),
+                ),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      pagePadding,
+                      24,
+                      pagePadding,
+                      8,
+                    ),
+                    child: _SectionTitle(
+                      title: 'All resources',
+                      subtitle: _selectedCategory == 'All'
+                          ? 'Everything available right now.'
+                          : 'Filtered to $_selectedCategory.',
+                    ),
+                  ),
+                ),
+                ..._buildResourceCards().map(
+                  (child) => SliverToBoxAdapter(child: child),
+                ),
+                const SliverToBoxAdapter(child: SizedBox(height: 24)),
+              ],
+            ),
+          ),
+          if (_sidebarOpen)
+            GestureDetector(
+              onTap: _closeSidebar,
+              child: Container(color: context.mdOverlayBarrier),
+            ),
+          AnimatedPositioned(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+            left: _sidebarOpen ? 0 : -280,
+            top: 0,
+            bottom: 0,
+            width: 260,
+            child: AppSidebar(
+              userName: widget.userName,
+              activeSection: SidebarSection.resources,
+              onClose: _closeSidebar,
+              onNavigateHome: () => _openShellTab(MoodiaryTab.home),
+              onNavigateUserProfile: () => _openShellTab(MoodiaryTab.profile),
+              onNavigateCalendar: () => _openScreen(
+                CalendarScreen(
+                  userName: widget.userName,
+                  companionId: widget.companionId,
+                  companionName: widget.companionName,
                 ),
               ),
-            ),
-            SliverToBoxAdapter(child: _buildCategoryChips()),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(pagePadding, 18, pagePadding, 0),
-                child: _SectionTitle(
-                  title: 'Featured guides',
-                  subtitle: 'Curated reads for quick support and coping tools.',
+              onNavigateJournal: () => _openScreen(
+                JournalScreen(
+                  userName: widget.userName,
+                  companionId: widget.companionId,
+                  companionName: widget.companionName,
                 ),
               ),
+              onNavigateFriends: () => _openShellTab(MoodiaryTab.buddies),
+              onNavigateForums: () => _openShellTab(MoodiaryTab.forums),
+              onNavigateResources: _closeSidebar,
+              onNavigateSettings: () =>
+                  _openScreen(SettingsScreen(userName: widget.userName)),
+              onChangeCompanion: () =>
+                  _openScreen(CompanionScreen(userName: widget.userName)),
+              onLogout: _logout,
             ),
-            SliverToBoxAdapter(child: _buildFeaturedGuidesSection()),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(pagePadding, 24, pagePadding, 0),
-                child: _buildNearbyClinicsSection(),
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(pagePadding, 24, pagePadding, 8),
-                child: _SectionTitle(
-                  title: 'All resources',
-                  subtitle: _selectedCategory == 'All'
-                      ? 'Everything available right now.'
-                      : 'Filtered to $_selectedCategory.',
-                ),
-              ),
-            ),
-            ..._buildResourceCards().map(
-              (child) => SliverToBoxAdapter(child: child),
-            ),
-            const SliverToBoxAdapter(child: SizedBox(height: 24)),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

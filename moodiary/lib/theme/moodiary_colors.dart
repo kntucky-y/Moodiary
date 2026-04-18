@@ -34,8 +34,8 @@ extension MoodiaryColors on BuildContext {
       ? Colors.white.withValues(alpha: 0.10)
       : Colors.white.withValues(alpha: 0.16);
   Color get mdOverlayBarrier => isDarkMode
-      ? Colors.black.withValues(alpha: 0.5)
-      : Colors.black.withValues(alpha: 0.24);
+      ? Colors.black.withValues(alpha: 0.34)
+      : Colors.black.withValues(alpha: 0.16);
 
   double get mdGlassBlurSmall => 8;
   double get mdGlassBlurMedium => 18;

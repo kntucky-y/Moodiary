@@ -60,7 +60,11 @@ class _MoodiaryShellState extends State<MoodiaryShell> {
         companionId: widget.companionId,
         companionName: widget.companionName,
       ),
-      const ResourcesScreen(),
+      ResourcesScreen(
+        userName: widget.userName,
+        companionId: widget.companionId,
+        companionName: widget.companionName,
+      ),
     ];
     _loadAvatarUrl();
   }
