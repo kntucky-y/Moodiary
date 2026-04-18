@@ -22,7 +22,6 @@ import '../../utils/avatar_utils.dart';
 import '../../utils/streak_utils.dart';
 
 const _kPurple = Color(0xFFA076F9);
-const _kLightPurple = Color(0xFFD8B4F8);
 
 // ─── Task pool — 3 are picked randomly every day ─────────────────────────────
 const _taskPool = [
@@ -1028,70 +1027,57 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bubbleColor = context.mdSurface;
-    final bubbleText = context.mdPrimaryText;
-    final bubbleShadow = context.mdCardGlow;
-    final avatarHalo = context.isDarkMode
-        ? const Color(0xFFf4be45)
-        : const Color(0xFFFEF08A);
-    final avatarBorder = context.isDarkMode ? Colors.white24 : Colors.white;
+    final primaryText = context.mdPrimaryText;
+    final secondaryText = context.mdSecondaryText;
 
-    return ClipPath(
-      clipper: _WavyClipper(),
-      child: Container(
-        height: 210,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [_kLightPurple, _kPurple],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
-        child: SafeArea(
-          bottom: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+    return SafeArea(
+      bottom: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 10, 20, 8),
+        child: SizedBox(
+          width: double.infinity,
+          child: GlassContainer(
+            blurSigma: context.mdGlassBlurSmall,
+            borderRadius: BorderRadius.circular(22),
+            backgroundColor: context.mdGlassSurfaceStrong,
+            borderColor: context.mdGlassBorder,
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
             child: Column(
               children: [
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     IconButton(
-                      icon: const Icon(
-                        Icons.menu,
-                        color: Colors.white,
-                        size: 28,
-                      ),
                       onPressed: onHamburger,
+                      icon: Icon(Icons.menu, color: primaryText, size: 26),
+                      tooltip: 'Open menu',
                     ),
-                    Text(
-                      formattedDate,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                    Expanded(
+                      child: Center(
+                        child: Text(
+                          formattedDate,
+                          style: TextStyle(
+                            color: primaryText,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
                     ),
                     GestureDetector(
                       onTap: onProfileTap,
                       child: Container(
-                        width: 38,
-                        height: 38,
+                        width: 34,
+                        height: 34,
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.25),
+                          color: context.mdGlassSurface,
                           shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 1.2),
+                          border: Border.all(color: context.mdGlassBorder),
                         ),
                         child: CircleAvatar(
-                          radius: 17,
+                          radius: 16,
                           backgroundColor: Colors.transparent,
                           backgroundImage: profileAvatarImage,
                           child: profileAvatarImage == null
-                              ? const Icon(
-                                  Icons.person,
-                                  color: Colors.white,
-                                  size: 22,
-                                )
+                              ? Icon(Icons.person, color: primaryText, size: 18)
                               : null,
                         ),
                       ),
@@ -1099,67 +1085,74 @@ class _Header extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 8),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: bubbleColor,
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(16),
-                            topRight: Radius.circular(16),
-                            bottomRight: Radius.circular(16),
-                          ),
-                          boxShadow: [
-                            BoxShadow(color: bubbleShadow, blurRadius: 8),
-                          ],
-                        ),
-                        child: Text(
-                          '$greeting\nReady to take care of yourself today? Tap on me to talk!',
-                          style: TextStyle(
-                            color: bubbleText,
-                            fontSize: 12,
-                            height: 1.4,
-                          ),
-                        ),
-                      ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Home',
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: primaryText,
                     ),
-                    const SizedBox(width: 12),
-                    TapScale(
-                      onTap: onCompanionTap,
-                      child: Container(
-                        width: 90,
-                        height: 90,
-                        decoration: BoxDecoration(
-                          color: avatarHalo,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: avatarBorder, width: 3),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.15),
-                              blurRadius: 10,
-                            ),
-                          ],
-                        ),
-                        child: Center(
-                          child: Image.asset(
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    '$greeting Ready to take care of yourself today?',
+                    style: TextStyle(
+                      color: secondaryText,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: TapScale(
+                    onTap: onCompanionTap,
+                    child: GlassContainer(
+                      blurSigma: context.mdGlassBlurSmall,
+                      borderRadius: BorderRadius.circular(14),
+                      backgroundColor: context.mdGlassSurface,
+                      borderColor: context.mdGlassBorder,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 8,
+                      ),
+                      child: Row(
+                        children: [
+                          Image.asset(
                             companionAsset,
-                            width: 70,
-                            height: 70,
+                            width: 34,
+                            height: 34,
                             fit: BoxFit.contain,
-                            errorBuilder: (context, error, stackTrace) =>
-                                const Icon(
-                                  Icons.sentiment_satisfied_alt,
-                                  size: 50,
-                                  color: Color(0xFFCCCCCC),
-                                ),
+                            errorBuilder: (context, error, stackTrace) => Icon(
+                              Icons.sentiment_satisfied_alt,
+                              size: 26,
+                              color: secondaryText,
+                            ),
                           ),
-                        ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Talk with $companionName',
+                              style: TextStyle(
+                                color: primaryText,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          Icon(
+                            Icons.chevron_right_rounded,
+                            color: secondaryText,
+                          ),
+                        ],
                       ),
                     ),
-                  ],
+                  ),
                 ),
               ],
             ),
@@ -1168,26 +1161,6 @@ class _Header extends StatelessWidget {
       ),
     );
   }
-}
-
-class _WavyClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    final path = Path();
-    path.lineTo(0, size.height - 30);
-    path.quadraticBezierTo(
-      size.width * 0.5,
-      size.height + 20,
-      size.width,
-      size.height - 30,
-    );
-    path.lineTo(size.width, 0);
-    path.close();
-    return path;
-  }
-
-  @override
-  bool shouldReclip(_WavyClipper old) => false;
 }
 
 // ─── Task Card ────────────────────────────────────────────────────────────────

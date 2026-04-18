@@ -900,60 +900,88 @@ class _FriendsHeader extends StatelessWidget {
     final primaryText = context.mdPrimaryText;
     final secondaryText = context.mdSecondaryText;
     final now = DateTime.now();
+    const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
     final formatted =
-        '${now.year}/${now.month.toString().padLeft(2, '0')}/${now.day.toString().padLeft(2, '0')}';
+        '${weekdays[now.weekday - 1]}, ${months[now.month - 1]} ${now.day}';
 
     return SafeArea(
+      bottom: false,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+        padding: const EdgeInsets.fromLTRB(20, 10, 20, 8),
         child: SizedBox(
           width: double.infinity,
           child: GlassContainer(
-            blurSigma: context.mdGlassBlurMedium,
+            blurSigma: context.mdGlassBlurSmall,
             borderRadius: BorderRadius.circular(22),
-            backgroundColor: context.mdGlassSurface,
+            backgroundColor: context.mdGlassSurfaceStrong,
             borderColor: context.mdGlassBorder,
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    GestureDetector(
-                      onTap: onOpenSidebar,
-                      child: Icon(Icons.menu, color: primaryText),
+                    IconButton(
+                      onPressed: onOpenSidebar,
+                      icon: Icon(Icons.menu, color: primaryText, size: 26),
+                      tooltip: 'Open menu',
                     ),
-                    const Spacer(),
-                    Text(
-                      formatted,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: primaryText,
+                    Expanded(
+                      child: Center(
+                        child: Text(
+                          formatted,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: primaryText,
+                          ),
+                        ),
                       ),
+                    ),
+                    IconButton(
+                      onPressed: onAddFriend,
+                      icon: Icon(
+                        Icons.person_add_alt_rounded,
+                        color: primaryText,
+                        size: 22,
+                      ),
+                      tooltip: 'Find friends',
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                Text(
-                  'Buddies',
-                  style: TextStyle(
-                    fontSize: 30,
-                    fontWeight: FontWeight.bold,
-                    color: primaryText,
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Buddies',
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: primaryText,
+                    ),
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  'See how your friends are feeling and give them support.',
-                  style: TextStyle(color: secondaryText, fontSize: 13),
-                ),
-                const SizedBox(height: 14),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    onPressed: onAddFriend,
-                    icon: const Icon(Icons.person_add_alt_rounded),
-                    label: const Text('Find friends'),
+                const SizedBox(height: 2),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'See how your friends are feeling and give them support.',
+                    style: TextStyle(
+                      color: secondaryText,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
               ],
