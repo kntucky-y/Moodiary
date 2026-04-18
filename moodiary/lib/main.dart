@@ -110,21 +110,21 @@ class MoodiaryApp extends StatelessWidget {
         elevation: 0,
       ),
       cardTheme: CardThemeData(
-        color: Colors.white.withValues(alpha: 0.74),
+        color: Colors.white.withValues(alpha: 0.62),
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
-          side: BorderSide(color: Colors.white.withValues(alpha: 0.7)),
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.42)),
         ),
       ),
       bottomSheetTheme: BottomSheetThemeData(
-        backgroundColor: base.colorScheme.surface.withValues(alpha: 0.92),
+        backgroundColor: base.colorScheme.surface.withValues(alpha: 0.84),
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       ),
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: Colors.white.withValues(alpha: 0.78),
+        backgroundColor: Colors.white.withValues(alpha: 0.68),
         indicatorColor: base.colorScheme.primaryContainer.withValues(
           alpha: 0.75,
         ),
@@ -176,12 +176,12 @@ class MoodiaryApp extends StatelessWidget {
         ),
       ),
       bottomSheetTheme: BottomSheetThemeData(
-        backgroundColor: const Color(0xFF1B1F2C).withValues(alpha: 0.9),
+        backgroundColor: const Color(0xFF1B1F2C).withValues(alpha: 0.82),
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       ),
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: const Color(0xFF1B1F2C).withValues(alpha: 0.75),
+        backgroundColor: const Color(0xFF1B1F2C).withValues(alpha: 0.66),
         indicatorColor: base.colorScheme.primaryContainer.withValues(
           alpha: 0.62,
         ),

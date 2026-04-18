@@ -22,17 +22,17 @@ extension MoodiaryColors on BuildContext {
   Color get mdAccentPurple => const Color(0xFFA076F9);
 
   Color get mdGlassSurface => isDarkMode
-      ? Colors.white.withValues(alpha: 0.10)
-      : Colors.white.withValues(alpha: 0.42);
+      ? Colors.white.withValues(alpha: 0.12)
+      : Colors.white.withValues(alpha: 0.34);
   Color get mdGlassSurfaceStrong => isDarkMode
-      ? Colors.white.withValues(alpha: 0.16)
-      : Colors.white.withValues(alpha: 0.60);
+      ? Colors.white.withValues(alpha: 0.18)
+      : Colors.white.withValues(alpha: 0.50);
   Color get mdGlassBorder => isDarkMode
-      ? Colors.white.withValues(alpha: 0.24)
-      : Colors.white.withValues(alpha: 0.46);
+      ? Colors.white.withValues(alpha: 0.22)
+      : Colors.white.withValues(alpha: 0.34);
   Color get mdGlassHighlight => isDarkMode
-      ? Colors.white.withValues(alpha: 0.14)
-      : Colors.white.withValues(alpha: 0.24);
+      ? Colors.white.withValues(alpha: 0.10)
+      : Colors.white.withValues(alpha: 0.16);
   Color get mdOverlayBarrier => isDarkMode
       ? Colors.black.withValues(alpha: 0.5)
       : Colors.black.withValues(alpha: 0.24);

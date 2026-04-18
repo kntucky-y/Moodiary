@@ -314,7 +314,7 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
                 blurSigma: 0,
                 borderRadius: BorderRadius.circular(14),
                 backgroundColor: previewColors[i % previewColors.length]
-                    .withValues(alpha: context.isDarkMode ? 0.20 : 0.56),
+                    .withValues(alpha: context.isDarkMode ? 0.18 : 0.44),
                 borderColor: context.mdGlassBorder,
                 padding: EdgeInsets.zero,
                 child: Center(
@@ -416,7 +416,9 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
                     blurSigma: context.mdGlassBlurMedium,
                     borderRadius: BorderRadius.circular(12),
                     backgroundColor: isSelected
-                        ? cs.primaryContainer.withValues(alpha: 0.72)
+                        ? cs.primaryContainer.withValues(
+                            alpha: context.isDarkMode ? 0.34 : 0.48,
+                          )
                         : context.mdGlassSurfaceStrong,
                     borderColor: isSelected
                         ? cs.primary
@@ -605,7 +607,9 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
               blurSigma: 1,
               borderRadius: BorderRadius.circular(12),
               backgroundColor: isSelected
-                  ? cs.primaryContainer.withValues(alpha: 0.72)
+                  ? cs.primaryContainer.withValues(
+                      alpha: context.isDarkMode ? 0.34 : 0.48,
+                    )
                   : context.mdGlassSurfaceStrong,
               borderColor: isSelected ? cs.primary : context.mdGlassBorder,
               padding: EdgeInsets.zero,
@@ -648,7 +652,9 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
             GlassContainer(
               blurSigma: 1,
               borderRadius: BorderRadius.circular(12),
-              backgroundColor: cs.primaryContainer.withValues(alpha: 0.74),
+              backgroundColor: cs.primaryContainer.withValues(
+                alpha: context.isDarkMode ? 0.36 : 0.5,
+              ),
               borderColor: context.mdGlassBorder,
               child: Padding(
                 padding: const EdgeInsets.all(14),

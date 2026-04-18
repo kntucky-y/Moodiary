@@ -857,9 +857,7 @@ class _ForumsScreenState extends State<ForumsScreen> {
                     child: GlassContainer(
                       blurSigma: context.mdGlassBlurSmall,
                       borderRadius: BorderRadius.circular(22),
-                      backgroundColor: context.isDarkMode
-                          ? context.mdSurface.withValues(alpha: 0.88)
-                          : Colors.white.withValues(alpha: 0.86),
+                      backgroundColor: context.mdGlassSurfaceStrong,
                       borderColor: context.mdGlassBorder,
                       padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
                       child: Column(
@@ -1358,9 +1356,7 @@ class _ForumDetailViewState extends State<_ForumDetailView> {
               borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(24),
               ),
-              backgroundColor: context.isDarkMode
-                  ? context.mdSurface.withValues(alpha: 0.9)
-                  : Colors.white.withValues(alpha: 0.88),
+              backgroundColor: context.mdGlassSurfaceStrong,
               borderColor: context.mdGlassBorder,
               margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
               padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),

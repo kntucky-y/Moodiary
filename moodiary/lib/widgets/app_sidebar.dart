@@ -53,7 +53,6 @@ class AppSidebar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final subtleText = context.mdSecondaryText;
-    final surface = context.mdSurface;
 
     final items = [
       _SidebarEntry(
@@ -105,9 +104,7 @@ class AppSidebar extends StatelessWidget {
           return GlassContainer(
             blurSigma: context.mdGlassBlurMedium,
             borderRadius: BorderRadius.zero,
-            backgroundColor: surface.withValues(
-              alpha: context.isDarkMode ? 0.68 : 0.78,
-            ),
+            backgroundColor: context.mdGlassSurfaceStrong,
             borderColor: Colors.transparent,
             padding: const EdgeInsets.all(24),
             child: Column(

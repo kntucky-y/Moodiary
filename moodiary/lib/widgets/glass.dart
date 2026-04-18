@@ -22,7 +22,7 @@ class GlassContainer extends StatelessWidget {
     this.padding,
     this.margin,
     this.borderRadius,
-    this.blurSigma = 14,
+    this.blurSigma = 12,
     this.backgroundColor,
     this.borderColor,
     this.gradient,
@@ -37,10 +37,10 @@ class GlassContainer extends StatelessWidget {
     final baseColor = backgroundColor ?? context.mdGlassSurface;
     final baseBorder = borderColor ?? context.mdGlassBorder;
     final overlayTop = context.mdGlassHighlight.withValues(
-      alpha: context.isDarkMode ? 0.18 : 0.26,
+      alpha: context.isDarkMode ? 0.10 : 0.14,
     );
     final overlayBottom = Colors.white.withValues(
-      alpha: context.isDarkMode ? 0.03 : 0.10,
+      alpha: context.isDarkMode ? 0.015 : 0.05,
     );
 
     return Container(
@@ -73,7 +73,7 @@ class GlassContainer extends StatelessWidget {
                               Colors.transparent,
                               overlayBottom,
                             ],
-                            stops: const [0.0, 0.56, 1.0],
+                            stops: const [0.0, 0.6, 1.0],
                           ),
                         ),
                       ),
@@ -108,7 +108,7 @@ class GlassCard extends StatelessWidget {
     this.onTap,
     this.padding,
     this.borderRadius,
-    this.blurSigma = 14,
+    this.blurSigma = 12,
     this.backgroundColor,
     this.borderColor,
     this.showTintOverlay = true,
