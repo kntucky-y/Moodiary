@@ -444,7 +444,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   _openScreen(SettingsScreen(userName: widget.userName)),
               onChangeCompanion: () =>
                   _openScreen(CompanionScreen(userName: widget.userName)),
-              onLogout: () => _logout(),
+              onLogout: () {
+                _closeSidebar();
+                _logout();
+              },
             ),
           ),
         ],

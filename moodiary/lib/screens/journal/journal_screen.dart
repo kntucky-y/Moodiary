@@ -600,7 +600,10 @@ class _JournalScreenState extends State<JournalScreen> {
                   _openScreen(SettingsScreen(userName: widget.userName)),
               onChangeCompanion: () =>
                   _openScreen(CompanionScreen(userName: widget.userName)),
-              onLogout: () => _logout(),
+              onLogout: () {
+                _closeSidebar();
+                _logout();
+              },
             ),
           ),
           // ── FAB / companion bubble ───────────────────────────────────────────

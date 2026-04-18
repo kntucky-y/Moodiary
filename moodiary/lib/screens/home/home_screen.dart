@@ -983,7 +983,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ),
                 );
               },
-              onLogout: _logout,
+              onLogout: () {
+                setState(() => _sidebarOpen = false);
+                _logout();
+              },
             ),
           ),
         ],

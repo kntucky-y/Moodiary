@@ -132,57 +132,36 @@ class AppSidebar extends StatelessWidget {
                   'Hi, $currentName!',
                   style: TextStyle(color: subtleText, fontSize: 13),
                 ),
-                const SizedBox(height: 24),
-                ...items.map(_buildItem),
-                const SizedBox(height: 12),
-                if (onChangeCompanion != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: TapScale(
-                      onTap: onChangeCompanion!,
-                      child: GlassContainer(
-                        blurSigma: context.mdGlassBlurSmall,
-                        borderRadius: BorderRadius.circular(14),
-                        backgroundColor: context.mdGlassSurface,
-                        borderColor: context.mdGlassBorder,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
+                const SizedBox(height: 16),
+                Expanded(
+                  child: ListView(
+                    padding: EdgeInsets.zero,
+                    children: [
+                      ...items.map(_buildItem),
+                      if (onChangeCompanion != null)
+                        _buildActionItem(
+                          icon: Icons.swap_horiz_rounded,
+                          label: 'Change Companion',
+                          onTap: onChangeCompanion!,
                         ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.swap_horiz_rounded,
-                              color: _kPurple,
-                              size: 22,
-                            ),
-                            const SizedBox(width: 12),
-                            Text(
-                              'Change Companion',
-                              style: TextStyle(
-                                color: context.mdPrimaryText,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+                    ],
                   ),
-                const Spacer(),
+                ),
                 if (onLogout != null)
-                  TapScale(
-                    onTap: onLogout!,
-                    child: Row(
-                      children: [
-                        Icon(Icons.logout, color: subtleText, size: 22),
-                        const SizedBox(width: 12),
-                        Text(
-                          'Logout',
-                          style: TextStyle(color: subtleText, fontSize: 16),
-                        ),
-                      ],
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: TapScale(
+                      onTap: () => _handleTap(onLogout!),
+                      child: Row(
+                        children: [
+                          Icon(Icons.logout, color: subtleText, size: 22),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Logout',
+                            style: TextStyle(color: subtleText, fontSize: 16),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
               ],
@@ -199,6 +178,7 @@ class AppSidebar extends StatelessWidget {
       icon: entry.icon,
       label: entry.label,
       active: active,
+      emphasized: false,
     );
     if (entry.onTap == null) {
       return Padding(
@@ -207,9 +187,28 @@ class AppSidebar extends StatelessWidget {
       );
     }
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      child: TapScale(onTap: entry.onTap!, child: item),
+      padding: const EdgeInsets.only(bottom: 10),
+      child: TapScale(onTap: () => _handleTap(entry.onTap!), child: item),
     );
+  }
+
+  Widget _buildActionItem({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: TapScale(
+        onTap: () => _handleTap(onTap),
+        child: _SidebarItem(icon: icon, label: label, emphasized: false),
+      ),
+    );
+  }
+
+  void _handleTap(VoidCallback action) {
+    onClose();
+    action();
   }
 }
 
@@ -230,30 +229,54 @@ class _SidebarItem extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool active;
+  final bool emphasized;
 
   const _SidebarItem({
     required this.icon,
     required this.label,
     this.active = false,
+    this.emphasized = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final subtleText = context.mdSecondaryText;
     final primaryText = context.mdPrimaryText;
-    return Row(
+    final iconColor = active ? _kPurple : subtleText;
+    final textColor = active ? _kPurple : primaryText;
+    final row = Row(
       children: [
-        Icon(icon, color: active ? _kPurple : subtleText, size: 22),
+        Icon(icon, color: iconColor, size: 22),
         const SizedBox(width: 12),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 16,
-            color: active ? _kPurple : primaryText,
-            fontWeight: active ? FontWeight.bold : FontWeight.normal,
+        Expanded(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 16,
+              color: textColor,
+              fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+            ),
           ),
         ),
       ],
+    );
+
+    if (!active) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: row,
+      );
+    }
+
+    return GlassContainer(
+      blurSigma: context.mdGlassBlurSmall,
+      borderRadius: BorderRadius.circular(14),
+      backgroundColor: context.mdGlassSurfaceStrong,
+      borderColor: _kPurple.withValues(alpha: 0.45),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: row,
     );
   }
 }
