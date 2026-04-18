@@ -16,8 +16,6 @@ class ResourcesScreen extends StatefulWidget {
 }
 
 class _ResourcesScreenState extends State<ResourcesScreen> {
-  late Future<void> _locationBootstrapFuture;
-
   final MapController _mapController = MapController();
   bool _isMapReady = false;
   LatLng? _pendingMapCenter;
@@ -47,7 +45,7 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
   void initState() {
     super.initState();
     _loadResources();
-    _locationBootstrapFuture = _bootstrapNearbyClinics();
+    _bootstrapNearbyClinics();
   }
 
   Future<void> _loadResources() async {
@@ -498,8 +496,8 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
 
     if (_clinicError != null && center == null) {
       return _ErrorStateCard(
-        icon: Icons.location_off_outlined,
-        title: 'Nearby clinics unavailable',
+        icon: Icons.local_hospital_outlined,
+        title: 'Clinic map unavailable',
         message: _clinicError!,
         actionLabel: 'Try again',
         onAction: _bootstrapNearbyClinics,
@@ -507,22 +505,7 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
     }
 
     if (center == null) {
-      return FutureBuilder<void>(
-        future: _locationBootstrapFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const _LoadingCard();
-          }
-          return _ErrorStateCard(
-            icon: Icons.place_outlined,
-            title: 'Location not ready',
-            message:
-                'Enable location access to see nearby mental health clinics on the map.',
-            actionLabel: 'Try again',
-            onAction: _bootstrapNearbyClinics,
-          );
-        },
-      );
+      return const _LoadingCard();
     }
 
     final markers = <Marker>[
@@ -636,23 +619,29 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
           if (_clinicError != null)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-              child: Container(
+              child: SizedBox(
                 width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.errorContainer,
+                child: GlassContainer(
+                  blurSigma: context.mdGlassBlurMedium,
                   borderRadius: BorderRadius.circular(16),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.warning_amber_rounded),
-                    const SizedBox(width: 12),
-                    Expanded(child: Text(_clinicError!)),
-                    TextButton(
-                      onPressed: _loadNearbyClinics,
-                      child: const Text('Retry'),
-                    ),
-                  ],
+                  backgroundColor: Theme.of(
+                    context,
+                  ).colorScheme.errorContainer.withValues(alpha: 0.6),
+                  borderColor: Theme.of(
+                    context,
+                  ).colorScheme.error.withValues(alpha: 0.45),
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.warning_amber_rounded),
+                      const SizedBox(width: 12),
+                      Expanded(child: Text(_clinicError!)),
+                      TextButton(
+                        onPressed: _loadNearbyClinics,
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -858,14 +847,14 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
                   children: [
                     Row(
                       children: [
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: context.mdAccentPurple.withValues(
-                              alpha: 0.14,
-                            ),
-                            borderRadius: BorderRadius.circular(16),
+                        GlassContainer(
+                          blurSigma: context.mdGlassBlurSmall,
+                          borderRadius: BorderRadius.circular(16),
+                          backgroundColor: context.mdAccentPurple.withValues(
+                            alpha: 0.16,
                           ),
+                          borderColor: context.mdGlassBorder,
+                          padding: const EdgeInsets.all(10),
                           child: Icon(
                             Icons.auto_awesome_rounded,
                             color: context.mdAccentPurple,
@@ -998,15 +987,14 @@ class _SummaryChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return GlassContainer(
+      blurSigma: context.mdGlassBlurSmall,
+      borderRadius: BorderRadius.circular(999),
+      backgroundColor: context.mdAccentPurple.withValues(alpha: 0.16),
+      borderColor: context.mdGlassBorder,
       padding: EdgeInsets.symmetric(
         horizontal: compact ? 10 : 12,
         vertical: compact ? 6 : 8,
-      ),
-      decoration: BoxDecoration(
-        color: context.mdAccentPurple.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: context.mdGlassBorder),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

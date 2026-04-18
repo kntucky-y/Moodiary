@@ -8,6 +8,7 @@ import '../forums/forums_screen.dart';
 import '../../utils/transitions.dart';
 import '../../theme/moodiary_colors.dart';
 import '../../utils/avatar_utils.dart';
+import '../../widgets/glass.dart';
 import '../../widgets/user_profile_popup.dart';
 
 const _kBaseUrl = kBackendBaseUrl;
@@ -317,13 +318,14 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
               },
             ),
             Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: context.mdSurface,
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(32),
-                  ),
+              child: GlassContainer(
+                blurSigma: context.mdGlassBlurMedium,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(32),
                 ),
+                backgroundColor: context.mdGlassSurface,
+                borderColor: context.mdGlassBorder,
+                padding: EdgeInsets.zero,
                 child: _loading
                     ? const Center(child: CircularProgressIndicator())
                     : _messages.isEmpty
@@ -565,9 +567,12 @@ class _MessageComposer extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       top: false,
-      child: Container(
+      child: GlassContainer(
+        blurSigma: context.mdGlassBlurMedium,
+        backgroundColor: context.mdGlassSurfaceStrong,
+        borderColor: context.mdGlassBorder,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-        decoration: BoxDecoration(color: context.mdSurface),
         child: Row(
           children: [
             Expanded(
@@ -596,24 +601,29 @@ class _MessageComposer extends StatelessWidget {
             InkWell(
               onTap: sending ? null : onSend,
               borderRadius: BorderRadius.circular(28),
-              child: Container(
+              child: SizedBox(
                 width: 48,
                 height: 48,
-                decoration: BoxDecoration(
-                  color: sending ? _kPurple.withValues(alpha: 0.5) : _kPurple,
-                  shape: BoxShape.circle,
-                ),
-                child: sending
-                    ? const Padding(
-                        padding: EdgeInsets.all(12),
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            Colors.white,
+                child: GlassContainer(
+                  blurSigma: context.mdGlassBlurSmall,
+                  borderRadius: BorderRadius.circular(24),
+                  backgroundColor: sending
+                      ? _kPurple.withValues(alpha: 0.44)
+                      : _kPurple.withValues(alpha: 0.68),
+                  borderColor: context.mdGlassBorder,
+                  padding: EdgeInsets.zero,
+                  child: sending
+                      ? const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
                           ),
-                        ),
-                      )
-                    : const Icon(Icons.send_rounded, color: Colors.white),
+                        )
+                      : const Icon(Icons.send_rounded, color: Colors.white),
+                ),
               ),
             ),
           ],

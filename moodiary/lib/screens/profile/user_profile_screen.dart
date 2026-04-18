@@ -865,11 +865,13 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                             ),
                           )
                         else
-                          Card(
-                            child: Padding(
-                              padding: const EdgeInsets.all(12),
-                              child: Text(userData['name'] as String? ?? 'N/A'),
-                            ),
+                          GlassContainer(
+                            blurSigma: context.mdGlassBlurMedium,
+                            borderRadius: BorderRadius.circular(14),
+                            backgroundColor: context.mdGlassSurface,
+                            borderColor: context.mdGlassBorder,
+                            padding: const EdgeInsets.all(12),
+                            child: Text(userData['name'] as String? ?? 'N/A'),
                           ),
                         const SizedBox(height: 20),
                         Text(
@@ -888,13 +890,13 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                             ),
                           )
                         else
-                          Card(
-                            child: Padding(
-                              padding: const EdgeInsets.all(12),
-                              child: Text(
-                                userData['email'] as String? ?? 'N/A',
-                              ),
-                            ),
+                          GlassContainer(
+                            blurSigma: context.mdGlassBlurMedium,
+                            borderRadius: BorderRadius.circular(14),
+                            backgroundColor: context.mdGlassSurface,
+                            borderColor: context.mdGlassBorder,
+                            padding: const EdgeInsets.all(12),
+                            child: Text(userData['email'] as String? ?? 'N/A'),
                           ),
                         const SizedBox(height: 20),
                         Text(
@@ -918,50 +920,54 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                             ),
                           )
                         else
-                          Card(
-                            child: Padding(
-                              padding: const EdgeInsets.all(12),
-                              child: Text(
-                                userData['bio'] as String? ?? 'No bio',
-                                style: TextStyle(
-                                  color: Theme.of(
-                                    context,
-                                  ).textTheme.bodyMedium?.color,
-                                ),
+                          GlassContainer(
+                            blurSigma: context.mdGlassBlurMedium,
+                            borderRadius: BorderRadius.circular(14),
+                            backgroundColor: context.mdGlassSurface,
+                            borderColor: context.mdGlassBorder,
+                            padding: const EdgeInsets.all(12),
+                            child: Text(
+                              userData['bio'] as String? ?? 'No bio',
+                              style: TextStyle(
+                                color: Theme.of(
+                                  context,
+                                ).textTheme.bodyMedium?.color,
                               ),
                             ),
                           ),
                         const SizedBox(height: 20),
-                        Card(
-                          child: Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.calendar_today),
-                                const SizedBox(width: 12),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Member Since',
-                                      style: Theme.of(
-                                        context,
-                                      ).textTheme.bodySmall,
-                                    ),
-                                    Text(
-                                      userData['createdAt'] != null
-                                          ? DateTime.parse(
-                                              userData['createdAt'] as String,
-                                            ).toString().split(' ')[0]
-                                          : 'N/A',
-                                      style: Theme.of(
-                                        context,
-                                      ).textTheme.titleSmall,
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
+                        GlassContainer(
+                          blurSigma: context.mdGlassBlurMedium,
+                          borderRadius: BorderRadius.circular(14),
+                          backgroundColor: context.mdGlassSurface,
+                          borderColor: context.mdGlassBorder,
+                          padding: const EdgeInsets.all(12),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.calendar_today),
+                              const SizedBox(width: 12),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Member Since',
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.bodySmall,
+                                  ),
+                                  Text(
+                                    userData['createdAt'] != null
+                                        ? DateTime.parse(
+                                            userData['createdAt'] as String,
+                                          ).toString().split(' ')[0]
+                                        : 'N/A',
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.titleSmall,
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
                         ),
                         const SizedBox(height: 24),
@@ -975,31 +981,22 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                       bottom: 14,
                       child: SafeArea(
                         top: false,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: cs.surface.withValues(alpha: 0.96),
-                            borderRadius: BorderRadius.circular(18),
-                            boxShadow: const [
-                              BoxShadow(
-                                color: Color(0x22000000),
-                                blurRadius: 20,
-                                offset: Offset(0, 8),
-                              ),
-                            ],
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton(
-                                onPressed: _saveProfile,
-                                style: ElevatedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 12,
-                                  ),
+                        child: GlassContainer(
+                          blurSigma: context.mdGlassBlurLarge,
+                          borderRadius: BorderRadius.circular(18),
+                          backgroundColor: context.mdGlassSurfaceStrong,
+                          borderColor: context.mdGlassBorder,
+                          padding: const EdgeInsets.all(12),
+                          child: SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: _saveProfile,
+                              style: ElevatedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
                                 ),
-                                child: const Text('Save Changes'),
                               ),
+                              child: const Text('Save Changes'),
                             ),
                           ),
                         ),
@@ -1075,43 +1072,45 @@ class _SimpleInfoCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final textColor = Theme.of(context).textTheme.bodyMedium?.color;
     final subtleColor = Theme.of(context).textTheme.bodySmall?.color;
-    return Card(
+    return GlassContainer(
+      blurSigma: context.mdGlassBlurMedium,
+      borderRadius: BorderRadius.circular(14),
+      backgroundColor: context.mdGlassSurface,
+      borderColor: context.mdGlassBorder,
       margin: const EdgeInsets.only(bottom: 8),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (leading != null) ...[
-              Icon(leading, size: 18, color: subtleColor),
-              const SizedBox(width: 8),
-            ],
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodySmall?.copyWith(color: textColor),
-                  ),
-                ],
-              ),
-            ),
+      padding: const EdgeInsets.all(12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (leading != null) ...[
+            Icon(leading, size: 18, color: subtleColor),
+            const SizedBox(width: 8),
           ],
-        ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: textColor),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
