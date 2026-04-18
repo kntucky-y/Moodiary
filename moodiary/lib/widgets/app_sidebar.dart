@@ -94,6 +94,7 @@ class AppSidebar extends StatelessWidget {
     ];
 
     return SafeArea(
+      bottom: false,
       child: FutureBuilder<SharedPreferences>(
         future: SharedPreferences.getInstance(),
         builder: (context, snapshot) {
