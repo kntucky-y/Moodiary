@@ -911,6 +911,7 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
   @override
   Widget build(BuildContext context) {
     final pagePadding = MediaQuery.of(context).size.width >= 700 ? 20.0 : 16.0;
+    final headerHorizontalPadding = 20.0;
     final primaryText = context.mdPrimaryText;
     final secondaryText = context.mdSecondaryText;
 
@@ -923,7 +924,12 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
               SafeArea(
                 bottom: false,
                 child: Padding(
-                  padding: EdgeInsets.fromLTRB(pagePadding, 10, pagePadding, 8),
+                  padding: EdgeInsets.fromLTRB(
+                    headerHorizontalPadding,
+                    10,
+                    headerHorizontalPadding,
+                    8,
+                  ),
                   child: GlassContainer(
                     blurSigma: context.mdGlassBlurSmall,
                     borderRadius: BorderRadius.circular(22),
