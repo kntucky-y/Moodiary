@@ -17,6 +17,13 @@ class DataSaverMode {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_prefsKey, value);
   }
+
+  static Duration gateDuration({
+    required Duration normal,
+    Duration reduced = const Duration(milliseconds: 1),
+  }) {
+    return _enabled ? reduced : normal;
+  }
 }
 
 /// Smooth fade + slight upward-slide page transition for all screen pushes.
@@ -79,12 +86,12 @@ class _TapScaleState extends State<TapScale>
     super.initState();
     _ctrl = AnimationController(
       vsync: this,
-      duration: DataSaverMode.enabled
-          ? const Duration(milliseconds: 1)
-          : const Duration(milliseconds: 80),
-      reverseDuration: DataSaverMode.enabled
-          ? const Duration(milliseconds: 1)
-          : const Duration(milliseconds: 200),
+      duration: DataSaverMode.gateDuration(
+        normal: const Duration(milliseconds: 80),
+      ),
+      reverseDuration: DataSaverMode.gateDuration(
+        normal: const Duration(milliseconds: 200),
+      ),
     );
     _scaleAnim = Tween<double>(
       begin: 1.0,

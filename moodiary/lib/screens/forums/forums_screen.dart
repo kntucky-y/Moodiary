@@ -1621,9 +1621,9 @@ class _PostCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 16),
-                      GestureDetector(
+                      TapScale(
                         onTap: onLikeTap,
-                        behavior: HitTestBehavior.opaque,
+                        scale: 0.9,
                         child: Row(
                           children: [
                             Icon(

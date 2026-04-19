@@ -951,11 +951,14 @@ class _LogModalState extends State<_LogModal> {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: List.generate(5, (i) {
               final selected = _moodLevel == i + 1;
-              return GestureDetector(
+              return TapScale(
+                scale: 0.9,
                 onTap: () => setState(() => _moodLevel = i + 1),
                 child: AnimatedScale(
                   scale: selected ? 1.15 : 1.0,
-                  duration: const Duration(milliseconds: 200),
+                  duration: DataSaverMode.gateDuration(
+                    normal: const Duration(milliseconds: 200),
+                  ),
                   child: Column(
                     children: [
                       Container(

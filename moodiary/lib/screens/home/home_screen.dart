@@ -843,12 +843,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                 children: List.generate(_moods.length, (i) {
                                   final mood = _moods[i];
                                   final selected = _selectedMood == i;
-                                  return GestureDetector(
+                                  return TapScale(
+                                    scale: 0.9,
                                     onTap: () => _selectMood(i),
                                     child: AnimatedScale(
                                       scale: selected ? 1.2 : 1.0,
-                                      duration: const Duration(
-                                        milliseconds: 200,
+                                      duration: DataSaverMode.gateDuration(
+                                        normal: const Duration(
+                                          milliseconds: 200,
+                                        ),
                                       ),
                                       child: Column(
                                         children: [
