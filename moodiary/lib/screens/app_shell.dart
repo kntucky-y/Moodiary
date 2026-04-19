@@ -102,46 +102,53 @@ class _MoodiaryShellState extends State<MoodiaryShell> {
           horizontalInset,
           bottomInset,
         ),
-        child: GlassContainer(
-          blurSigma: context.mdGlassBlurSmall,
-          borderRadius: BorderRadius.circular(context.mdRadiusLg),
-          backgroundColor: context.mdGlassSurfaceStrong,
-          padding: EdgeInsets.zero,
-          child: NavigationBar(
-            selectedIndex: _index,
-            onDestinationSelected: (index) => setState(() => _index = index),
-            height: 58,
-            backgroundColor: Colors.transparent,
-            indicatorColor: cs.primaryContainer.withValues(alpha: 0.56),
-            elevation: 0,
-            labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
-            destinations: const [
-              NavigationDestination(
-                icon: Icon(Icons.account_circle_outlined),
-                selectedIcon: Icon(Icons.account_circle),
-                label: 'Profile',
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 540),
+            child: GlassContainer(
+              blurSigma: context.mdGlassBlurSmall,
+              borderRadius: BorderRadius.circular(context.mdRadiusLg),
+              backgroundColor: context.mdGlassSurfaceStrong,
+              padding: EdgeInsets.zero,
+              child: NavigationBar(
+                selectedIndex: _index,
+                onDestinationSelected: (index) =>
+                    setState(() => _index = index),
+                height: 58,
+                backgroundColor: Colors.transparent,
+                indicatorColor: cs.primaryContainer.withValues(alpha: 0.56),
+                elevation: 0,
+                labelBehavior:
+                    NavigationDestinationLabelBehavior.onlyShowSelected,
+                destinations: const [
+                  NavigationDestination(
+                    icon: Icon(Icons.account_circle_outlined),
+                    selectedIcon: Icon(Icons.account_circle),
+                    label: 'Profile',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.people_alt_outlined),
+                    selectedIcon: Icon(Icons.people_alt),
+                    label: 'Buddies',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.home_outlined),
+                    selectedIcon: Icon(Icons.home),
+                    label: 'Home',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.chat_bubble_outline),
+                    selectedIcon: Icon(Icons.chat_bubble),
+                    label: 'Forums',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.folder_outlined),
+                    selectedIcon: Icon(Icons.folder),
+                    label: 'Resources',
+                  ),
+                ],
               ),
-              NavigationDestination(
-                icon: Icon(Icons.people_alt_outlined),
-                selectedIcon: Icon(Icons.people_alt),
-                label: 'Buddies',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.home_outlined),
-                selectedIcon: Icon(Icons.home),
-                label: 'Home',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.chat_bubble_outline),
-                selectedIcon: Icon(Icons.chat_bubble),
-                label: 'Forums',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.folder_outlined),
-                selectedIcon: Icon(Icons.folder),
-                label: 'Resources',
-              ),
-            ],
+            ),
           ),
         ),
       ),

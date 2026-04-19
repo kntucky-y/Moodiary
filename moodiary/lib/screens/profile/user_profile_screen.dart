@@ -353,7 +353,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   }
 
   bool _onScrollNotification(ScrollNotification notification) {
-    final collapsed = notification.metrics.pixels > 18;
+    final collapsed =
+        notification.metrics.pixels > context.mdHeaderCollapseOffset;
     if (collapsed != _headerCollapsed) {
       setState(() => _headerCollapsed = collapsed);
     }
@@ -407,12 +408,12 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   ],
                 ),
                 AnimatedSize(
-                  duration: const Duration(milliseconds: 260),
+                  duration: context.mdHeaderCollapseDuration,
                   curve: Curves.easeOutCubic,
                   child: _headerCollapsed
                       ? const SizedBox.shrink()
                       : AnimatedOpacity(
-                          duration: const Duration(milliseconds: 220),
+                          duration: context.mdHeaderFadeDuration,
                           opacity: _headerCollapsed ? 0 : 1,
                           child: Column(
                             children: [

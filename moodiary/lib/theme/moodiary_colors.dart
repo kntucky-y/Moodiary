@@ -56,6 +56,9 @@ extension MoodiaryColors on BuildContext {
   double get mdRadiusMd => 16;
   double get mdRadiusLg => 20;
   double get mdRadiusXl => 24;
+  double get mdHeaderCollapseOffset => 18;
+  Duration get mdHeaderCollapseDuration => const Duration(milliseconds: 260);
+  Duration get mdHeaderFadeDuration => const Duration(milliseconds: 220);
 
   List<BoxShadow> get mdGlassShadows => [
     BoxShadow(

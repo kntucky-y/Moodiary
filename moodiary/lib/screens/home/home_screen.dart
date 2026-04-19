@@ -250,7 +250,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   bool _onScrollNotification(ScrollNotification notification) {
-    final collapsed = notification.metrics.pixels > 18;
+    final collapsed =
+        notification.metrics.pixels > context.mdHeaderCollapseOffset;
     if (collapsed != _headerCollapsed) {
       setState(() => _headerCollapsed = collapsed);
     }
@@ -1103,12 +1104,12 @@ class _Header extends StatelessWidget {
                   ],
                 ),
                 AnimatedSize(
-                  duration: const Duration(milliseconds: 260),
+                  duration: context.mdHeaderCollapseDuration,
                   curve: Curves.easeOutCubic,
                   child: collapsed
                       ? const SizedBox.shrink()
                       : AnimatedOpacity(
-                          duration: const Duration(milliseconds: 220),
+                          duration: context.mdHeaderFadeDuration,
                           opacity: collapsed ? 0 : 1,
                           child: Column(
                             children: [
@@ -1138,61 +1139,58 @@ class _Header extends StatelessWidget {
                                   ),
                                 ),
                               ),
-                              const SizedBox(height: 10),
-                              SizedBox(
-                                width: double.infinity,
-                                child: TapScale(
-                                  onTap: onCompanionTap,
-                                  child: GlassContainer(
-                                    blurSigma: context.mdGlassBlurSmall,
-                                    borderRadius: BorderRadius.circular(14),
-                                    backgroundColor: context.mdGlassSurface,
-                                    borderColor: context.mdGlassBorder,
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 8,
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Image.asset(
-                                          companionAsset,
-                                          width: 34,
-                                          height: 34,
-                                          fit: BoxFit.contain,
-                                          errorBuilder:
-                                              (
-                                                context,
-                                                error,
-                                                stackTrace,
-                                              ) => Icon(
-                                                Icons.sentiment_satisfied_alt,
-                                                size: 26,
-                                                color: secondaryText,
-                                              ),
-                                        ),
-                                        const SizedBox(width: 10),
-                                        Expanded(
-                                          child: Text(
-                                            'Talk with $companionName',
-                                            style: TextStyle(
-                                              color: primaryText,
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                        ),
-                                        Icon(
-                                          Icons.chevron_right_rounded,
-                                          color: secondaryText,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
                             ],
                           ),
                         ),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: TapScale(
+                    onTap: onCompanionTap,
+                    child: GlassContainer(
+                      blurSigma: context.mdGlassBlurSmall,
+                      borderRadius: BorderRadius.circular(14),
+                      backgroundColor: context.mdGlassSurface,
+                      borderColor: context.mdGlassBorder,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: collapsed ? 6 : 8,
+                      ),
+                      child: Row(
+                        children: [
+                          Image.asset(
+                            companionAsset,
+                            width: collapsed ? 28 : 34,
+                            height: collapsed ? 28 : 34,
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) => Icon(
+                              Icons.sentiment_satisfied_alt,
+                              size: collapsed ? 22 : 26,
+                              color: secondaryText,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              collapsed
+                                  ? 'Talk to companion'
+                                  : 'Talk with $companionName',
+                              style: TextStyle(
+                                color: primaryText,
+                                fontSize: collapsed ? 12 : 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          Icon(
+                            Icons.chevron_right_rounded,
+                            color: secondaryText,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),

@@ -74,7 +74,8 @@ class _FriendsScreenState extends State<FriendsScreen> {
   }
 
   bool _onScrollNotification(ScrollNotification notification) {
-    final collapsed = notification.metrics.pixels > 18;
+    final collapsed =
+        notification.metrics.pixels > context.mdHeaderCollapseOffset;
     if (collapsed != _headerCollapsed) {
       setState(() => _headerCollapsed = collapsed);
     }
@@ -983,12 +984,12 @@ class _FriendsHeader extends StatelessWidget {
                   ],
                 ),
                 AnimatedSize(
-                  duration: const Duration(milliseconds: 260),
+                  duration: context.mdHeaderCollapseDuration,
                   curve: Curves.easeOutCubic,
                   child: collapsed
                       ? const SizedBox.shrink()
                       : AnimatedOpacity(
-                          duration: const Duration(milliseconds: 220),
+                          duration: context.mdHeaderFadeDuration,
                           opacity: collapsed ? 0 : 1,
                           child: Column(
                             children: [
