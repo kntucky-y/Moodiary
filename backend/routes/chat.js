@@ -12,7 +12,7 @@ if (!process.env.GROQ_API_KEY) {
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 const conciseStyleGuide =
-  'Reply like a real human friend in 1-2 short sentences. Keep it under 160 characters when possible. Avoid lists, disclaimers, and overly formal language. Ask at most one gentle follow-up question.';
+  'Reply like a real human friend in exactly 1 short sentence. Keep it under 110 characters and under 18 words. Avoid lists, disclaimers, pep talks, and overly formal language. Ask a brief follow-up question only when it naturally fits. Ignore any previous assistant verbosity and stay concise.';
 
 const personalities = {
   Sparky: `You are Sparky, an energetic and cheerful mental wellness companion in the Moodiary app. You find joy in the smallest things and help users celebrate their happy moments. Your tone is upbeat, enthusiastic, and warm. ${conciseStyleGuide} Never give medical advice.`,
@@ -35,6 +35,7 @@ function normalizeReply(text) {
   const clean = (text || '')
     .replace(/\s+/g, ' ')
     .replace(/\*\*|__|`/g, '')
+    .replace(/^['"\s]+|['"\s]+$/g, '')
     .trim();
 
   if (!clean) {
@@ -42,13 +43,23 @@ function normalizeReply(text) {
   }
 
   const sentences = clean.match(/[^.!?]+[.!?]?/g) || [clean];
-  const shortReply = sentences.slice(0, 2).join(' ').trim();
+  const firstSentence = (sentences[0] || clean).trim();
 
-  if (shortReply.length <= 190) {
-    return shortReply;
+  // Hard clamp to keep replies brief and human-like.
+  let shortReply = firstSentence;
+
+  if (shortReply.length > 120) {
+    const clipped = shortReply.slice(0, 117);
+    const clippedAtWord = clipped.slice(0, clipped.lastIndexOf(' ')).trim();
+    shortReply = clippedAtWord.length > 0 ? `${clippedAtWord}...` : `${clipped.trimEnd()}...`;
   }
 
-  return `${shortReply.slice(0, 187).trimEnd()}...`;
+  const words = shortReply.split(' ').filter(Boolean);
+  if (words.length > 18) {
+    shortReply = `${words.slice(0, 18).join(' ')}...`;
+  }
+
+  return shortReply;
 }
 
 // GET /api/chat/:companionName — load saved history for this user + companion
@@ -92,7 +103,7 @@ router.post('/', auth, async (req, res) => {
     const completion = await groq.chat.completions.create({
       model: 'llama-3.3-70b-versatile',
       messages: groqMessages,
-      max_tokens: 90,
+      max_tokens: 60,
     });
     const rawReply = completion.choices[0].message.content;
     const reply = normalizeReply(rawReply);

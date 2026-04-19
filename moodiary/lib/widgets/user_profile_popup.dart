@@ -3,7 +3,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/auth_service.dart';
 import '../services/realtime_notifications.dart';
+import '../theme/moodiary_colors.dart';
 import '../utils/avatar_utils.dart';
+import 'glass.dart';
 
 Future<String?> showUserProfilePopup(
   BuildContext context, {
@@ -12,6 +14,7 @@ Future<String?> showUserProfilePopup(
   return showDialog<String>(
     context: context,
     barrierDismissible: true,
+    barrierColor: context.mdOverlayBarrier,
     builder: (context) => _UserProfilePopup(userId: userId),
   );
 }
@@ -90,211 +93,212 @@ class _UserProfilePopup extends StatelessWidget {
 
     return Dialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      backgroundColor: Colors.transparent,
+      elevation: 0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 460, maxHeight: 700),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(28),
-          child: FutureBuilder<Map<String, dynamic>>(
-            future: AuthService.instance.getUserProfile(userId: userId),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const SizedBox(
+        child: FutureBuilder<Map<String, dynamic>>(
+          future: AuthService.instance.getUserProfile(userId: userId),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return GlassContainer(
+                borderRadius: BorderRadius.circular(28),
+                blurSigma: context.mdGlassBlurLarge,
+                backgroundColor: context.mdGlassSurfaceStrong,
+                child: const SizedBox(
                   height: 260,
                   child: Center(child: CircularProgressIndicator()),
-                );
-              }
-
-              if (snapshot.hasError) {
-                return Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        colorScheme.primaryContainer,
-                        colorScheme.surface,
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      CircleAvatar(
-                        radius: 30,
-                        backgroundColor: colorScheme.surface,
-                        child: Icon(
-                          Icons.person_off_outlined,
-                          color: colorScheme.primary,
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      Text(
-                        'Unable to load profile',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Please try again in a moment.',
-                        style: Theme.of(context).textTheme.bodyMedium,
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 16),
-                      FilledButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        child: const Text('Close'),
-                      ),
-                    ],
-                  ),
-                );
-              }
-
-              final payload = snapshot.data ?? const {};
-              final user = payload['user'] as Map<String, dynamic>? ?? const {};
-              final currentMood =
-                  payload['currentMood'] as Map<String, dynamic>?;
-              final currentStreak =
-                  (payload['currentStreak'] as num?)?.toInt() ?? 0;
-              final mbtiLatestType = user['mbtiLatestType'] as String?;
-              final partner = payload['partner'] as Map<String, dynamic>?;
-              final publicPosts =
-                  (payload['publicPosts'] as List<dynamic>? ?? const [])
-                      .cast<Map<String, dynamic>>()
-                      .where((post) => (post['isAnonymous'] as bool?) != true)
-                      .toList();
-
-              final name = (user['name'] as String?) ?? 'User';
-              final email = (user['email'] as String?) ?? '';
-              final bio = (user['bio'] as String?) ?? '';
-              final avatarUrl = user['avatarUrl'] as String?;
-              final createdAtRaw = user['createdAt'] as String?;
-              final joinedDate = createdAtRaw != null
-                  ? _formatDate(DateTime.parse(createdAtRaw).toLocal())
-                  : 'Unknown';
-
-              return Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      colorScheme.surface,
-                      colorScheme.surfaceContainerHighest,
-                    ],
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                  ),
                 ),
-                child: Stack(
+              );
+            }
+
+            if (snapshot.hasError) {
+              return GlassContainer(
+                borderRadius: BorderRadius.circular(28),
+                blurSigma: context.mdGlassBlurLarge,
+                backgroundColor: context.mdGlassSurfaceStrong,
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Positioned(
-                      right: -40,
-                      top: -30,
-                      child: Container(
-                        width: 140,
-                        height: 140,
+                    CircleAvatar(
+                      radius: 30,
+                      backgroundColor: colorScheme.surface,
+                      child: Icon(
+                        Icons.person_off_outlined,
+                        color: colorScheme.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Text(
+                      'Unable to load profile',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Please try again in a moment.',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    FilledButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('Close'),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            final payload = snapshot.data ?? const {};
+            final user = payload['user'] as Map<String, dynamic>? ?? const {};
+            final currentMood = payload['currentMood'] as Map<String, dynamic>?;
+            final currentStreak =
+                (payload['currentStreak'] as num?)?.toInt() ?? 0;
+            final mbtiLatestType = user['mbtiLatestType'] as String?;
+            final partner = payload['partner'] as Map<String, dynamic>?;
+            final publicPosts =
+                (payload['publicPosts'] as List<dynamic>? ?? const [])
+                    .cast<Map<String, dynamic>>()
+                    .where((post) => (post['isAnonymous'] as bool?) != true)
+                    .toList();
+
+            final name = (user['name'] as String?) ?? 'User';
+            final email = (user['email'] as String?) ?? '';
+            final bio = (user['bio'] as String?) ?? '';
+            final avatarUrl = user['avatarUrl'] as String?;
+            final createdAtRaw = user['createdAt'] as String?;
+            final joinedDate = createdAtRaw != null
+                ? _formatDate(DateTime.parse(createdAtRaw).toLocal())
+                : 'Unknown';
+
+            return GlassContainer(
+              borderRadius: BorderRadius.circular(28),
+              blurSigma: context.mdGlassBlurLarge,
+              backgroundColor: context.mdGlassSurfaceStrong,
+              padding: EdgeInsets.zero,
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: DecoratedBox(
                         decoration: BoxDecoration(
-                          color: colorScheme.primary.withValues(alpha: 0.10),
-                          shape: BoxShape.circle,
+                          gradient: LinearGradient(
+                            colors: [
+                              colorScheme.primary.withValues(alpha: 0.08),
+                              Colors.transparent,
+                              colorScheme.tertiary.withValues(alpha: 0.06),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
                         ),
                       ),
                     ),
-                    Positioned(
-                      left: -28,
-                      bottom: 80,
-                      child: Container(
-                        width: 96,
-                        height: 96,
-                        decoration: BoxDecoration(
-                          color: colorScheme.tertiary.withValues(alpha: 0.08),
-                          shape: BoxShape.circle,
-                        ),
+                  ),
+                  Positioned(
+                    right: -40,
+                    top: -30,
+                    child: Container(
+                      width: 140,
+                      height: 140,
+                      decoration: BoxDecoration(
+                        color: colorScheme.primary.withValues(alpha: 0.10),
+                        shape: BoxShape.circle,
                       ),
                     ),
-                    SafeArea(
-                      child: SingleChildScrollView(
-                        padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                CircleAvatar(
-                                  radius: 34,
-                                  backgroundImage: avatarImageProvider(
-                                    avatarUrl,
-                                  ),
-                                  backgroundColor:
-                                      colorScheme.surfaceContainerHighest,
-                                  child: avatarImageProvider(avatarUrl) == null
-                                      ? const Icon(Icons.person, size: 30)
-                                      : null,
-                                ),
-                                const SizedBox(width: 14),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              name,
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .headlineSmall
-                                                  ?.copyWith(
-                                                    fontWeight: FontWeight.w900,
-                                                  ),
-                                            ),
+                  ),
+                  Positioned(
+                    left: -28,
+                    bottom: 80,
+                    child: Container(
+                      width: 96,
+                      height: 96,
+                      decoration: BoxDecoration(
+                        color: colorScheme.tertiary.withValues(alpha: 0.08),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+                  SafeArea(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              CircleAvatar(
+                                radius: 34,
+                                backgroundImage: avatarImageProvider(avatarUrl),
+                                backgroundColor:
+                                    colorScheme.surfaceContainerHighest,
+                                child: avatarImageProvider(avatarUrl) == null
+                                    ? const Icon(Icons.person, size: 30)
+                                    : null,
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            name,
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .headlineSmall
+                                                ?.copyWith(
+                                                  fontWeight: FontWeight.w900,
+                                                ),
                                           ),
-                                          IconButton(
-                                            padding: EdgeInsets.zero,
-                                            constraints: const BoxConstraints(),
-                                            style: IconButton.styleFrom(
-                                              overlayColor: Colors.transparent,
-                                              splashFactory:
-                                                  NoSplash.splashFactory,
-                                            ),
-                                            onPressed: () =>
-                                                Navigator.of(context).pop(),
-                                            icon: const Icon(
-                                              Icons.close_rounded,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      if (email.isNotEmpty)
-                                        Text(
-                                          email,
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .bodySmall
-                                              ?.copyWith(
-                                                color: colorScheme
-                                                    .onSurfaceVariant,
-                                              ),
                                         ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(14),
-                              decoration: BoxDecoration(
-                                color: colorScheme.surface,
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: colorScheme.outlineVariant,
+                                        IconButton(
+                                          padding: EdgeInsets.zero,
+                                          constraints: const BoxConstraints(),
+                                          style: IconButton.styleFrom(
+                                            overlayColor: Colors.transparent,
+                                            splashFactory:
+                                                NoSplash.splashFactory,
+                                          ),
+                                          onPressed: () =>
+                                              Navigator.of(context).pop(),
+                                          icon: const Icon(Icons.close_rounded),
+                                        ),
+                                      ],
+                                    ),
+                                    if (email.isNotEmpty)
+                                      Text(
+                                        email,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall
+                                            ?.copyWith(
+                                              color:
+                                                  colorScheme.onSurfaceVariant,
+                                            ),
+                                      ),
+                                  ],
                                 ),
                               ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          SizedBox(
+                            width: double.infinity,
+                            child: GlassContainer(
+                              padding: const EdgeInsets.all(14),
+                              borderRadius: BorderRadius.circular(20),
+                              backgroundColor: context.mdGlassSurface,
+                              borderColor: context.mdGlassBorder,
+                              blurSigma: context.mdGlassBlurMedium,
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -448,17 +452,16 @@ class _UserProfilePopup extends StatelessWidget {
                                 ],
                               ),
                             ),
-                            const SizedBox(height: 14),
-                            Container(
-                              width: double.infinity,
+                          ),
+                          const SizedBox(height: 14),
+                          SizedBox(
+                            width: double.infinity,
+                            child: GlassContainer(
                               padding: const EdgeInsets.all(14),
-                              decoration: BoxDecoration(
-                                color: colorScheme.surface,
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: colorScheme.outlineVariant,
-                                ),
-                              ),
+                              borderRadius: BorderRadius.circular(20),
+                              backgroundColor: context.mdGlassSurface,
+                              borderColor: context.mdGlassBorder,
+                              blurSigma: context.mdGlassBlurMedium,
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -479,191 +482,167 @@ class _UserProfilePopup extends StatelessWidget {
                                 ],
                               ),
                             ),
-                            const SizedBox(height: 14),
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.forum_outlined,
-                                  size: 18,
-                                  color: colorScheme.primary,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Public Posts',
-                                  style: Theme.of(context).textTheme.titleMedium
-                                      ?.copyWith(fontWeight: FontWeight.w800),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 10),
-                            if (publicPosts.isEmpty)
-                              Container(
-                                width: double.infinity,
+                          ),
+                          const SizedBox(height: 14),
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.forum_outlined,
+                                size: 18,
+                                color: colorScheme.primary,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Public Posts',
+                                style: Theme.of(context).textTheme.titleMedium
+                                    ?.copyWith(fontWeight: FontWeight.w800),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          if (publicPosts.isEmpty)
+                            SizedBox(
+                              width: double.infinity,
+                              child: GlassContainer(
                                 padding: const EdgeInsets.all(14),
-                                decoration: BoxDecoration(
-                                  color: colorScheme.surface,
-                                  borderRadius: BorderRadius.circular(18),
-                                  border: Border.all(
-                                    color: colorScheme.outlineVariant,
-                                  ),
-                                ),
+                                borderRadius: BorderRadius.circular(18),
+                                backgroundColor: context.mdGlassSurface,
+                                borderColor: context.mdGlassBorder,
+                                blurSigma: context.mdGlassBlurMedium,
                                 child: Text(
                                   'No public posts yet.',
                                   style: Theme.of(context).textTheme.bodyMedium,
                                 ),
-                              )
-                            else
-                              ...publicPosts.map(
-                                (post) => Padding(
-                                  padding: const EdgeInsets.only(bottom: 10),
-                                  child: Material(
-                                    color: colorScheme.surface,
-                                    borderRadius: BorderRadius.circular(18),
-                                    child: InkWell(
-                                      borderRadius: BorderRadius.circular(18),
-                                      onTap: () {
-                                        Navigator.of(
-                                          context,
-                                        ).pop(post['id'] as String);
-                                      },
-                                      child: Container(
-                                        width: double.infinity,
-                                        padding: const EdgeInsets.all(14),
-                                        decoration: BoxDecoration(
-                                          borderRadius: BorderRadius.circular(
-                                            18,
-                                          ),
-                                          border: Border.all(
-                                            color: colorScheme.outlineVariant,
-                                          ),
+                              ),
+                            )
+                          else
+                            ...publicPosts.map(
+                              (post) => Padding(
+                                padding: const EdgeInsets.only(bottom: 10),
+                                child: GlassCard(
+                                  borderRadius: BorderRadius.circular(18),
+                                  backgroundColor: context.mdGlassSurface,
+                                  borderColor: context.mdGlassBorder,
+                                  blurSigma: context.mdGlassBlurMedium,
+                                  padding: const EdgeInsets.all(14),
+                                  onTap: () {
+                                    Navigator.of(
+                                      context,
+                                    ).pop(post['id'] as String);
+                                  },
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      CircleAvatar(
+                                        radius: 18,
+                                        backgroundColor:
+                                            colorScheme.primaryContainer,
+                                        child: Icon(
+                                          (post['isAnonymous'] as bool?) == true
+                                              ? Icons.visibility_off_outlined
+                                              : Icons.article_outlined,
+                                          size: 18,
+                                          color: colorScheme.primary,
                                         ),
-                                        child: Row(
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
                                           children: [
-                                            CircleAvatar(
-                                              radius: 18,
-                                              backgroundColor:
-                                                  colorScheme.primaryContainer,
-                                              child: Icon(
-                                                (post['isAnonymous']
-                                                            as bool?) ==
-                                                        true
-                                                    ? Icons
-                                                          .visibility_off_outlined
-                                                    : Icons.article_outlined,
-                                                size: 18,
-                                                color: colorScheme.primary,
-                                              ),
+                                            Text(
+                                              (post['title'] as String?) ??
+                                                  'Untitled Post',
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .titleSmall
+                                                  ?.copyWith(
+                                                    fontWeight: FontWeight.w800,
+                                                  ),
                                             ),
-                                            const SizedBox(width: 12),
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    (post['title']
-                                                            as String?) ??
-                                                        'Untitled Post',
-                                                    maxLines: 1,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                    style: Theme.of(context)
-                                                        .textTheme
-                                                        .titleSmall
-                                                        ?.copyWith(
-                                                          fontWeight:
-                                                              FontWeight.w800,
-                                                        ),
-                                                  ),
-                                                  const SizedBox(height: 4),
-                                                  Text(
-                                                    _excerpt(
-                                                      (post['content']
-                                                              as String?) ??
-                                                          '',
-                                                    ),
-                                                    maxLines: 2,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                    style: Theme.of(
-                                                      context,
-                                                    ).textTheme.bodySmall,
-                                                  ),
-                                                  const SizedBox(height: 8),
-                                                  Row(
-                                                    children: [
-                                                      Icon(
-                                                        Icons
-                                                            .touch_app_outlined,
-                                                        size: 14,
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              _excerpt(
+                                                (post['content'] as String?) ??
+                                                    '',
+                                              ),
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: Theme.of(
+                                                context,
+                                              ).textTheme.bodySmall,
+                                            ),
+                                            const SizedBox(height: 8),
+                                            Row(
+                                              children: [
+                                                Icon(
+                                                  Icons.touch_app_outlined,
+                                                  size: 14,
+                                                  color: colorScheme.primary,
+                                                ),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  'Open in Forums',
+                                                  style: Theme.of(context)
+                                                      .textTheme
+                                                      .labelSmall
+                                                      ?.copyWith(
                                                         color:
                                                             colorScheme.primary,
+                                                        fontWeight:
+                                                            FontWeight.w700,
                                                       ),
-                                                      const SizedBox(width: 4),
-                                                      Text(
-                                                        'Open in Forums',
-                                                        style: Theme.of(context)
-                                                            .textTheme
-                                                            .labelSmall
-                                                            ?.copyWith(
-                                                              color: colorScheme
-                                                                  .primary,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .w700,
-                                                            ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ],
-                                              ),
+                                                ),
+                                              ],
                                             ),
                                           ],
                                         ),
                                       ),
-                                    ),
+                                    ],
                                   ),
                                 ),
                               ),
-                            const SizedBox(height: 6),
-                            Row(
-                              children: [
-                                _MuteToggleButton(targetUserId: userId),
-                                const SizedBox(width: 8),
-                                _BlockToggleButton(targetUserId: userId),
-                              ],
                             ),
-                            const SizedBox(height: 8),
-                            SizedBox(
-                              width: double.infinity,
-                              child: OutlinedButton.icon(
-                                onPressed: () => _reportUser(context, name),
-                                icon: const Icon(Icons.flag_outlined),
-                                label: const Text('Report user'),
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: colorScheme.error,
-                                  side: BorderSide(color: colorScheme.error),
-                                ),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              _MuteToggleButton(targetUserId: userId),
+                              const SizedBox(width: 8),
+                              _BlockToggleButton(targetUserId: userId),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: () => _reportUser(context, name),
+                              icon: const Icon(Icons.flag_outlined),
+                              label: const Text('Report user'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: colorScheme.error,
+                                side: BorderSide(color: colorScheme.error),
                               ),
                             ),
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: TextButton(
-                                onPressed: () => Navigator.of(context).pop(),
-                                child: const Text('Close'),
-                              ),
+                          ),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              onPressed: () => Navigator.of(context).pop(),
+                              child: const Text('Close'),
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
-                ),
-              );
-            },
-          ),
+                  ),
+                ],
+              ),
+            );
+          },
         ),
       ),
     );
