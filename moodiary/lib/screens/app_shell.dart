@@ -36,17 +36,26 @@ class _MoodiaryShellState extends State<MoodiaryShell> {
   late final List<Widget> _pages;
   String? _avatarUrl;
 
+  void _selectTab(MoodiaryTab tab) {
+    final nextIndex = tab.index;
+    if (_index == nextIndex) {
+      return;
+    }
+    setState(() => _index = nextIndex);
+  }
+
   @override
   void initState() {
     super.initState();
     _index = widget.initialTab.index;
     _avatarUrl = widget.initialProfileAvatarUrl;
     _pages = [
-      const UserProfileScreen(),
+      UserProfileScreen(onShellTabSelected: _selectTab),
       FriendsScreen(
         userName: widget.userName,
         companionId: widget.companionId,
         companionName: widget.companionName,
+        onShellTabSelected: _selectTab,
       ),
       HomeScreen(
         userName: widget.userName,
@@ -54,16 +63,19 @@ class _MoodiaryShellState extends State<MoodiaryShell> {
         companionName: widget.companionName,
         initialProfileAvatarUrl: widget.initialProfileAvatarUrl,
         showBottomNav: false,
+        onShellTabSelected: _selectTab,
       ),
       ForumsScreen(
         userName: widget.userName,
         companionId: widget.companionId,
         companionName: widget.companionName,
+        onShellTabSelected: _selectTab,
       ),
       ResourcesScreen(
         userName: widget.userName,
         companionId: widget.companionId,
         companionName: widget.companionName,
+        onShellTabSelected: _selectTab,
       ),
     ];
     _loadAvatarUrl();
@@ -81,6 +93,7 @@ class _MoodiaryShellState extends State<MoodiaryShell> {
         companionName: widget.companionName,
         initialProfileAvatarUrl: stored,
         showBottomNav: false,
+        onShellTabSelected: _selectTab,
       );
     });
   }
@@ -122,7 +135,8 @@ class _MoodiaryShellState extends State<MoodiaryShell> {
             padding: EdgeInsets.symmetric(horizontal: navInnerHorizontalInset),
             child: NavigationBar(
               selectedIndex: _index,
-              onDestinationSelected: (index) => setState(() => _index = index),
+              onDestinationSelected: (index) =>
+                  _selectTab(MoodiaryTab.values[index]),
               height: 58,
               backgroundColor: Colors.transparent,
               indicatorColor: cs.primaryContainer.withValues(alpha: 0.56),

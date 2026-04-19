@@ -24,12 +24,14 @@ class ResourcesScreen extends StatefulWidget {
   final String userName;
   final int companionId;
   final String companionName;
+  final ValueChanged<MoodiaryTab>? onShellTabSelected;
 
   const ResourcesScreen({
     super.key,
     required this.userName,
     required this.companionId,
     required this.companionName,
+    this.onShellTabSelected,
   });
 
   @override
@@ -313,6 +315,11 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
 
   void _openShellTab(MoodiaryTab tab) {
     _closeSidebar();
+    final onShellTabSelected = widget.onShellTabSelected;
+    if (onShellTabSelected != null) {
+      onShellTabSelected(tab);
+      return;
+    }
     Navigator.of(context).pushAndRemoveUntil(
       FadeSlideRoute(
         page: MoodiaryShell(

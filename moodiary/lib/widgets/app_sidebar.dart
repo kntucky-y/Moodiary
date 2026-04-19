@@ -18,7 +18,7 @@ enum SidebarSection {
   settings,
 }
 
-class AppSidebar extends StatelessWidget {
+class AppSidebar extends StatefulWidget {
   final String userName;
   final SidebarSection activeSection;
   final VoidCallback onClose;
@@ -51,119 +51,136 @@ class AppSidebar extends StatelessWidget {
   });
 
   @override
+  State<AppSidebar> createState() => _AppSidebarState();
+}
+
+class _AppSidebarState extends State<AppSidebar> {
+  String? _storedName;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadStoredName();
+  }
+
+  Future<void> _loadStoredName() async {
+    final prefs = await SharedPreferences.getInstance();
+    final nextName = prefs.getString('user_name')?.trim();
+    if (!mounted || nextName == _storedName) {
+      return;
+    }
+    setState(() => _storedName = nextName);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final subtleText = context.mdSecondaryText;
+    final storedName = _storedName;
+    final currentName = storedName != null && storedName.isNotEmpty
+        ? storedName
+        : widget.userName;
 
     final items = [
       _SidebarEntry(
         section: SidebarSection.home,
         icon: Icons.home_rounded,
         label: 'Home',
-        onTap: onNavigateHome,
+        onTap: widget.onNavigateHome,
       ),
       _SidebarEntry(
         section: SidebarSection.userProfile,
         icon: Icons.account_circle_outlined,
         label: 'User Profile',
-        onTap: onNavigateUserProfile,
+        onTap: widget.onNavigateUserProfile,
       ),
       _SidebarEntry(
         section: SidebarSection.friends,
         icon: Icons.people_alt_outlined,
         label: 'Buddies',
-        onTap: onNavigateFriends,
+        onTap: widget.onNavigateFriends,
       ),
       _SidebarEntry(
         section: SidebarSection.forums,
         icon: Icons.chat_bubble_outline,
         label: 'Forums',
-        onTap: onNavigateForums,
+        onTap: widget.onNavigateForums,
       ),
       _SidebarEntry(
         section: SidebarSection.resources,
         icon: Icons.folder_outlined,
         label: 'Resources',
-        onTap: onNavigateResources,
+        onTap: widget.onNavigateResources,
       ),
       _SidebarEntry(
         section: SidebarSection.settings,
         icon: Icons.settings_outlined,
         label: 'Settings',
-        onTap: onNavigateSettings,
+        onTap: widget.onNavigateSettings,
       ),
     ];
 
     return SafeArea(
       bottom: false,
-      child: FutureBuilder<SharedPreferences>(
-        future: SharedPreferences.getInstance(),
-        builder: (context, snapshot) {
-          final storedName = snapshot.data?.getString('user_name')?.trim();
-          final currentName = storedName != null && storedName.isNotEmpty
-              ? storedName
-              : userName;
-          return GlassContainer(
-            blurSigma: context.mdGlassBlurMedium,
-            borderRadius: BorderRadius.zero,
-            backgroundColor: context.mdGlassSurfaceStrong,
-            borderColor: Colors.transparent,
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: GlassContainer(
+        blurSigma: context.mdGlassBlurMedium,
+        borderRadius: BorderRadius.zero,
+        backgroundColor: context.mdGlassSurfaceStrong,
+        borderColor: Colors.transparent,
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
-                Row(
-                  children: [
-                    const Text(
-                      'moodiary',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: _kPurple,
-                      ),
-                    ),
-                    const Spacer(),
-                    IconButton(
-                      icon: Icon(Icons.close, color: subtleText),
-                      onPressed: onClose,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Hi, $currentName!',
-                  style: TextStyle(color: subtleText, fontSize: 13),
-                ),
-                const SizedBox(height: 16),
-                Expanded(
-                  child: ListView(
-                    padding: EdgeInsets.zero,
-                    children: [
-                      ...items.map(_buildItem),
-                      if (onChangeCompanion != null)
-                        _buildActionItem(
-                          icon: Icons.swap_horiz_rounded,
-                          label: 'Change Companion',
-                          onTap: onChangeCompanion!,
-                        ),
-                      if (onLogout != null)
-                        _buildActionItem(
-                          icon: Icons.logout,
-                          label: 'Logout',
-                          onTap: () => _confirmAndLogout(context),
-                        ),
-                    ],
+                const Text(
+                  'moodiary',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: _kPurple,
                   ),
+                ),
+                const Spacer(),
+                IconButton(
+                  icon: Icon(Icons.close, color: subtleText),
+                  onPressed: widget.onClose,
                 ),
               ],
             ),
-          );
-        },
+            const SizedBox(height: 8),
+            Text(
+              'Hi, $currentName!',
+              style: TextStyle(color: subtleText, fontSize: 13),
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: ListView(
+                padding: EdgeInsets.zero,
+                children: [
+                  ...items.map(_buildItem),
+                  if (widget.onChangeCompanion != null)
+                    _buildActionItem(
+                      icon: Icons.swap_horiz_rounded,
+                      label: 'Change Companion',
+                      onTap: widget.onChangeCompanion!,
+                    ),
+                  if (widget.onLogout != null)
+                    _buildActionItem(
+                      icon: Icons.logout,
+                      label: 'Logout',
+                      onTap: () => _confirmAndLogout(context),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildItem(_SidebarEntry entry) {
-    final active = activeSection == entry.section;
+    final active = widget.activeSection == entry.section;
     final item = _SidebarItem(
       icon: entry.icon,
       label: entry.label,
@@ -197,12 +214,12 @@ class AppSidebar extends StatelessWidget {
   }
 
   void _handleTap(VoidCallback action) {
-    onClose();
+    widget.onClose();
     action();
   }
 
   Future<void> _confirmAndLogout(BuildContext context) async {
-    if (onLogout == null) return;
+    if (widget.onLogout == null) return;
     final shouldLogout = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
@@ -225,7 +242,7 @@ class AppSidebar extends StatelessWidget {
       },
     );
     if (shouldLogout == true) {
-      _handleTap(onLogout!);
+      _handleTap(widget.onLogout!);
     }
   }
 }

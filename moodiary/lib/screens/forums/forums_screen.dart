@@ -48,6 +48,7 @@ class ForumsScreen extends StatefulWidget {
   final int companionId;
   final String companionName;
   final String? initialPostId;
+  final ValueChanged<MoodiaryTab>? onShellTabSelected;
 
   const ForumsScreen({
     super.key,
@@ -55,6 +56,7 @@ class ForumsScreen extends StatefulWidget {
     required this.companionId,
     required this.companionName,
     this.initialPostId,
+    this.onShellTabSelected,
   });
 
   @override
@@ -225,6 +227,11 @@ class _ForumsScreenState extends State<ForumsScreen> {
 
   void _openShellTab(MoodiaryTab tab) {
     _closeSidebar();
+    final onShellTabSelected = widget.onShellTabSelected;
+    if (onShellTabSelected != null) {
+      onShellTabSelected(tab);
+      return;
+    }
     Navigator.of(context).pushAndRemoveUntil(
       FadeSlideRoute(
         page: MoodiaryShell(

@@ -26,7 +26,9 @@ import '../settings/settings_screen.dart';
 import 'mbti_test_screen.dart';
 
 class UserProfileScreen extends StatefulWidget {
-  const UserProfileScreen({super.key});
+  final ValueChanged<MoodiaryTab>? onShellTabSelected;
+
+  const UserProfileScreen({super.key, this.onShellTabSelected});
 
   @override
   State<UserProfileScreen> createState() => _UserProfileScreenState();
@@ -269,6 +271,11 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
   void _openShellTab(MoodiaryTab tab) {
     setState(() => _sidebarOpen = false);
+    final onShellTabSelected = widget.onShellTabSelected;
+    if (onShellTabSelected != null) {
+      onShellTabSelected(tab);
+      return;
+    }
     Navigator.of(context).pushAndRemoveUntil(
       FadeSlideRoute(
         page: MoodiaryShell(
@@ -518,6 +525,12 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                     _currentAvatarUrl = userData['avatarUrl'] as String?;
                     final displayedAvatarUrl =
                         _selectedAvatarDataUrl ?? _currentAvatarUrl;
+                    final displayedAvatarImage = avatarImageProvider(
+                      displayedAvatarUrl,
+                    );
+                    final partnerAvatarImage = avatarImageProvider(
+                      partner?['avatarUrl'] as String?,
+                    );
 
                     if (!_isEditing &&
                         _nameController.text.isEmpty &&
@@ -552,14 +565,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                             CircleAvatar(
                                               radius: 48,
                                               backgroundImage:
-                                                  avatarImageProvider(
-                                                    displayedAvatarUrl,
-                                                  ),
+                                                  displayedAvatarImage,
                                               child:
-                                                  avatarImageProvider(
-                                                        displayedAvatarUrl,
-                                                      ) ==
-                                                      null
+                                                  displayedAvatarImage == null
                                                   ? const Icon(
                                                       Icons.person,
                                                       size: 44,
@@ -753,16 +761,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                             CircleAvatar(
                                               radius: 18,
                                               backgroundImage:
-                                                  avatarImageProvider(
-                                                    partner['avatarUrl']
-                                                        as String?,
-                                                  ),
-                                              child:
-                                                  avatarImageProvider(
-                                                        partner['avatarUrl']
-                                                            as String?,
-                                                      ) ==
-                                                      null
+                                                  partnerAvatarImage,
+                                              child: partnerAvatarImage == null
                                                   ? const Icon(
                                                       Icons.favorite_outline,
                                                     )

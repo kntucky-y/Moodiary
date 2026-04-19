@@ -186,6 +186,7 @@ class HomeScreen extends StatefulWidget {
   final String companionName;
   final String? initialProfileAvatarUrl;
   final bool showBottomNav;
+  final ValueChanged<MoodiaryTab>? onShellTabSelected;
 
   const HomeScreen({
     super.key,
@@ -194,6 +195,7 @@ class HomeScreen extends StatefulWidget {
     required this.companionName,
     this.initialProfileAvatarUrl,
     this.showBottomNav = true,
+    this.onShellTabSelected,
   });
 
   @override
@@ -558,6 +560,26 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return '${now.year}/${now.month.toString().padLeft(2, '0')}/${now.day.toString().padLeft(2, '0')}';
   }
 
+  void _openShellTab(MoodiaryTab tab) {
+    setState(() => _sidebarOpen = false);
+    final onShellTabSelected = widget.onShellTabSelected;
+    if (onShellTabSelected != null) {
+      onShellTabSelected(tab);
+      return;
+    }
+    Navigator.of(context).pushAndRemoveUntil(
+      FadeSlideRoute(
+        page: MoodiaryShell(
+          userName: widget.userName,
+          companionId: widget.companionId,
+          companionName: widget.companionName,
+          initialTab: tab,
+        ),
+      ),
+      (_) => false,
+    );
+  }
+
   Future<void> _logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('token');
@@ -903,20 +925,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               activeSection: SidebarSection.home,
               onClose: () => setState(() => _sidebarOpen = false),
               onNavigateHome: () => setState(() => _sidebarOpen = false),
-              onNavigateUserProfile: () {
-                setState(() => _sidebarOpen = false);
-                Navigator.of(context).pushAndRemoveUntil(
-                  FadeSlideRoute(
-                    page: MoodiaryShell(
-                      userName: widget.userName,
-                      companionId: widget.companionId,
-                      companionName: widget.companionName,
-                      initialTab: MoodiaryTab.profile,
-                    ),
-                  ),
-                  (_) => false,
-                );
-              },
+              onNavigateUserProfile: () => _openShellTab(MoodiaryTab.profile),
               onNavigateCalendar: () {
                 setState(() => _sidebarOpen = false);
                 Navigator.of(context).push(
@@ -941,48 +950,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ),
                 );
               },
-              onNavigateFriends: () {
-                setState(() => _sidebarOpen = false);
-                Navigator.of(context).pushAndRemoveUntil(
-                  FadeSlideRoute(
-                    page: MoodiaryShell(
-                      userName: widget.userName,
-                      companionId: widget.companionId,
-                      companionName: widget.companionName,
-                      initialTab: MoodiaryTab.buddies,
-                    ),
-                  ),
-                  (_) => false,
-                );
-              },
-              onNavigateForums: () {
-                setState(() => _sidebarOpen = false);
-                Navigator.of(context).pushAndRemoveUntil(
-                  FadeSlideRoute(
-                    page: MoodiaryShell(
-                      userName: widget.userName,
-                      companionId: widget.companionId,
-                      companionName: widget.companionName,
-                      initialTab: MoodiaryTab.forums,
-                    ),
-                  ),
-                  (_) => false,
-                );
-              },
-              onNavigateResources: () {
-                setState(() => _sidebarOpen = false);
-                Navigator.of(context).pushAndRemoveUntil(
-                  FadeSlideRoute(
-                    page: MoodiaryShell(
-                      userName: widget.userName,
-                      companionId: widget.companionId,
-                      companionName: widget.companionName,
-                      initialTab: MoodiaryTab.resources,
-                    ),
-                  ),
-                  (_) => false,
-                );
-              },
+              onNavigateFriends: () => _openShellTab(MoodiaryTab.buddies),
+              onNavigateForums: () => _openShellTab(MoodiaryTab.forums),
+              onNavigateResources: () => _openShellTab(MoodiaryTab.resources),
               onNavigateSettings: () {
                 setState(() => _sidebarOpen = false);
                 Navigator.of(context).push(
