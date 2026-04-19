@@ -50,9 +50,26 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   int _todayMoodScore = 0;
   String _currentMoodLabel = 'No mood logged';
   String _currentMoodAsset = 'assets/okay.png';
+  final Map<String, ImageProvider<Object>> _avatarImageCache = {};
   final _nameController = TextEditingController();
   final _bioController = TextEditingController();
   final _emailController = TextEditingController();
+
+  ImageProvider<Object>? _cachedAvatarImage(String? source) {
+    final trimmed = source?.trim();
+    if (trimmed == null || trimmed.isEmpty) {
+      return null;
+    }
+    final cached = _avatarImageCache[trimmed];
+    if (cached != null) {
+      return cached;
+    }
+    final created = avatarImageProvider(trimmed);
+    if (created != null) {
+      _avatarImageCache[trimmed] = created;
+    }
+    return created;
+  }
 
   @override
   void initState() {
@@ -525,10 +542,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                     _currentAvatarUrl = userData['avatarUrl'] as String?;
                     final displayedAvatarUrl =
                         _selectedAvatarDataUrl ?? _currentAvatarUrl;
-                    final displayedAvatarImage = avatarImageProvider(
+                    final displayedAvatarImage = _cachedAvatarImage(
                       displayedAvatarUrl,
                     );
-                    final partnerAvatarImage = avatarImageProvider(
+                    final partnerAvatarImage = _cachedAvatarImage(
                       partner?['avatarUrl'] as String?,
                     );
 

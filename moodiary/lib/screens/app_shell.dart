@@ -33,15 +33,59 @@ class MoodiaryShell extends StatefulWidget {
 
 class _MoodiaryShellState extends State<MoodiaryShell> {
   late int _index;
-  late final List<Widget> _pages;
+  late final List<Widget?> _pages;
   String? _avatarUrl;
+
+  Widget _buildPage(int index) {
+    switch (MoodiaryTab.values[index]) {
+      case MoodiaryTab.profile:
+        return UserProfileScreen(onShellTabSelected: _selectTab);
+      case MoodiaryTab.buddies:
+        return FriendsScreen(
+          userName: widget.userName,
+          companionId: widget.companionId,
+          companionName: widget.companionName,
+          onShellTabSelected: _selectTab,
+        );
+      case MoodiaryTab.home:
+        return HomeScreen(
+          userName: widget.userName,
+          companionId: widget.companionId,
+          companionName: widget.companionName,
+          initialProfileAvatarUrl: _avatarUrl,
+          showBottomNav: false,
+          onShellTabSelected: _selectTab,
+        );
+      case MoodiaryTab.forums:
+        return ForumsScreen(
+          userName: widget.userName,
+          companionId: widget.companionId,
+          companionName: widget.companionName,
+          onShellTabSelected: _selectTab,
+        );
+      case MoodiaryTab.resources:
+        return ResourcesScreen(
+          userName: widget.userName,
+          companionId: widget.companionId,
+          companionName: widget.companionName,
+          onShellTabSelected: _selectTab,
+        );
+    }
+  }
+
+  void _ensurePage(int index) {
+    _pages[index] ??= _buildPage(index);
+  }
 
   void _selectTab(MoodiaryTab tab) {
     final nextIndex = tab.index;
     if (_index == nextIndex) {
       return;
     }
-    setState(() => _index = nextIndex);
+    setState(() {
+      _ensurePage(nextIndex);
+      _index = nextIndex;
+    });
   }
 
   @override
@@ -49,35 +93,8 @@ class _MoodiaryShellState extends State<MoodiaryShell> {
     super.initState();
     _index = widget.initialTab.index;
     _avatarUrl = widget.initialProfileAvatarUrl;
-    _pages = [
-      UserProfileScreen(onShellTabSelected: _selectTab),
-      FriendsScreen(
-        userName: widget.userName,
-        companionId: widget.companionId,
-        companionName: widget.companionName,
-        onShellTabSelected: _selectTab,
-      ),
-      HomeScreen(
-        userName: widget.userName,
-        companionId: widget.companionId,
-        companionName: widget.companionName,
-        initialProfileAvatarUrl: widget.initialProfileAvatarUrl,
-        showBottomNav: false,
-        onShellTabSelected: _selectTab,
-      ),
-      ForumsScreen(
-        userName: widget.userName,
-        companionId: widget.companionId,
-        companionName: widget.companionName,
-        onShellTabSelected: _selectTab,
-      ),
-      ResourcesScreen(
-        userName: widget.userName,
-        companionId: widget.companionId,
-        companionName: widget.companionName,
-        onShellTabSelected: _selectTab,
-      ),
-    ];
+    _pages = List<Widget?>.filled(MoodiaryTab.values.length, null);
+    _ensurePage(_index);
     _loadAvatarUrl();
   }
 
@@ -87,14 +104,9 @@ class _MoodiaryShellState extends State<MoodiaryShell> {
     if (!mounted || stored == _avatarUrl) return;
     setState(() {
       _avatarUrl = stored;
-      _pages[2] = HomeScreen(
-        userName: widget.userName,
-        companionId: widget.companionId,
-        companionName: widget.companionName,
-        initialProfileAvatarUrl: stored,
-        showBottomNav: false,
-        onShellTabSelected: _selectTab,
-      );
+      if (_pages[MoodiaryTab.home.index] != null) {
+        _pages[MoodiaryTab.home.index] = _buildPage(MoodiaryTab.home.index);
+      }
     });
   }
 
@@ -118,7 +130,13 @@ class _MoodiaryShellState extends State<MoodiaryShell> {
 
     return Scaffold(
       extendBody: true,
-      body: IndexedStack(index: _index, children: _pages),
+      body: IndexedStack(
+        index: _index,
+        children: List<Widget>.generate(
+          MoodiaryTab.values.length,
+          (index) => _pages[index] ?? const SizedBox.shrink(),
+        ),
+      ),
       bottomNavigationBar: SafeArea(
         minimum: EdgeInsets.fromLTRB(
           horizontalInset,
