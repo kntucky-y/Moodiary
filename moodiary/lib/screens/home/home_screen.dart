@@ -319,6 +319,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   List<_MoodTask> _todayTasks = [];
   List<bool> _completedStates = [false, false, false];
+  bool _tasksLoading = true; // true until AI tasks arrive or fallback used
   int _taskPoints = 0; // points from task completions only
   int _todayActivityScore = 0; // activity score from calendar log (today)
   int _moodScore = 0; // combined: taskPoints + moodLevelScore + activityScore
@@ -467,6 +468,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     setState(() {
       _todayTasks = tasks;
       _completedStates = completedStates;
+      _tasksLoading = false;
       if (resetProgress) {
         _taskPoints = 0;
         _moodScore =
@@ -481,6 +483,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     await _fetchAiInsights();
   }
 
+  /// Loads today's tasks from cache. If AI tasks are cached, use them.
+  /// Otherwise, keep _tasksLoading=true so the UI shows a loading indicator
+  /// until _loadAiInsights / _fetchAiInsights provides AI tasks.
   Future<void> _loadTodayTasks() async {
     final prefs = await SharedPreferences.getInstance();
     final today = _dateKey();
@@ -508,25 +513,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       } catch (_) {}
     }
 
-    if (tasks.isEmpty) {
-      // Fallback to deterministic pool tasks until AI tasks arrive.
-      final parts = today.split('-');
-      final seed =
-          int.parse(parts[0]) * 10000 +
-          int.parse(parts[1]) * 100 +
-          int.parse(parts[2]);
-      final rng = Random(seed);
-      final all = List.generate(_taskPool.length, (i) => i);
-      for (int i = all.length - 1; i > 0; i--) {
-        final j = rng.nextInt(i + 1);
-        final tmp = all[i];
-        all[i] = all[j];
-        all[j] = tmp;
-      }
-      tasks = all.take(3).map((i) => _taskPool[i]).toList();
-    }
+    // If no cached AI tasks, keep _tasksLoading true and wait for
+    // _loadAiInsights to provide them. Don't use fallback pool here.
+    final hasAiTasks = tasks.isNotEmpty;
 
-    if (completed.length != tasks.length) {
+    if (hasAiTasks && completed.length != tasks.length) {
       completed = List<bool>.filled(tasks.length, false);
     }
 
@@ -553,8 +544,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     }
     if (mounted) {
       setState(() {
-        _todayTasks = tasks;
-        _completedStates = completed;
+        if (hasAiTasks) {
+          _todayTasks = tasks;
+          _completedStates = completed;
+          _tasksLoading = false;
+        } else {
+          _tasksLoading = true;
+        }
         _taskPoints = taskPoints;
         _todayActivityScore = activityScore;
         _moodScore = taskPoints + moodActivityScore;
@@ -564,6 +560,26 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       await _refreshStreak();
       _entranceCtrl.forward(from: 0);
     }
+  }
+
+  /// Generates deterministic fallback tasks from the premade pool.
+  /// Only used when the AI API fails or returns no tasks.
+  List<_MoodTask> _buildFallbackTasks() {
+    final today = _dateKey();
+    final parts = today.split('-');
+    final seed =
+        int.parse(parts[0]) * 10000 +
+        int.parse(parts[1]) * 100 +
+        int.parse(parts[2]);
+    final rng = Random(seed);
+    final all = List.generate(_taskPool.length, (i) => i);
+    for (int i = all.length - 1; i > 0; i--) {
+      final j = rng.nextInt(i + 1);
+      final tmp = all[i];
+      all[i] = all[j];
+      all[j] = tmp;
+    }
+    return all.take(3).map((i) => _taskPool[i]).toList();
   }
 
   Future<void> _loadAiInsights() async {
@@ -589,7 +605,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final nowMs = DateTime.now().millisecondsSinceEpoch;
     final isFresh =
         ts != null && nowMs - ts < _kAiInsightsCacheTtl.inMilliseconds;
-    if (isFresh) return;
+    if (isFresh) {
+      // If the insights cache is fresh but contained no AI tasks,
+      // fall back to pool tasks so the UI doesn't stay on the loading state.
+      if (_tasksLoading && _todayTasks.isEmpty) {
+        final fallback = _buildFallbackTasks();
+        if (mounted) {
+          setState(() {
+            _todayTasks = fallback;
+            _completedStates = List<bool>.filled(fallback.length, false);
+            _tasksLoading = false;
+          });
+        }
+      }
+      return;
+    }
     await _fetchAiInsights();
   }
 
@@ -622,6 +652,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       final aiTasks = _decodeAiTasks(payload['tasks'] as List<dynamic>?);
       if (aiTasks.isNotEmpty) {
         await _applyAiTasks(aiTasks, resetProgress: false);
+      } else if (_tasksLoading && _todayTasks.isEmpty) {
+        // AI returned no tasks — fall back to pool tasks
+        final fallback = _buildFallbackTasks();
+        if (mounted) {
+          setState(() {
+            _todayTasks = fallback;
+            _completedStates = List<bool>.filled(fallback.length, false);
+            _tasksLoading = false;
+          });
+        }
       }
       if (!mounted) return;
       setState(() {
@@ -630,10 +670,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() {
-        _insightsError = e.toString();
-        _insightsLoading = false;
-      });
+      // If tasks are still loading (no AI tasks yet), fall back to pool tasks
+      if (_tasksLoading && _todayTasks.isEmpty) {
+        final fallback = _buildFallbackTasks();
+        setState(() {
+          _todayTasks = fallback;
+          _completedStates = List<bool>.filled(fallback.length, false);
+          _tasksLoading = false;
+          _insightsError = e.toString();
+          _insightsLoading = false;
+        });
+      } else {
+        setState(() {
+          _insightsError = e.toString();
+          _insightsLoading = false;
+        });
+      }
     }
   }
 
@@ -1416,8 +1468,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           ],
                         ),
                         const SizedBox(height: 12),
-                        if (_todayTasks.isEmpty)
-                          const Center(child: CircularProgressIndicator())
+                        if (_tasksLoading || _todayTasks.isEmpty)
+                          _TasksLoadingIndicator()
                         else
                           LayoutBuilder(
                             builder: (context, constraints) {
@@ -2226,6 +2278,104 @@ class _TaskTile extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+// ─── Tasks Loading Indicator ─────────────────────────────────────────────────
+class _TasksLoadingIndicator extends StatelessWidget {
+  const _TasksLoadingIndicator();
+
+  @override
+  Widget build(BuildContext context) {
+    final subtleText = context.mdSecondaryText;
+    final shimmerBase = context.isDarkMode
+        ? const Color(0xFF1F2337)
+        : const Color(0xFFF0EDF8);
+    final shimmerHighlight = context.isDarkMode
+        ? const Color(0xFF2A2F4A)
+        : const Color(0xFFE8E3F5);
+
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: _kPurple.withValues(alpha: 0.6),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              'Generating personalized tasks...',
+              style: TextStyle(
+                fontSize: 13,
+                color: subtleText,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        ...List.generate(3, (i) => Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: GlassContainer(
+            blurSigma: context.mdGlassBlurMedium,
+            backgroundColor: context.mdGlassSurface,
+            borderColor: context.mdGlassBorder,
+            borderRadius: BorderRadius.circular(18),
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: shimmerBase,
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: Center(
+                    child: Icon(
+                      Icons.auto_awesome_rounded,
+                      color: shimmerHighlight,
+                      size: 22,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 120 + i * 20.0,
+                        height: 12,
+                        decoration: BoxDecoration(
+                          color: shimmerBase,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Container(
+                        width: double.infinity,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: shimmerBase,
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        )),
+      ],
     );
   }
 }
