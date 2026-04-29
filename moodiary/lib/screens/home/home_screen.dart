@@ -439,6 +439,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       _syncScoreToDb(today, 0);
     }
 
+    List<bool> completedStates = List<bool>.filled(tasks.length, false);
+    if (!resetProgress) {
+      final cStr = prefs.getString('tasks_completed') ?? 'false,false,false';
+      final parsed = cStr.split(',').map((s) => s == 'true').toList();
+      if (parsed.length == tasks.length) {
+        completedStates = parsed;
+      }
+    }
+
     await prefs.setString(
       _kAiTasksCacheKey,
       jsonEncode(
@@ -457,7 +466,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     if (!mounted) return;
     setState(() {
       _todayTasks = tasks;
-      _completedStates = List<bool>.filled(tasks.length, false);
+      _completedStates = completedStates;
       if (resetProgress) {
         _taskPoints = 0;
         _moodScore =
@@ -612,8 +621,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
       final aiTasks = _decodeAiTasks(payload['tasks'] as List<dynamic>?);
       if (aiTasks.isNotEmpty) {
-        final shouldReset = !_tasksMatch(_todayTasks, aiTasks);
-        await _applyAiTasks(aiTasks, resetProgress: shouldReset);
+        await _applyAiTasks(aiTasks, resetProgress: false);
       }
       if (!mounted) return;
       setState(() {
@@ -1517,11 +1525,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ],
       ),
       bottomNavigationBar: widget.showBottomNav
-          ? _BottomNav(
-              userName: widget.userName,
-              companionId: widget.companionId,
-              companionName: widget.companionName,
-            )
+          ? _sidebarOpen
+                ? null
+                : _BottomNav(
+                    userName: widget.userName,
+                    companionId: widget.companionId,
+                    companionName: widget.companionName,
+                  )
           : null,
     );
   }
@@ -2006,7 +2016,7 @@ class _HomeCalendarJournalCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(20),
       backgroundColor: context.mdGlassSurface,
       borderColor: context.mdGlassBorder,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
         children: [
           Expanded(
@@ -2051,12 +2061,14 @@ class _HomeCalendarJournalCard extends StatelessWidget {
               ),
             ),
           ),
-          Container(width: 1, height: 72, color: dividerColor),
+          const SizedBox(width: 8),
+          Container(width: 1, height: 78, color: dividerColor),
+          const SizedBox(width: 12),
           Expanded(
             child: TapScale(
               onTap: onJournalTap,
               child: Padding(
-                padding: const EdgeInsets.only(left: 12),
+                padding: const EdgeInsets.only(left: 4),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
