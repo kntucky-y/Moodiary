@@ -156,6 +156,7 @@ const _kAiInsightsCacheKey = 'home_ai_insights_cache';
 const _kAiInsightsCacheTsKey = 'home_ai_insights_cache_ts';
 const _kJournalPreviewCacheKey = 'home_journal_preview_cache';
 const _kJournalPreviewCacheTsKey = 'home_journal_preview_cache_ts';
+const _kAiTasksCacheKey = 'tasks_ai_payload';
 const _kAiInsightsCacheTtl = Duration(hours: 24);
 const _kJournalPreviewCacheTtl = Duration(hours: 6);
 
@@ -178,7 +179,7 @@ class _MoodTask {
     this.icon,
     this.iconColor = _kPurple,
     this.iconBackground = const Color(0xFFF3F0FB),
-  }) : assert(asset != null || icon != null, 'Provide an asset or icon');
+  });
 }
 
 class _Mood {
@@ -388,17 +389,118 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
   }
 
+  List<_MoodTask> _decodeAiTasks(List<dynamic>? raw) {
+    if (raw == null) return [];
+    final tasks = <_MoodTask>[];
+    for (final item in raw) {
+      if (item is! Map) continue;
+      final map = Map<String, dynamic>.from(item);
+      final title = (map['title'] ?? '').toString().trim();
+      final description = (map['description'] ?? '').toString().trim();
+      final points = (map['points'] as num?)?.toInt() ?? 10;
+      if (title.isEmpty || description.isEmpty) continue;
+      tasks.add(
+        _MoodTask(
+          id: title.toLowerCase().replaceAll(' ', '_'),
+          title: title,
+          description: description,
+          points: points.clamp(5, 20),
+          icon: Icons.auto_awesome_rounded,
+          iconColor: const Color(0xFF6366F1),
+          iconBackground: const Color(0xFFE0E7FF),
+        ),
+      );
+    }
+    return tasks;
+  }
+
+  bool _tasksMatch(List<_MoodTask> a, List<_MoodTask> b) {
+    if (a.length != b.length) return false;
+    for (int i = 0; i < a.length; i++) {
+      if (a[i].title != b[i].title || a[i].points != b[i].points) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  Future<void> _applyAiTasks(
+    List<_MoodTask> tasks, {
+    required bool resetProgress,
+  }) async {
+    if (tasks.isEmpty) return;
+    final prefs = await SharedPreferences.getInstance();
+    final today = _dateKey();
+
+    if (resetProgress) {
+      await prefs.setString('tasks_completed', 'false,false,false');
+      await prefs.setInt('mood_score_$today', 0);
+      await _upsertTaskProgressInMoodCache(today, 0);
+      _syncScoreToDb(today, 0);
+    }
+
+    await prefs.setString(
+      _kAiTasksCacheKey,
+      jsonEncode(
+        tasks
+            .map(
+              (t) => {
+                'title': t.title,
+                'description': t.description,
+                'points': t.points,
+              },
+            )
+            .toList(),
+      ),
+    );
+
+    if (!mounted) return;
+    setState(() {
+      _todayTasks = tasks;
+      _completedStates = List<bool>.filled(tasks.length, false);
+      if (resetProgress) {
+        _taskPoints = 0;
+        _moodScore =
+            _todayActivityScore +
+            (_selectedMood == null ? 0 : _homeMoodLevelPoints[_selectedMood!]);
+      }
+    });
+  }
+
+  Future<void> _refreshAfterMoodUpdate() async {
+    await _loadMiniCalendarFromCache();
+    await _fetchAiInsights();
+  }
+
   Future<void> _loadTodayTasks() async {
     final prefs = await SharedPreferences.getInstance();
     final today = _dateKey();
     final savedDate = prefs.getString('tasks_date');
 
-    List<int> indices;
     List<bool> completed;
 
     if (savedDate != today) {
-      // Pick 3 tasks using a deterministic seed from the date so every user
-      // gets a different-but-consistent set each day, with variety across days.
+      await prefs.setString('tasks_date', today);
+      await prefs.remove(_kAiTasksCacheKey);
+      await prefs.setString('tasks_completed', 'false,false,false');
+      await prefs.setInt('mood_score_$today', 0);
+      completed = [false, false, false];
+    } else {
+      final cStr = prefs.getString('tasks_completed') ?? 'false,false,false';
+      completed = cStr.split(',').map((s) => s == 'true').toList();
+    }
+
+    List<_MoodTask> tasks = [];
+    final rawTasks = prefs.getString(_kAiTasksCacheKey);
+    if (rawTasks != null) {
+      try {
+        final decoded = jsonDecode(rawTasks) as List<dynamic>;
+        tasks = _decodeAiTasks(decoded);
+      } catch (_) {}
+    }
+
+    if (tasks.isEmpty) {
+      // Fallback to deterministic pool tasks until AI tasks arrive.
       final parts = today.split('-');
       final seed =
           int.parse(parts[0]) * 10000 +
@@ -406,24 +508,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           int.parse(parts[2]);
       final rng = Random(seed);
       final all = List.generate(_taskPool.length, (i) => i);
-      // Fisher-Yates with seeded rng
       for (int i = all.length - 1; i > 0; i--) {
         final j = rng.nextInt(i + 1);
         final tmp = all[i];
         all[i] = all[j];
         all[j] = tmp;
       }
-      indices = all.take(3).toList();
-      completed = [false, false, false];
-      await prefs.setString('tasks_date', today);
-      await prefs.setString('tasks_indices', indices.join(','));
-      await prefs.setString('tasks_completed', 'false,false,false');
-      await prefs.setInt('mood_score_$today', 0);
-    } else {
-      final idxStr = prefs.getString('tasks_indices') ?? '0,1,2';
-      indices = idxStr.split(',').map(int.parse).toList();
-      final cStr = prefs.getString('tasks_completed') ?? 'false,false,false';
-      completed = cStr.split(',').map((s) => s == 'true').toList();
+      tasks = all.take(3).map((i) => _taskPool[i]).toList();
+    }
+
+    if (completed.length != tasks.length) {
+      completed = List<bool>.filled(tasks.length, false);
     }
 
     final taskPoints = prefs.getInt('mood_score_$today') ?? 0;
@@ -449,7 +544,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     }
     if (mounted) {
       setState(() {
-        _todayTasks = indices.map((i) => _taskPool[i]).toList();
+        _todayTasks = tasks;
         _completedStates = completed;
         _taskPoints = taskPoints;
         _todayActivityScore = activityScore;
@@ -469,6 +564,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     if (raw != null) {
       try {
         final decoded = jsonDecode(raw) as Map<String, dynamic>;
+        final cachedTasks = _decodeAiTasks(decoded['tasks'] as List<dynamic>?);
+        if (cachedTasks.isNotEmpty && !_tasksMatch(_todayTasks, cachedTasks)) {
+          await _applyAiTasks(cachedTasks, resetProgress: false);
+        }
         if (mounted) {
           setState(() {
             _insights = _MoodInsights.fromJson(decoded);
@@ -505,14 +604,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         authToken: token,
       );
       final insights = _MoodInsights.fromJson(payload);
-      await prefs.setString(
-        _kAiInsightsCacheKey,
-        jsonEncode(insights.toJson()),
-      );
+      await prefs.setString(_kAiInsightsCacheKey, jsonEncode(payload));
       await prefs.setInt(
         _kAiInsightsCacheTsKey,
         DateTime.now().millisecondsSinceEpoch,
       );
+
+      final aiTasks = _decodeAiTasks(payload['tasks'] as List<dynamic>?);
+      if (aiTasks.isNotEmpty) {
+        final shouldReset = !_tasksMatch(_todayTasks, aiTasks);
+        await _applyAiTasks(aiTasks, resetProgress: shouldReset);
+      }
       if (!mounted) return;
       setState(() {
         _insights = insights;
@@ -601,6 +703,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final raw = prefs.getString('mood_logs_cache');
     if (raw == null) {
       if (mounted) setState(() => _miniCalendarDays = _buildMiniCalendar([]));
+      await _fetchMiniCalendarFromBackend();
       return;
     }
     try {
@@ -615,6 +718,31 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       if (mounted) {
         setState(() => _miniCalendarDays = _buildMiniCalendar([]));
       }
+    }
+    await _fetchMiniCalendarFromBackend();
+  }
+
+  Future<void> _fetchMiniCalendarFromBackend() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+    if (token == null) return;
+    try {
+      final resp = await http.get(
+        Uri.parse('$kBackendBaseUrl/api/moods'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (resp.statusCode >= 200 && resp.statusCode < 300) {
+        await prefs.setString('mood_logs_cache', resp.body);
+        final decoded = jsonDecode(resp.body) as List<dynamic>;
+        final entries = decoded.whereType<Map<String, dynamic>>().toList(
+          growable: false,
+        );
+        if (mounted) {
+          setState(() => _miniCalendarDays = _buildMiniCalendar(entries));
+        }
+      }
+    } catch (_) {
+      // Keep existing cache on failures.
     }
   }
 
@@ -801,6 +929,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         body: jsonEncode({'dateKey': today, 'moodLevel': index + 1}),
       );
     } catch (_) {}
+    await _refreshAfterMoodUpdate();
   }
 
   Future<void> _completeTask(int index) async {
@@ -902,8 +1031,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  void _openCalendarScreen() {
-    Navigator.of(context).push(
+  Future<void> _openCalendarScreen() async {
+    await Navigator.of(context).push(
       FadeSlideRoute(
         page: CalendarScreen(
           userName: widget.userName,
@@ -912,10 +1041,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ),
       ),
     );
+    await _refreshAfterMoodUpdate();
   }
 
-  void _openJournalScreen() {
-    Navigator.of(context).push(
+  Future<void> _openJournalScreen() async {
+    await Navigator.of(context).push(
       FadeSlideRoute(
         page: JournalScreen(
           userName: widget.userName,
@@ -924,6 +1054,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ),
       ),
     );
+    await _loadJournalPreview();
+  }
+
+  void _handleCalendarTap() async {
+    await _openCalendarScreen();
+  }
+
+  void _handleJournalTap() async {
+    await _openJournalScreen();
   }
 
   Future<void> _logout() async {
@@ -1232,8 +1371,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           journal: _journalPreview,
                           journalLoading: _journalLoading,
                           journalError: _journalError,
-                          onCalendarTap: _openCalendarScreen,
-                          onJournalTap: _openJournalScreen,
+                          onCalendarTap: _handleCalendarTap,
+                          onJournalTap: _handleJournalTap,
                         ),
                         const SizedBox(height: 16),
                         Row(
@@ -1587,6 +1726,7 @@ class _TaskArtwork extends StatelessWidget {
     final gradientBottom =
         Color.lerp(background, Colors.black, 0.05) ?? background;
 
+    final fallbackIcon = task.icon ?? Icons.auto_awesome_rounded;
     Widget content;
     if (task.asset != null) {
       content = ClipRRect(
@@ -1594,16 +1734,13 @@ class _TaskArtwork extends StatelessWidget {
         child: Image.asset(
           task.asset!,
           fit: BoxFit.contain,
-          errorBuilder: (context, error, stackTrace) => _TaskGlyph(
-            icon: task.icon ?? Icons.task_alt,
-            color: accent,
-            size: size * 0.52,
-          ),
+          errorBuilder: (context, error, stackTrace) =>
+              _TaskGlyph(icon: fallbackIcon, color: accent, size: size * 0.52),
         ),
       );
     } else {
       content = _TaskGlyph(
-        icon: task.icon ?? Icons.task_alt,
+        icon: fallbackIcon,
         color: accent,
         size: size * 0.52,
       );

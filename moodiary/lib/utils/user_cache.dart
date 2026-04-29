@@ -11,6 +11,7 @@ class UserCache {
     'tasks_date',
     'tasks_indices',
     'tasks_completed',
+    'tasks_ai_payload',
     'mood_logs_cache',
     'home_ai_insights_cache',
     'home_ai_insights_cache_ts',

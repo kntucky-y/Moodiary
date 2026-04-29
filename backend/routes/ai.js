@@ -7,6 +7,7 @@ const MoodInsight = require('../models/MoodInsight');
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const MAX_BOOSTERS = 3;
+const AI_TASK_COUNT = 3;
 
 const groq = process.env.GROQ_API_KEY
   ? new Groq({ apiKey: process.env.GROQ_API_KEY })
@@ -17,6 +18,24 @@ const promptStyleGuide =
 
 const fallbackReply =
   'I see your recent mood pattern. What has been helping you feel even a little better lately?';
+
+const fallbackTasks = [
+  {
+    title: 'Take a 10-minute walk',
+    description: 'A short walk can reset your mind and boost energy.',
+    points: 10,
+  },
+  {
+    title: 'Write 3 gratitudes',
+    description: 'Note small wins from today to shift your focus.',
+    points: 15,
+  },
+  {
+    title: 'Deep breathing (4-7-8)',
+    description: 'Slow breathing can calm your nervous system quickly.',
+    points: 10,
+  },
+];
 
 const toDateKey = (date) => {
   const y = date.getFullYear().toString().padStart(4, '0');
@@ -116,11 +135,58 @@ const buildPrompt = ({ last7, trendLabel }) => {
   const last7Formatted = last7
     .map((v) => (v == null ? '-' : String(v)))
     .join(', ');
-  return `Last 7 days: ${last7Formatted}. Trend: ${trendLabel}. Respond with a short supportive insight.`;
+  return `Last 7 days: ${last7Formatted}. Trend: ${trendLabel}.\n\nReturn JSON only with keys: aiMessage (string) and tasks (array of ${AI_TASK_COUNT} items). Each task should have title, description, and points (5-20).`;
 };
 
-const getAiReply = async (message) => {
-  if (!groq) return fallbackReply;
+const parseAiJson = (raw) => {
+  if (!raw) return null;
+  const clean = raw
+    .replace(/```json|```/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  try {
+    return JSON.parse(clean);
+  } catch (_) {
+    return null;
+  }
+};
+
+const normalizeTasks = (tasks) => {
+  if (!Array.isArray(tasks)) return fallbackTasks;
+  const normalized = tasks
+    .map((task) => {
+      if (!task || typeof task !== 'object') return null;
+      const title = (task.title || '').toString().trim();
+      const description = (task.description || '').toString().trim();
+      const points = Number(task.points);
+      if (!title || !description) return null;
+      const safePoints = Number.isFinite(points)
+        ? Math.min(20, Math.max(5, Math.round(points)))
+        : 10;
+      return { title, description, points: safePoints };
+    })
+    .filter(Boolean)
+    .slice(0, AI_TASK_COUNT);
+
+  if (normalized.length < AI_TASK_COUNT) {
+    return fallbackTasks.slice(0, AI_TASK_COUNT);
+  }
+
+  return normalized;
+};
+
+const normalizeMessage = (text) => {
+  const clean = (text || '')
+    .replace(/\s+/g, ' ')
+    .replace(/\*\*|__|`/g, '')
+    .trim();
+  return clean.length > 0 ? clean : fallbackReply;
+};
+
+const getAiBundle = async (message) => {
+  if (!groq) {
+    return { aiMessage: fallbackReply, tasks: fallbackTasks };
+  }
   try {
     const completion = await groq.chat.completions.create({
       model: 'llama-3.3-70b-versatile',
@@ -132,10 +198,16 @@ const getAiReply = async (message) => {
     });
 
     const reply = completion.choices[0].message.content || '';
-    const clean = reply.replace(/\s+/g, ' ').replace(/\*\*|__|`/g, '').trim();
-    return clean.length > 0 ? clean : fallbackReply;
+    const parsed = parseAiJson(reply);
+    if (!parsed) {
+      return { aiMessage: normalizeMessage(reply), tasks: fallbackTasks };
+    }
+    return {
+      aiMessage: normalizeMessage(parsed.aiMessage),
+      tasks: normalizeTasks(parsed.tasks),
+    };
   } catch (err) {
-    return fallbackReply;
+    return { aiMessage: fallbackReply, tasks: fallbackTasks };
   }
 };
 
@@ -189,13 +261,14 @@ router.get('/mood-insights', auth, async (req, res) => {
     const boosters = buildBoosters(logs, baseline);
     const trendLabel = `${direction}${percent ? ` ${Math.abs(percent)}%` : ''}`.trim();
     const prompt = buildPrompt({ last7: last7Values, trendLabel });
-    const aiMessage = await getAiReply(prompt);
+    const aiBundle = await getAiBundle(prompt);
 
     const payload = {
       last7: last7Values,
       trendPercent: percent,
       trendDirection: direction,
-      aiMessage,
+      aiMessage: aiBundle.aiMessage,
+      tasks: aiBundle.tasks,
       boosters,
       lastMoodDateKey,
       generatedAt: now.toISOString(),
