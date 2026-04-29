@@ -104,9 +104,9 @@ class _MoodiaryShellState extends State<MoodiaryShell> {
     if (!mounted || stored == _avatarUrl) return;
     setState(() {
       _avatarUrl = stored;
-      if (_pages[MoodiaryTab.home.index] != null) {
-        _pages[MoodiaryTab.home.index] = _buildPage(MoodiaryTab.home.index);
-      }
+      // Note: HomeScreen loads its own avatar from SharedPreferences,
+      // so we don't recreate the page here to avoid losing state
+      // (mood score, tasks, etc.).
     });
   }
 

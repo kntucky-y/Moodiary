@@ -1373,7 +1373,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             ],
                           ),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 20),
                         _HomeCalendarJournalCard(
                           days: _miniCalendarDays,
                           journal: _journalPreview,
@@ -1382,7 +1382,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           onCalendarTap: _handleCalendarTap,
                           onJournalTap: _handleJournalTap,
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 24),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -1456,9 +1456,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ],
           ),
           if (_sidebarOpen)
-            GestureDetector(
-              onTap: () => setState(() => _sidebarOpen = false),
-              child: Container(color: context.mdOverlayBarrier),
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: () => setState(() => _sidebarOpen = false),
+                child: Container(color: context.mdOverlayBarrier),
+              ),
             ),
           AnimatedPositioned(
             duration: const Duration(milliseconds: 300),
@@ -1938,35 +1940,7 @@ class _AiInsightsCard extends StatelessWidget {
                     ),
                   ),
                 const SizedBox(height: 12),
-                if (insights!.boosters.isNotEmpty)
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: insights!.boosters
-                        .map(
-                          (b) => Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: chipBg,
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(
-                                color: _kPurple.withValues(alpha: 0.3),
-                              ),
-                            ),
-                            child: Text(
-                              '${b.activity}: ${b.reason}',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: primaryText,
-                              ),
-                            ),
-                          ),
-                        )
-                        .toList(),
-                  ),
+                // Boosters/tasks are shown in the "Today's Tasks" section instead
                 if (error != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 8),

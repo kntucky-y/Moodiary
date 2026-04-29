@@ -119,15 +119,14 @@ class _AppSidebarState extends State<AppSidebar> {
       ),
     ];
 
-    return SafeArea(
-      bottom: false,
-      child: GlassContainer(
-        blurSigma: context.mdGlassBlurMedium,
-        borderRadius: BorderRadius.zero,
-        backgroundColor: context.mdGlassSurfaceStrong,
-        borderColor: Colors.transparent,
-        padding: const EdgeInsets.all(24),
-        child: Column(
+    final topPadding = MediaQuery.of(context).padding.top;
+    return GlassContainer(
+      blurSigma: context.mdGlassBlurMedium,
+      borderRadius: BorderRadius.zero,
+      backgroundColor: context.mdGlassSurfaceStrong,
+      borderColor: Colors.transparent,
+      padding: EdgeInsets.fromLTRB(24, topPadding + 24, 24, 24),
+      child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
@@ -174,7 +173,6 @@ class _AppSidebarState extends State<AppSidebar> {
               ),
             ),
           ],
-        ),
       ),
     );
   }
