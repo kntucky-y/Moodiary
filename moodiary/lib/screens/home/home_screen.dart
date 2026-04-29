@@ -152,6 +152,13 @@ const _moods = [
 // Must match calendar_screen.dart _moodLevelPoints
 const _homeMoodLevelPoints = [5, 10, 20, 35, 50];
 
+const _kAiInsightsCacheKey = 'home_ai_insights_cache';
+const _kAiInsightsCacheTsKey = 'home_ai_insights_cache_ts';
+const _kJournalPreviewCacheKey = 'home_journal_preview_cache';
+const _kJournalPreviewCacheTsKey = 'home_journal_preview_cache_ts';
+const _kAiInsightsCacheTtl = Duration(hours: 24);
+const _kJournalPreviewCacheTtl = Duration(hours: 6);
+
 class _MoodTask {
   final String id;
   final String title;
@@ -178,6 +185,106 @@ class _Mood {
   final String label;
   final String asset;
   const _Mood(this.label, this.asset);
+}
+
+class _BoosterSuggestion {
+  final String activity;
+  final String reason;
+  const _BoosterSuggestion({required this.activity, required this.reason});
+
+  factory _BoosterSuggestion.fromJson(Map<String, dynamic> j) {
+    return _BoosterSuggestion(
+      activity: (j['activity'] ?? '').toString(),
+      reason: (j['reason'] ?? '').toString(),
+    );
+  }
+}
+
+class _MoodInsights {
+  final List<int?> last7;
+  final int trendPercent;
+  final String trendDirection;
+  final String aiMessage;
+  final List<_BoosterSuggestion> boosters;
+  final DateTime? generatedAt;
+
+  const _MoodInsights({
+    required this.last7,
+    required this.trendPercent,
+    required this.trendDirection,
+    required this.aiMessage,
+    required this.boosters,
+    required this.generatedAt,
+  });
+
+  factory _MoodInsights.fromJson(Map<String, dynamic> j) {
+    final rawLast7 = (j['last7'] as List<dynamic>? ?? const []);
+    final last7 = rawLast7
+        .map((v) => v is num ? v.toInt() : null)
+        .toList(growable: false);
+    final boosters = (j['boosters'] as List<dynamic>? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(_BoosterSuggestion.fromJson)
+        .toList();
+    final generated = j['generatedAt']?.toString();
+    return _MoodInsights(
+      last7: last7,
+      trendPercent: (j['trendPercent'] as num?)?.toInt() ?? 0,
+      trendDirection: (j['trendDirection'] ?? 'steady').toString(),
+      aiMessage: (j['aiMessage'] ?? '').toString(),
+      boosters: boosters,
+      generatedAt: generated != null && generated.isNotEmpty
+          ? DateTime.tryParse(generated)
+          : null,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'last7': last7,
+    'trendPercent': trendPercent,
+    'trendDirection': trendDirection,
+    'aiMessage': aiMessage,
+    'boosters': boosters
+        .map((b) => {'activity': b.activity, 'reason': b.reason})
+        .toList(),
+    'generatedAt': generatedAt?.toIso8601String(),
+  };
+}
+
+class _JournalPreview {
+  final String title;
+  final String content;
+  final String tag;
+  final DateTime createdAt;
+
+  const _JournalPreview({
+    required this.title,
+    required this.content,
+    required this.tag,
+    required this.createdAt,
+  });
+
+  factory _JournalPreview.fromJson(Map<String, dynamic> j) {
+    return _JournalPreview(
+      title: (j['title'] ?? '').toString(),
+      content: (j['content'] ?? '').toString(),
+      tag: (j['tag'] ?? 'okay').toString(),
+      createdAt: DateTime.parse(j['createdAt'] as String).toLocal(),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'title': title,
+    'content': content,
+    'tag': tag,
+    'createdAt': createdAt.toIso8601String(),
+  };
+}
+
+class _MiniMoodDay {
+  final String label;
+  final int? score;
+  const _MiniMoodDay({required this.label, required this.score});
 }
 
 class HomeScreen extends StatefulWidget {
@@ -216,6 +323,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   int _moodScore = 0; // combined: taskPoints + moodLevelScore + activityScore
   int _streakCount = 0;
 
+  _MoodInsights? _insights;
+  bool _insightsLoading = true;
+  String? _insightsError;
+
+  _JournalPreview? _journalPreview;
+  bool _journalLoading = true;
+  String? _journalError;
+
+  List<_MiniMoodDay> _miniCalendarDays = const [];
+
   late final AnimationController _entranceCtrl;
 
   @override
@@ -232,6 +349,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     }
     _loadProfileAvatar();
     _loadTodayTasks();
+    _loadAiInsights();
+    _loadJournalPreview();
+    _loadMiniCalendarFromCache();
   }
 
   Future<void> _loadProfileAvatar() async {
@@ -261,8 +381,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   String _dateKey() {
-    final now = DateTime.now();
-    return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    return _toDateKey(DateTime.now());
+  }
+
+  String _toDateKey(DateTime date) {
+    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
   }
 
   Future<void> _loadTodayTasks() async {
@@ -336,6 +459,205 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       });
       await _refreshStreak();
       _entranceCtrl.forward(from: 0);
+    }
+  }
+
+  Future<void> _loadAiInsights() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_kAiInsightsCacheKey);
+    final ts = prefs.getInt(_kAiInsightsCacheTsKey);
+    if (raw != null) {
+      try {
+        final decoded = jsonDecode(raw) as Map<String, dynamic>;
+        if (mounted) {
+          setState(() {
+            _insights = _MoodInsights.fromJson(decoded);
+            _insightsLoading = false;
+          });
+        }
+      } catch (_) {}
+    }
+
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    final isFresh =
+        ts != null && nowMs - ts < _kAiInsightsCacheTtl.inMilliseconds;
+    if (isFresh) return;
+    await _fetchAiInsights();
+  }
+
+  Future<void> _fetchAiInsights() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+    if (token == null) {
+      if (mounted) setState(() => _insightsLoading = false);
+      return;
+    }
+
+    if (mounted) {
+      setState(() {
+        _insightsLoading = true;
+        _insightsError = null;
+      });
+    }
+
+    try {
+      final payload = await AuthService.instance.getMoodInsights(
+        authToken: token,
+      );
+      final insights = _MoodInsights.fromJson(payload);
+      await prefs.setString(
+        _kAiInsightsCacheKey,
+        jsonEncode(insights.toJson()),
+      );
+      await prefs.setInt(
+        _kAiInsightsCacheTsKey,
+        DateTime.now().millisecondsSinceEpoch,
+      );
+      if (!mounted) return;
+      setState(() {
+        _insights = insights;
+        _insightsLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _insightsError = e.toString();
+        _insightsLoading = false;
+      });
+    }
+  }
+
+  Future<void> _loadJournalPreview() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_kJournalPreviewCacheKey);
+    final ts = prefs.getInt(_kJournalPreviewCacheTsKey);
+    if (raw != null) {
+      try {
+        final decoded = jsonDecode(raw) as Map<String, dynamic>;
+        if (mounted) {
+          setState(() {
+            _journalPreview = _JournalPreview.fromJson(decoded);
+            _journalLoading = false;
+          });
+        }
+      } catch (_) {}
+    }
+
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    final isFresh =
+        ts != null && nowMs - ts < _kJournalPreviewCacheTtl.inMilliseconds;
+    if (isFresh) return;
+    await _fetchJournalPreview();
+  }
+
+  Future<void> _fetchJournalPreview() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+    if (token == null) {
+      if (mounted) setState(() => _journalLoading = false);
+      return;
+    }
+
+    if (mounted) {
+      setState(() {
+        _journalLoading = true;
+        _journalError = null;
+      });
+    }
+
+    try {
+      final entries = await AuthService.instance.getMyJournalEntries(
+        authToken: token,
+      );
+      if (entries.isEmpty) {
+        if (mounted) setState(() => _journalLoading = false);
+        return;
+      }
+      final preview = _JournalPreview.fromJson(entries.first);
+      await prefs.setString(
+        _kJournalPreviewCacheKey,
+        jsonEncode(preview.toJson()),
+      );
+      await prefs.setInt(
+        _kJournalPreviewCacheTsKey,
+        DateTime.now().millisecondsSinceEpoch,
+      );
+      if (!mounted) return;
+      setState(() {
+        _journalPreview = preview;
+        _journalLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _journalError = e.toString();
+        _journalLoading = false;
+      });
+    }
+  }
+
+  Future<void> _loadMiniCalendarFromCache() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString('mood_logs_cache');
+    if (raw == null) {
+      if (mounted) setState(() => _miniCalendarDays = _buildMiniCalendar([]));
+      return;
+    }
+    try {
+      final decoded = jsonDecode(raw) as List<dynamic>;
+      final entries = decoded.whereType<Map<String, dynamic>>().toList(
+        growable: false,
+      );
+      if (mounted) {
+        setState(() => _miniCalendarDays = _buildMiniCalendar(entries));
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _miniCalendarDays = _buildMiniCalendar([]));
+      }
+    }
+  }
+
+  List<_MiniMoodDay> _buildMiniCalendar(List<Map<String, dynamic>> entries) {
+    final map = <String, Map<String, dynamic>>{};
+    for (final entry in entries) {
+      final key = entry['dateKey']?.toString();
+      if (key != null) map[key] = entry;
+    }
+
+    final now = DateTime.now();
+    final days = <_MiniMoodDay>[];
+    for (int i = 6; i >= 0; i--) {
+      final date = DateTime(
+        now.year,
+        now.month,
+        now.day,
+      ).subtract(Duration(days: i));
+      final key = _toDateKey(date);
+      final entry = map[key];
+      final rawScore = entry?['score'] ?? entry?['moodScore'];
+      final score = rawScore is num ? rawScore.round() : null;
+      days.add(_MiniMoodDay(label: _weekdayLabel(date.weekday), score: score));
+    }
+    return days;
+  }
+
+  String _weekdayLabel(int weekday) {
+    switch (weekday) {
+      case DateTime.monday:
+        return 'M';
+      case DateTime.tuesday:
+        return 'T';
+      case DateTime.wednesday:
+        return 'W';
+      case DateTime.thursday:
+        return 'T';
+      case DateTime.friday:
+        return 'F';
+      case DateTime.saturday:
+        return 'S';
+      default:
+        return 'S';
     }
   }
 
@@ -580,6 +902,30 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
+  void _openCalendarScreen() {
+    Navigator.of(context).push(
+      FadeSlideRoute(
+        page: CalendarScreen(
+          userName: widget.userName,
+          companionId: widget.companionId,
+          companionName: widget.companionName,
+        ),
+      ),
+    );
+  }
+
+  void _openJournalScreen() {
+    Navigator.of(context).push(
+      FadeSlideRoute(
+        page: JournalScreen(
+          userName: widget.userName,
+          companionId: widget.companionId,
+          companionName: widget.companionName,
+        ),
+      ),
+    );
+  }
+
   Future<void> _logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('token');
@@ -774,40 +1120,31 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              "Today's Task",
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: primaryText,
-                              ),
-                            ),
-                            if (_pendingCount > 0)
-                              Container(
-                                width: 24,
-                                height: 24,
-                                decoration: const BoxDecoration(
-                                  color: Colors.red,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    '$_pendingCount',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                          ],
+                        Text(
+                          'AI Insights',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: primaryText,
+                          ),
                         ),
                         const SizedBox(height: 12),
-                        // ── Mood Score Card ─────────────────────────────────
+                        _AiInsightsCard(
+                          insights: _insights,
+                          loading: _insightsLoading,
+                          error: _insightsError,
+                          onRetry: _fetchAiInsights,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Your Day',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: primaryText,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
                         _MoodScoreCard(
                           score: _moodScore,
                           streakCount: _streakCount,
@@ -890,16 +1227,76 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           ),
                         ),
                         const SizedBox(height: 12),
+                        _HomeCalendarJournalCard(
+                          days: _miniCalendarDays,
+                          journal: _journalPreview,
+                          journalLoading: _journalLoading,
+                          journalError: _journalError,
+                          onCalendarTap: _openCalendarScreen,
+                          onJournalTap: _openJournalScreen,
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              "Today's Tasks",
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: primaryText,
+                              ),
+                            ),
+                            if (_pendingCount > 0)
+                              Container(
+                                width: 24,
+                                height: 24,
+                                decoration: const BoxDecoration(
+                                  color: Colors.red,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    '$_pendingCount',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
                         if (_todayTasks.isEmpty)
                           const Center(child: CircularProgressIndicator())
                         else
-                          ...List.generate(
-                            _todayTasks.length,
-                            (i) => _TaskCard(
-                              task: _todayTasks[i],
-                              completed: _completedStates[i],
-                              onTap: () => _showTaskDetail(i),
-                            ),
+                          LayoutBuilder(
+                            builder: (context, constraints) {
+                              final crossAxisCount = constraints.maxWidth >= 700
+                                  ? 2
+                                  : 1;
+                              return GridView.builder(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                itemCount: _todayTasks.length,
+                                gridDelegate:
+                                    SliverGridDelegateWithFixedCrossAxisCount(
+                                      crossAxisCount: crossAxisCount,
+                                      crossAxisSpacing: 12,
+                                      mainAxisSpacing: 12,
+                                      childAspectRatio: crossAxisCount == 1
+                                          ? 3.4
+                                          : 3.0,
+                                    ),
+                                itemBuilder: (context, i) => _TaskTile(
+                                  task: _todayTasks[i],
+                                  completed: _completedStates[i],
+                                  onTap: () => _showTaskDetail(i),
+                                ),
+                              );
+                            },
                           ),
                         SizedBox(
                           height: MediaQuery.of(context).padding.bottom + 16,
@@ -1255,11 +1652,371 @@ class _TaskGlyph extends StatelessWidget {
   }
 }
 
-class _TaskCard extends StatelessWidget {
+Color _miniDotColor(int score) {
+  if (score >= 70) return const Color(0xFF10B981);
+  if (score >= 40) return const Color(0xFF84CC16);
+  if (score >= 20) return const Color(0xFFFACC15);
+  if (score >= 0) return const Color(0xFFF97316);
+  return const Color(0xFFEF4444);
+}
+
+class _AiInsightsCard extends StatelessWidget {
+  final _MoodInsights? insights;
+  final bool loading;
+  final String? error;
+  final VoidCallback onRetry;
+
+  const _AiInsightsCard({
+    required this.insights,
+    required this.loading,
+    required this.error,
+    required this.onRetry,
+  });
+
+  String _trendText(_MoodInsights? insights) {
+    if (insights == null) return 'Log a few moods to unlock insights.';
+    final count = insights.last7.where((v) => v != null).length;
+    if (count < 3) return 'Log a few more moods to unlock insights.';
+    final direction = insights.trendDirection;
+    final percent = insights.trendPercent.abs();
+    if (direction == 'steady' || percent == 0) {
+      return 'Your mood is steady this week.';
+    }
+    final label = direction == 'improving' ? 'improving' : 'declining';
+    return 'Your mood is $label $percent% this week.';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final primaryText = context.mdPrimaryText;
+    final subtleText = context.mdSecondaryText;
+    final chipBg = context.isDarkMode
+        ? const Color(0xFF23263A)
+        : const Color(0xFFF3F0FB);
+    final gradientColors = context.isDarkMode
+        ? [const Color(0xFF1A1E33), const Color(0xFF101221)]
+        : [const Color(0xFFF8F4FF), const Color(0xFFEDE9FE)];
+
+    return GlassContainer(
+      blurSigma: context.mdGlassBlurMedium,
+      borderRadius: BorderRadius.circular(20),
+      backgroundColor: context.mdGlassSurface,
+      borderColor: context.mdGlassBorder,
+      gradient: LinearGradient(
+        colors: gradientColors,
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'Weekly pulse',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                  color: primaryText,
+                ),
+              ),
+              const Spacer(),
+              IconButton(
+                onPressed: onRetry,
+                icon: Icon(Icons.refresh_rounded, color: subtleText, size: 20),
+                tooltip: 'Refresh insights',
+              ),
+            ],
+          ),
+          Text(
+            _trendText(insights),
+            style: TextStyle(fontSize: 13, color: subtleText),
+          ),
+          const SizedBox(height: 12),
+          if (loading && insights == null)
+            const Center(child: CircularProgressIndicator())
+          else if (insights == null)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'We could not load insights yet.',
+                  style: TextStyle(fontSize: 13, color: subtleText),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton(
+                  onPressed: onRetry,
+                  child: const Text('Try again'),
+                ),
+              ],
+            )
+          else
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: insights!.last7.map((value) {
+                    final label = value == null ? '--' : value.toString();
+                    return Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: chipBg,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        label,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 11,
+                          color: primaryText,
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 10),
+                if (insights!.aiMessage.trim().isNotEmpty)
+                  Text(
+                    '"${insights!.aiMessage.trim()}"',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontStyle: FontStyle.italic,
+                      color: primaryText,
+                    ),
+                  ),
+                const SizedBox(height: 12),
+                if (insights!.boosters.isNotEmpty)
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: insights!.boosters
+                        .map(
+                          (b) => Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: chipBg,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: _kPurple.withValues(alpha: 0.3),
+                              ),
+                            ),
+                            child: Text(
+                              '${b.activity}: ${b.reason}',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: primaryText,
+                              ),
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                if (error != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      'Refresh failed. Showing last saved insights.',
+                      style: TextStyle(fontSize: 11, color: subtleText),
+                    ),
+                  ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HomeCalendarJournalCard extends StatelessWidget {
+  final List<_MiniMoodDay> days;
+  final _JournalPreview? journal;
+  final bool journalLoading;
+  final String? journalError;
+  final VoidCallback onCalendarTap;
+  final VoidCallback onJournalTap;
+
+  const _HomeCalendarJournalCard({
+    required this.days,
+    required this.journal,
+    required this.journalLoading,
+    required this.journalError,
+    required this.onCalendarTap,
+    required this.onJournalTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final primaryText = context.mdPrimaryText;
+    final subtleText = context.mdSecondaryText;
+    final dividerColor = context.isDarkMode
+        ? Colors.white12
+        : const Color(0xFFE6E6E6);
+    final emptyDotColor = context.isDarkMode
+        ? const Color(0xFF2A2F45)
+        : const Color(0xFFE5E7EB);
+
+    return GlassContainer(
+      blurSigma: context.mdGlassBlurMedium,
+      borderRadius: BorderRadius.circular(20),
+      backgroundColor: context.mdGlassSurface,
+      borderColor: context.mdGlassBorder,
+      padding: const EdgeInsets.all(12),
+      child: Row(
+        children: [
+          Expanded(
+            child: TapScale(
+              onTap: onCalendarTap,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Calendar',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: primaryText,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: days.isEmpty
+                        ? List.generate(
+                            7,
+                            (i) => _MiniDot(label: '', color: emptyDotColor),
+                          )
+                        : days
+                              .map(
+                                (day) => _MiniDot(
+                                  label: day.label,
+                                  color: day.score == null
+                                      ? emptyDotColor
+                                      : _miniDotColor(day.score!),
+                                ),
+                              )
+                              .toList(),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Tap to open your calendar',
+                    style: TextStyle(fontSize: 11, color: subtleText),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Container(width: 1, height: 72, color: dividerColor),
+          Expanded(
+            child: TapScale(
+              onTap: onJournalTap,
+              child: Padding(
+                padding: const EdgeInsets.only(left: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Journal',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: primaryText,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    if (journalLoading)
+                      Text(
+                        'Loading entry...',
+                        style: TextStyle(fontSize: 11, color: subtleText),
+                      )
+                    else if (journal == null)
+                      Text(
+                        'Write your first entry',
+                        style: TextStyle(fontSize: 11, color: subtleText),
+                      )
+                    else
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            journal!.title.isEmpty
+                                ? 'Untitled'
+                                : journal!.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: primaryText,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            journal!.content,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 11, color: subtleText),
+                          ),
+                        ],
+                      ),
+                    if (journalError != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          'Tap to retry.',
+                          style: TextStyle(fontSize: 10, color: subtleText),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MiniDot extends StatelessWidget {
+  final String label;
+  final Color color;
+
+  const _MiniDot({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Container(
+          width: 14,
+          height: 14,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: TextStyle(fontSize: 10, color: context.mdSecondaryText),
+        ),
+      ],
+    );
+  }
+}
+
+class _TaskTile extends StatelessWidget {
   final _MoodTask task;
   final bool completed;
   final VoidCallback onTap;
-  const _TaskCard({
+
+  const _TaskTile({
     required this.task,
     required this.completed,
     required this.onTap,
@@ -1277,27 +2034,29 @@ class _TaskCard extends StatelessWidget {
       onTap: onTap,
       child: AnimatedOpacity(
         opacity: completed ? 0.65 : 1.0,
-        duration: const Duration(milliseconds: 300),
+        duration: const Duration(milliseconds: 250),
         child: GlassContainer(
           blurSigma: context.mdGlassBlurMedium,
           backgroundColor: context.mdGlassSurface,
           borderColor: context.mdGlassBorder,
-          borderRadius: BorderRadius.circular(20),
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(14),
+          borderRadius: BorderRadius.circular(18),
+          padding: const EdgeInsets.all(12),
           child: Row(
             children: [
-              _TaskArtwork(task: task, size: 48),
-              const SizedBox(width: 12),
+              _TaskArtwork(task: task, size: 44),
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
                       task.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 14,
+                        fontSize: 13,
                         color: primaryText,
                         decoration: completed
                             ? TextDecoration.lineThrough
@@ -1307,9 +2066,9 @@ class _TaskCard extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       task.description,
-                      maxLines: 1,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 12, color: subtleText),
+                      style: TextStyle(fontSize: 11, color: subtleText),
                     ),
                   ],
                 ),
@@ -1319,36 +2078,26 @@ class _TaskCard extends StatelessWidget {
                 const Icon(
                   Icons.check_circle_rounded,
                   color: Color(0xFF4ADE80),
-                  size: 28,
+                  size: 24,
                 )
               else
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: badgeBg,
-                        borderRadius: BorderRadius.circular(50),
-                      ),
-                      child: Text(
-                        '+${task.points} pts',
-                        style: const TextStyle(
-                          color: _kPurple,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    const Icon(
-                      Icons.arrow_forward_ios,
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: badgeBg,
+                    borderRadius: BorderRadius.circular(50),
+                  ),
+                  child: Text(
+                    '+${task.points} pts',
+                    style: const TextStyle(
                       color: _kPurple,
-                      size: 16,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 11,
                     ),
-                  ],
+                  ),
                 ),
             ],
           ),

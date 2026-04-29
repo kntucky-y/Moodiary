@@ -13,6 +13,7 @@ const friendRoutes = require('./routes/friends');
 const notificationRoutes = require('./routes/notifications');
 const userRoutes = require('./routes/users');
 const resourceRoutes = require('./routes/resources');
+const aiRoutes = require('./routes/ai');
 
 const { initSocket } = require('./socket');
 
@@ -32,6 +33,7 @@ app.use('/api/friends', friendRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/resources', resourceRoutes);
+app.use('/api/ai', aiRoutes);
 
 // Health-check — visit /api/health to confirm env vars are loaded on Railway
 app.get('/api/health', (req, res) => {
