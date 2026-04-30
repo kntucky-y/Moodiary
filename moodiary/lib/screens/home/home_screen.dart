@@ -273,9 +273,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   bool _looksLikeGoalText(String value) {
     final lower = value.toLowerCase();
-    return lower.contains('goal') ||
-        lower.contains('streak') ||
-        lower.contains('reach ');
+    if (lower.contains('daily goal') || lower.contains('weekly goal')) {
+      return true;
+    }
+    if (lower.contains('streak')) return true;
+    return RegExp(r'\breach\s+\d+').hasMatch(lower);
   }
 
   List<_MoodTask> _decodeAiTasks(List<dynamic>? raw) {
