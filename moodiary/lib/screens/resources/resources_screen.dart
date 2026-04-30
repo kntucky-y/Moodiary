@@ -24,7 +24,8 @@ class ResourcesScreen extends StatefulWidget {
   final String userName;
   final int companionId;
   final String companionName;
-  final ValueChanged<MoodiaryTab>? onShellTabSelected;
+  final ShellTabSelector? onShellTabSelected;
+  final bool showTopNav;
 
   const ResourcesScreen({
     super.key,
@@ -32,6 +33,7 @@ class ResourcesScreen extends StatefulWidget {
     required this.companionId,
     required this.companionName,
     this.onShellTabSelected,
+    this.showTopNav = true,
   });
 
   @override
@@ -313,11 +315,11 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
     Navigator.of(context).push(FadeSlideRoute(page: page));
   }
 
-  void _openShellTab(MoodiaryTab tab) {
+  void _openShellTab(MoodiaryTab tab, {bool fromSidebar = false}) {
     _closeSidebar();
     final onShellTabSelected = widget.onShellTabSelected;
     if (onShellTabSelected != null) {
-      onShellTabSelected(tab);
+      onShellTabSelected(tab, fromSidebar: fromSidebar);
       return;
     }
     Navigator.of(context).pushAndRemoveUntil(
@@ -327,6 +329,7 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
           companionId: widget.companionId,
           companionName: widget.companionName,
           initialTab: tab,
+          initialHideTopNav: fromSidebar,
         ),
       ),
       (_) => false,
@@ -928,101 +931,104 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
         children: [
           Column(
             children: [
-              SafeArea(
-                bottom: false,
-                child: Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    headerHorizontalPadding,
-                    10,
-                    headerHorizontalPadding,
-                    8,
-                  ),
-                  child: GlassContainer(
-                    blurSigma: context.mdGlassBlurSmall,
-                    borderRadius: BorderRadius.circular(22),
-                    backgroundColor: context.mdGlassSurfaceStrong,
-                    borderColor: context.mdGlassBorder,
-                    padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-                    child: Column(
-                      children: [
-                        Row(
-                          children: [
-                            IconButton(
-                              onPressed: _openSidebar,
-                              icon: Icon(
-                                Icons.menu,
-                                color: primaryText,
-                                size: 26,
+              if (widget.showTopNav)
+                SafeArea(
+                  bottom: false,
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      headerHorizontalPadding,
+                      10,
+                      headerHorizontalPadding,
+                      8,
+                    ),
+                    child: GlassContainer(
+                      blurSigma: context.mdGlassBlurSmall,
+                      borderRadius: BorderRadius.circular(22),
+                      backgroundColor: context.mdGlassSurfaceStrong,
+                      borderColor: context.mdGlassBorder,
+                      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              IconButton(
+                                onPressed: _openSidebar,
+                                icon: Icon(
+                                  Icons.menu,
+                                  color: primaryText,
+                                  size: 26,
+                                ),
+                                tooltip: 'Open menu',
                               ),
-                              tooltip: 'Open menu',
-                            ),
-                            Expanded(
-                              child: Center(
-                                child: Text(
-                                  _todayStr(),
-                                  style: TextStyle(
-                                    color: primaryText,
-                                    fontWeight: FontWeight.bold,
+                              Expanded(
+                                child: Center(
+                                  child: Text(
+                                    _todayStr(),
+                                    style: TextStyle(
+                                      color: primaryText,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                            IconButton(
-                              onPressed: _refreshAll,
-                              icon: Icon(
-                                Icons.refresh_rounded,
-                                color: primaryText,
-                                size: 22,
+                              IconButton(
+                                onPressed: _refreshAll,
+                                icon: Icon(
+                                  Icons.refresh_rounded,
+                                  color: primaryText,
+                                  size: 22,
+                                ),
+                                tooltip: 'Refresh resources',
                               ),
-                              tooltip: 'Refresh resources',
-                            ),
-                          ],
-                        ),
-                        AnimatedSize(
-                          duration: context.mdHeaderCollapseDuration,
-                          curve: Curves.easeOutCubic,
-                          child: _headerCollapsed
-                              ? const SizedBox.shrink()
-                              : AnimatedOpacity(
-                                  duration: context.mdHeaderFadeDuration,
-                                  opacity: _headerCollapsed ? 0 : 1,
-                                  child: Column(
-                                    children: [
-                                      const SizedBox(height: 8),
-                                      Align(
-                                        alignment: Alignment.centerLeft,
-                                        child: Text(
-                                          'Resources',
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .headlineMedium
-                                              ?.copyWith(
-                                                fontWeight: FontWeight.w700,
-                                                color: primaryText,
-                                              ),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Align(
-                                        alignment: Alignment.centerLeft,
-                                        child: Text(
-                                          'Support that feels close, useful, and calm.',
-                                          style: TextStyle(
-                                            color: secondaryText,
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w500,
+                            ],
+                          ),
+                          AnimatedSize(
+                            duration: context.mdHeaderCollapseDuration,
+                            curve: Curves.easeOutCubic,
+                            child: _headerCollapsed
+                                ? const SizedBox.shrink()
+                                : AnimatedOpacity(
+                                    duration: context.mdHeaderFadeDuration,
+                                    opacity: _headerCollapsed ? 0 : 1,
+                                    child: Column(
+                                      children: [
+                                        const SizedBox(height: 8),
+                                        Align(
+                                          alignment: Alignment.centerLeft,
+                                          child: Text(
+                                            'Resources',
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .headlineMedium
+                                                ?.copyWith(
+                                                  fontWeight: FontWeight.w700,
+                                                  color: primaryText,
+                                                ),
                                           ),
                                         ),
-                                      ),
-                                    ],
+                                        const SizedBox(height: 2),
+                                        Align(
+                                          alignment: Alignment.centerLeft,
+                                          child: Text(
+                                            'Support that feels close, useful, and calm.',
+                                            style: TextStyle(
+                                              color: secondaryText,
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                ),
-                        ),
-                      ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              ),
+                )
+              else
+                SizedBox(height: MediaQuery.of(context).padding.top + 8),
               Expanded(
                 child: RefreshIndicator(
                   onRefresh: _refreshAll,
@@ -1178,12 +1184,14 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
               activeSection: SidebarSection.resources,
               onClose: _closeSidebar,
               onNavigateHome: () => _openShellTab(MoodiaryTab.home),
-              onNavigateUserProfile: () => _openShellTab(MoodiaryTab.profile),
+              onNavigateUserProfile: () =>
+                  _openShellTab(MoodiaryTab.profile, fromSidebar: true),
               onNavigateCalendar: () => _openScreen(
                 CalendarScreen(
                   userName: widget.userName,
                   companionId: widget.companionId,
                   companionName: widget.companionName,
+                  showTopNav: false,
                 ),
               ),
               onNavigateJournal: () => _openScreen(
@@ -1191,13 +1199,17 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
                   userName: widget.userName,
                   companionId: widget.companionId,
                   companionName: widget.companionName,
+                  showTopNav: false,
                 ),
               ),
-              onNavigateFriends: () => _openShellTab(MoodiaryTab.buddies),
-              onNavigateForums: () => _openShellTab(MoodiaryTab.forums),
+              onNavigateFriends: () =>
+                  _openShellTab(MoodiaryTab.buddies, fromSidebar: true),
+              onNavigateForums: () =>
+                  _openShellTab(MoodiaryTab.forums, fromSidebar: true),
               onNavigateResources: _closeSidebar,
-              onNavigateSettings: () =>
-                  _openScreen(SettingsScreen(userName: widget.userName)),
+              onNavigateSettings: () => _openScreen(
+                SettingsScreen(userName: widget.userName, showAppBar: false),
+              ),
               onChangeCompanion: () =>
                   _openScreen(CompanionScreen(userName: widget.userName)),
               onLogout: _logout,

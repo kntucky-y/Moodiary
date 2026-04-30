@@ -26,9 +26,14 @@ import '../settings/settings_screen.dart';
 import 'mbti_test_screen.dart';
 
 class UserProfileScreen extends StatefulWidget {
-  final ValueChanged<MoodiaryTab>? onShellTabSelected;
+  final ShellTabSelector? onShellTabSelected;
+  final bool showTopNav;
 
-  const UserProfileScreen({super.key, this.onShellTabSelected});
+  const UserProfileScreen({
+    super.key,
+    this.onShellTabSelected,
+    this.showTopNav = true,
+  });
 
   @override
   State<UserProfileScreen> createState() => _UserProfileScreenState();
@@ -286,11 +291,11 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     Navigator.of(context).push(FadeSlideRoute(page: page));
   }
 
-  void _openShellTab(MoodiaryTab tab) {
+  void _openShellTab(MoodiaryTab tab, {bool fromSidebar = false}) {
     setState(() => _sidebarOpen = false);
     final onShellTabSelected = widget.onShellTabSelected;
     if (onShellTabSelected != null) {
-      onShellTabSelected(tab);
+      onShellTabSelected(tab, fromSidebar: fromSidebar);
       return;
     }
     Navigator.of(context).pushAndRemoveUntil(
@@ -301,6 +306,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           companionName: _companionName,
           initialProfileAvatarUrl: _selectedAvatarDataUrl ?? _currentAvatarUrl,
           initialTab: tab,
+          initialHideTopNav: fromSidebar,
         ),
       ),
       (_) => false,
@@ -488,7 +494,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         children: [
           Column(
             children: [
-              _buildProfileHeader(context),
+              if (widget.showTopNav)
+                _buildProfileHeader(context)
+              else
+                SizedBox(height: MediaQuery.of(context).padding.top + 8),
               Expanded(
                 child: FutureBuilder<Map<String, dynamic>>(
                   future: _profileFuture,
@@ -1228,6 +1237,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   userName: _currentUserName,
                   companionId: _companionId,
                   companionName: _companionName,
+                  showTopNav: false,
                 ),
               ),
               onNavigateJournal: () => _openScreen(
@@ -1235,13 +1245,18 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   userName: _currentUserName,
                   companionId: _companionId,
                   companionName: _companionName,
+                  showTopNav: false,
                 ),
               ),
-              onNavigateFriends: () => _openShellTab(MoodiaryTab.buddies),
-              onNavigateForums: () => _openShellTab(MoodiaryTab.forums),
-              onNavigateResources: () => _openShellTab(MoodiaryTab.resources),
-              onNavigateSettings: () =>
-                  _openScreen(SettingsScreen(userName: _currentUserName)),
+              onNavigateFriends: () =>
+                  _openShellTab(MoodiaryTab.buddies, fromSidebar: true),
+              onNavigateForums: () =>
+                  _openShellTab(MoodiaryTab.forums, fromSidebar: true),
+              onNavigateResources: () =>
+                  _openShellTab(MoodiaryTab.resources, fromSidebar: true),
+              onNavigateSettings: () => _openScreen(
+                SettingsScreen(userName: _currentUserName, showAppBar: false),
+              ),
               onChangeCompanion: () =>
                   _openScreen(CompanionScreen(userName: _currentUserName)),
               onLogout: () {
