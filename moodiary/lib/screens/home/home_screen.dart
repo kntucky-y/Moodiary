@@ -390,6 +390,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
   }
 
+  bool _looksLikeGoalText(String value) {
+    final lower = value.toLowerCase();
+    return lower.contains('goal') ||
+        lower.contains('streak') ||
+        lower.contains('reach ');
+  }
+
   List<_MoodTask> _decodeAiTasks(List<dynamic>? raw) {
     if (raw == null) return [];
     final tasks = <_MoodTask>[];
@@ -400,6 +407,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       final description = (map['description'] ?? '').toString().trim();
       final points = (map['points'] as num?)?.toInt() ?? 10;
       if (title.isEmpty || description.isEmpty) continue;
+      if (_looksLikeGoalText(title) || _looksLikeGoalText(description)) {
+        continue;
+      }
       tasks.add(
         _MoodTask(
           id: title.toLowerCase().replaceAll(' ', '_'),
@@ -510,6 +520,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       try {
         final decoded = jsonDecode(rawTasks) as List<dynamic>;
         tasks = _decodeAiTasks(decoded);
+        if (tasks.isEmpty) {
+          await prefs.remove(_kAiTasksCacheKey);
+        }
       } catch (_) {}
     }
 
