@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -62,6 +63,101 @@ class _MoodTask {
     this.iconBackground = const Color(0xFFF3F0FB),
   });
 }
+
+/// Fallback pool of universally helpful mood-lifting tasks.
+/// Used when the AI backend returns no tasks (new user, insufficient data, error).
+const _kFallbackTaskPool = [
+  _MoodTask(
+    id: 'fallback_walk',
+    title: 'Take a 10-Minute Walk',
+    description: 'A short walk can boost your mood and clear your mind.',
+    points: 10,
+    icon: Icons.directions_walk_rounded,
+    iconColor: Color(0xFF10B981),
+    iconBackground: Color(0xFFD1FAE5),
+  ),
+  _MoodTask(
+    id: 'fallback_water',
+    title: 'Drink a Glass of Water',
+    description: 'Stay hydrated \u2014 it helps your energy and focus.',
+    points: 5,
+    icon: Icons.water_drop_rounded,
+    iconColor: Color(0xFF3B82F6),
+    iconBackground: Color(0xFFDBEAFE),
+  ),
+  _MoodTask(
+    id: 'fallback_breathe',
+    title: 'Deep Breathing Exercise',
+    description: 'Take 5 slow, deep breaths to calm your nervous system.',
+    points: 10,
+    icon: Icons.air_rounded,
+    iconColor: Color(0xFF8B5CF6),
+    iconBackground: Color(0xFFEDE9FE),
+  ),
+  _MoodTask(
+    id: 'fallback_gratitude',
+    title: 'Write 3 Things You\'re Grateful For',
+    description: 'Gratitude journaling is proven to improve well-being.',
+    points: 10,
+    icon: Icons.favorite_rounded,
+    iconColor: Color(0xFFEC4899),
+    iconBackground: Color(0xFFFCE7F3),
+  ),
+  _MoodTask(
+    id: 'fallback_stretch',
+    title: 'Do a Quick Stretch',
+    description: 'Stretch for 5 minutes to relieve tension and improve circulation.',
+    points: 10,
+    icon: Icons.self_improvement_rounded,
+    iconColor: Color(0xFFF59E0B),
+    iconBackground: Color(0xFFFEF3C7),
+  ),
+  _MoodTask(
+    id: 'fallback_music',
+    title: 'Listen to Your Favorite Song',
+    description: 'Music can instantly lift your spirits \u2014 put on a feel-good track.',
+    points: 5,
+    icon: Icons.music_note_rounded,
+    iconColor: Color(0xFFE11D48),
+    iconBackground: Color(0xFFFFE4E6),
+  ),
+  _MoodTask(
+    id: 'fallback_tidy',
+    title: 'Tidy Up Your Space',
+    description: 'A clean environment can reduce stress and boost productivity.',
+    points: 10,
+    icon: Icons.cleaning_services_rounded,
+    iconColor: Color(0xFF0EA5E9),
+    iconBackground: Color(0xFFE0F2FE),
+  ),
+  _MoodTask(
+    id: 'fallback_connect',
+    title: 'Reach Out to a Friend',
+    description: 'Send a kind message to someone you care about.',
+    points: 10,
+    icon: Icons.chat_bubble_rounded,
+    iconColor: Color(0xFF6366F1),
+    iconBackground: Color(0xFFE0E7FF),
+  ),
+  _MoodTask(
+    id: 'fallback_snack',
+    title: 'Have a Healthy Snack',
+    description: 'Fuel your body with something nutritious and delicious.',
+    points: 5,
+    icon: Icons.restaurant_rounded,
+    iconColor: Color(0xFF22C55E),
+    iconBackground: Color(0xFFDCFCE7),
+  ),
+  _MoodTask(
+    id: 'fallback_journal',
+    title: 'Write in Your Journal',
+    description: 'Spend a few minutes writing about your day or feelings.',
+    points: 15,
+    icon: Icons.edit_note_rounded,
+    iconColor: Color(0xFF7C3AED),
+    iconBackground: Color(0xFFF3E8FF),
+  ),
+];
 
 class _Mood {
   final String label;
@@ -318,6 +414,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return true;
   }
 
+  /// Returns 3 deterministic fallback tasks for today (seeded by date).
+  List<_MoodTask> _fallbackTasks() {
+    final seed = _dateKey().hashCode;
+    final pool = List<_MoodTask>.from(_kFallbackTaskPool);
+    pool.shuffle(Random(seed));
+    return pool.take(3).toList();
+  }
+
   Future<void> _applyAiTasks(
     List<_MoodTask> tasks, {
     required bool resetProgress,
@@ -405,11 +509,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       } catch (_) {}
     }
 
-    // If no cached AI tasks, keep _tasksLoading true and wait for
-    // _loadAiInsights to provide them. Don't use fallback pool here.
-    final hasAiTasks = tasks.isNotEmpty;
+    // If no cached AI tasks, use fallback mood-lifting tasks immediately.
+    if (tasks.isEmpty) {
+      tasks = _fallbackTasks();
+    }
 
-    if (hasAiTasks && completed.length != tasks.length) {
+    if (completed.length != tasks.length) {
       completed = List<bool>.filled(tasks.length, false);
     }
 
@@ -436,13 +541,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     }
     if (mounted) {
       setState(() {
-        if (hasAiTasks) {
-          _todayTasks = tasks;
-          _completedStates = completed;
-          _tasksLoading = false;
-        } else {
-          _tasksLoading = true;
-        }
+        _todayTasks = tasks;
+        _completedStates = completed;
+        _tasksLoading = false;
         _taskPoints = taskPoints;
         _todayActivityScore = activityScore;
         _moodScore = taskPoints + moodActivityScore;
@@ -478,8 +579,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final isFresh =
         ts != null && nowMs - ts < _kAiInsightsCacheTtl.inMilliseconds;
     if (isFresh) {
-      if (_tasksLoading && _todayTasks.isEmpty && mounted) {
-        setState(() => _tasksLoading = false);
+      // Ensure tasks are never empty — apply fallback if needed
+      if (_todayTasks.isEmpty && mounted) {
+        await _applyAiTasks(_fallbackTasks(), resetProgress: false);
       }
       return;
     }
@@ -490,10 +592,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token');
     if (token == null) {
+      if (_todayTasks.isEmpty) {
+        await _applyAiTasks(_fallbackTasks(), resetProgress: false);
+      }
       if (mounted) {
         setState(() {
           _insightsLoading = false;
-          _tasksLoading = false;
         });
       }
       return;
@@ -518,11 +622,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       );
 
       final aiTasks = _decodeAiTasks(payload['tasks'] as List<dynamic>?);
-      if (aiTasks.isNotEmpty) {
-        await _applyAiTasks(aiTasks, resetProgress: false);
-      } else if (_tasksLoading && _todayTasks.isEmpty && mounted) {
-        setState(() => _tasksLoading = false);
-      }
+      // Use AI tasks if available, otherwise fall back to mood-lifting defaults
+      final tasksToApply = aiTasks.isNotEmpty ? aiTasks : _fallbackTasks();
+      await _applyAiTasks(tasksToApply, resetProgress: false);
       if (!mounted) return;
       setState(() {
         _insights = insights;
@@ -530,10 +632,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       });
     } catch (e) {
       if (!mounted) return;
+      // On error, ensure tasks are never empty — apply fallback if needed
+      if (_todayTasks.isEmpty) {
+        await _applyAiTasks(_fallbackTasks(), resetProgress: false);
+      }
       setState(() {
-        if (_tasksLoading && _todayTasks.isEmpty) {
-          _tasksLoading = false;
-        }
         _insightsError = e.toString();
         _insightsLoading = false;
       });
