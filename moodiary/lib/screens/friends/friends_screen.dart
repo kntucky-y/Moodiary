@@ -34,7 +34,8 @@ class FriendsScreen extends StatefulWidget {
   final String userName;
   final int companionId;
   final String companionName;
-  final ValueChanged<MoodiaryTab>? onShellTabSelected;
+  final ShellTabSelector? onShellTabSelected;
+  final bool showTopNav;
 
   const FriendsScreen({
     super.key,
@@ -42,6 +43,7 @@ class FriendsScreen extends StatefulWidget {
     required this.companionId,
     required this.companionName,
     this.onShellTabSelected,
+    this.showTopNav = true,
   });
 
   @override
@@ -502,11 +504,11 @@ class _FriendsScreenState extends State<FriendsScreen> {
     Navigator.of(context).push(FadeSlideRoute(page: page));
   }
 
-  void _openShellTab(MoodiaryTab tab) {
+  void _openShellTab(MoodiaryTab tab, {bool fromSidebar = false}) {
     _closeSidebar();
     final onShellTabSelected = widget.onShellTabSelected;
     if (onShellTabSelected != null) {
-      onShellTabSelected(tab);
+      onShellTabSelected(tab, fromSidebar: fromSidebar);
       return;
     }
     Navigator.of(context).pushAndRemoveUntil(
@@ -516,6 +518,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
           companionId: widget.companionId,
           companionName: widget.companionName,
           initialTab: tab,
+          initialHideTopNav: fromSidebar,
         ),
       ),
       (_) => false,
@@ -676,11 +679,14 @@ class _FriendsScreenState extends State<FriendsScreen> {
         children: [
           Column(
             children: [
-              _FriendsHeader(
-                onAddFriend: _openAddFriendSheet,
-                onOpenSidebar: () => setState(() => _sidebarOpen = true),
-                collapsed: _headerCollapsed,
-              ),
+              if (widget.showTopNav)
+                _FriendsHeader(
+                  onAddFriend: _openAddFriendSheet,
+                  onOpenSidebar: () => setState(() => _sidebarOpen = true),
+                  collapsed: _headerCollapsed,
+                )
+              else
+                SizedBox(height: MediaQuery.of(context).padding.top + 8),
               Expanded(
                 child: Container(
                   decoration: BoxDecoration(
@@ -764,12 +770,14 @@ class _FriendsScreenState extends State<FriendsScreen> {
               activeSection: SidebarSection.friends,
               onClose: _closeSidebar,
               onNavigateHome: () => _openShellTab(MoodiaryTab.home),
-              onNavigateUserProfile: () => _openShellTab(MoodiaryTab.profile),
+              onNavigateUserProfile: () =>
+                  _openShellTab(MoodiaryTab.profile, fromSidebar: true),
               onNavigateCalendar: () => _openScreen(
                 CalendarScreen(
                   userName: _currentUserName,
                   companionId: widget.companionId,
                   companionName: widget.companionName,
+                  showTopNav: false,
                 ),
               ),
               onNavigateJournal: () => _openScreen(
@@ -777,13 +785,17 @@ class _FriendsScreenState extends State<FriendsScreen> {
                   userName: _currentUserName,
                   companionId: widget.companionId,
                   companionName: widget.companionName,
+                  showTopNav: false,
                 ),
               ),
               onNavigateFriends: _closeSidebar,
-              onNavigateForums: () => _openShellTab(MoodiaryTab.forums),
-              onNavigateResources: () => _openShellTab(MoodiaryTab.resources),
-              onNavigateSettings: () =>
-                  _openScreen(SettingsScreen(userName: _currentUserName)),
+              onNavigateForums: () =>
+                  _openShellTab(MoodiaryTab.forums, fromSidebar: true),
+              onNavigateResources: () =>
+                  _openShellTab(MoodiaryTab.resources, fromSidebar: true),
+              onNavigateSettings: () => _openScreen(
+                SettingsScreen(userName: _currentUserName, showAppBar: false),
+              ),
               onChangeCompanion: () =>
                   _openScreen(CompanionScreen(userName: _currentUserName)),
               onLogout: () {

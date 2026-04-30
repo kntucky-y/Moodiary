@@ -294,7 +294,7 @@ class HomeScreen extends StatefulWidget {
   final String companionName;
   final String? initialProfileAvatarUrl;
   final bool showBottomNav;
-  final ValueChanged<MoodiaryTab>? onShellTabSelected;
+  final ShellTabSelector? onShellTabSelected;
 
   const HomeScreen({
     super.key,
@@ -1071,11 +1071,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return '${now.year}/${now.month.toString().padLeft(2, '0')}/${now.day.toString().padLeft(2, '0')}';
   }
 
-  void _openShellTab(MoodiaryTab tab) {
+  void _openShellTab(MoodiaryTab tab, {bool fromSidebar = false}) {
     setState(() => _sidebarOpen = false);
     final onShellTabSelected = widget.onShellTabSelected;
     if (onShellTabSelected != null) {
-      onShellTabSelected(tab);
+      onShellTabSelected(tab, fromSidebar: fromSidebar);
       return;
     }
     Navigator.of(context).pushAndRemoveUntil(
@@ -1085,6 +1085,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           companionId: widget.companionId,
           companionName: widget.companionName,
           initialTab: tab,
+          initialHideTopNav: fromSidebar,
         ),
       ),
       (_) => false,
@@ -1526,7 +1527,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               activeSection: SidebarSection.home,
               onClose: () => setState(() => _sidebarOpen = false),
               onNavigateHome: () => setState(() => _sidebarOpen = false),
-              onNavigateUserProfile: () => _openShellTab(MoodiaryTab.profile),
+              onNavigateUserProfile: () =>
+                  _openShellTab(MoodiaryTab.profile, fromSidebar: true),
               onNavigateCalendar: () {
                 setState(() => _sidebarOpen = false);
                 Navigator.of(context).push(
@@ -1535,6 +1537,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       userName: widget.userName,
                       companionId: widget.companionId,
                       companionName: widget.companionName,
+                      showTopNav: false,
                     ),
                   ),
                 );
@@ -1547,18 +1550,25 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       userName: widget.userName,
                       companionId: widget.companionId,
                       companionName: widget.companionName,
+                      showTopNav: false,
                     ),
                   ),
                 );
               },
-              onNavigateFriends: () => _openShellTab(MoodiaryTab.buddies),
-              onNavigateForums: () => _openShellTab(MoodiaryTab.forums),
-              onNavigateResources: () => _openShellTab(MoodiaryTab.resources),
+              onNavigateFriends: () =>
+                  _openShellTab(MoodiaryTab.buddies, fromSidebar: true),
+              onNavigateForums: () =>
+                  _openShellTab(MoodiaryTab.forums, fromSidebar: true),
+              onNavigateResources: () =>
+                  _openShellTab(MoodiaryTab.resources, fromSidebar: true),
               onNavigateSettings: () {
                 setState(() => _sidebarOpen = false);
                 Navigator.of(context).push(
                   FadeSlideRoute(
-                    page: SettingsScreen(userName: widget.userName),
+                    page: SettingsScreen(
+                      userName: widget.userName,
+                      showAppBar: false,
+                    ),
                   ),
                 );
               },
@@ -2321,60 +2331,63 @@ class _TasksLoadingIndicator extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 16),
-        ...List.generate(3, (i) => Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: GlassContainer(
-            blurSigma: context.mdGlassBlurMedium,
-            backgroundColor: context.mdGlassSurface,
-            borderColor: context.mdGlassBorder,
-            borderRadius: BorderRadius.circular(18),
-            padding: const EdgeInsets.all(12),
-            child: Row(
-              children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: shimmerBase,
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  child: Center(
-                    child: Icon(
-                      Icons.auto_awesome_rounded,
-                      color: shimmerHighlight,
-                      size: 22,
+        ...List.generate(
+          3,
+          (i) => Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: GlassContainer(
+              blurSigma: context.mdGlassBlurMedium,
+              backgroundColor: context.mdGlassSurface,
+              borderColor: context.mdGlassBorder,
+              borderRadius: BorderRadius.circular(18),
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: shimmerBase,
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: Center(
+                      child: Icon(
+                        Icons.auto_awesome_rounded,
+                        color: shimmerHighlight,
+                        size: 22,
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 120 + i * 20.0,
-                        height: 12,
-                        decoration: BoxDecoration(
-                          color: shimmerBase,
-                          borderRadius: BorderRadius.circular(6),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 120 + i * 20.0,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: shimmerBase,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 6),
-                      Container(
-                        width: double.infinity,
-                        height: 10,
-                        decoration: BoxDecoration(
-                          color: shimmerBase,
-                          borderRadius: BorderRadius.circular(5),
+                        const SizedBox(height: 6),
+                        Container(
+                          width: double.infinity,
+                          height: 10,
+                          decoration: BoxDecoration(
+                            color: shimmerBase,
+                            borderRadius: BorderRadius.circular(5),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-        )),
+        ),
       ],
     );
   }

@@ -48,7 +48,8 @@ class ForumsScreen extends StatefulWidget {
   final int companionId;
   final String companionName;
   final String? initialPostId;
-  final ValueChanged<MoodiaryTab>? onShellTabSelected;
+  final ShellTabSelector? onShellTabSelected;
+  final bool showTopNav;
 
   const ForumsScreen({
     super.key,
@@ -57,6 +58,7 @@ class ForumsScreen extends StatefulWidget {
     required this.companionName,
     this.initialPostId,
     this.onShellTabSelected,
+    this.showTopNav = true,
   });
 
   @override
@@ -225,11 +227,11 @@ class _ForumsScreenState extends State<ForumsScreen> {
     Navigator.of(context).push(FadeSlideRoute(page: page));
   }
 
-  void _openShellTab(MoodiaryTab tab) {
+  void _openShellTab(MoodiaryTab tab, {bool fromSidebar = false}) {
     _closeSidebar();
     final onShellTabSelected = widget.onShellTabSelected;
     if (onShellTabSelected != null) {
-      onShellTabSelected(tab);
+      onShellTabSelected(tab, fromSidebar: fromSidebar);
       return;
     }
     Navigator.of(context).pushAndRemoveUntil(
@@ -239,6 +241,7 @@ class _ForumsScreenState extends State<ForumsScreen> {
           companionId: widget.companionId,
           companionName: widget.companionName,
           initialTab: tab,
+          initialHideTopNav: fromSidebar,
         ),
       ),
       (_) => false,
@@ -865,138 +868,142 @@ class _ForumsScreenState extends State<ForumsScreen> {
         children: [
           Column(
             children: [
-              SafeArea(
-                bottom: false,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 10, 20, 8),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: GlassContainer(
-                      blurSigma: context.mdGlassBlurSmall,
-                      borderRadius: BorderRadius.circular(22),
-                      backgroundColor: context.mdGlassSurfaceStrong,
-                      borderColor: context.mdGlassBorder,
-                      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-                      child: Column(
-                        children: [
-                          Row(
-                            children: [
-                              IconButton(
-                                onPressed: _openSidebar,
-                                icon: Icon(
-                                  Icons.menu,
-                                  color: primaryText,
-                                  size: 26,
+              if (widget.showTopNav)
+                SafeArea(
+                  bottom: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 10, 20, 8),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: GlassContainer(
+                        blurSigma: context.mdGlassBlurSmall,
+                        borderRadius: BorderRadius.circular(22),
+                        backgroundColor: context.mdGlassSurfaceStrong,
+                        borderColor: context.mdGlassBorder,
+                        padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                        child: Column(
+                          children: [
+                            Row(
+                              children: [
+                                IconButton(
+                                  onPressed: _openSidebar,
+                                  icon: Icon(
+                                    Icons.menu,
+                                    color: primaryText,
+                                    size: 26,
+                                  ),
+                                  tooltip: 'Open menu',
                                 ),
-                                tooltip: 'Open menu',
-                              ),
-                              Expanded(
-                                child: Center(
-                                  child: Text(
-                                    _todayStr(),
-                                    style: TextStyle(
-                                      color: primaryText,
-                                      fontWeight: FontWeight.bold,
+                                Expanded(
+                                  child: Center(
+                                    child: Text(
+                                      _todayStr(),
+                                      style: TextStyle(
+                                        color: primaryText,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    onPressed: _toggleArchived,
-                                    icon: Icon(
-                                      _showArchived
-                                          ? Icons.unarchive_outlined
-                                          : Icons.archive_outlined,
-                                      color: _showArchived
-                                          ? _kPurple
-                                          : primaryText,
-                                      size: 22,
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      onPressed: _toggleArchived,
+                                      icon: Icon(
+                                        _showArchived
+                                            ? Icons.unarchive_outlined
+                                            : Icons.archive_outlined,
+                                        color: _showArchived
+                                            ? _kPurple
+                                            : primaryText,
+                                        size: 22,
+                                      ),
+                                      tooltip: _showArchived
+                                          ? 'Show active posts'
+                                          : 'Show archived posts',
                                     ),
-                                    tooltip: _showArchived
-                                        ? 'Show active posts'
-                                        : 'Show archived posts',
-                                  ),
-                                  IconButton(
-                                    onPressed: () => _fetchPosts(silent: false),
-                                    icon: Icon(
-                                      Icons.refresh_rounded,
-                                      color: primaryText,
-                                      size: 22,
+                                    IconButton(
+                                      onPressed: () =>
+                                          _fetchPosts(silent: false),
+                                      icon: Icon(
+                                        Icons.refresh_rounded,
+                                        color: primaryText,
+                                        size: 22,
+                                      ),
+                                      tooltip: 'Refresh forums',
                                     ),
-                                    tooltip: 'Refresh forums',
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                          AnimatedSize(
-                            duration: context.mdHeaderCollapseDuration,
-                            curve: Curves.easeOutCubic,
-                            child: _headerCollapsed
-                                ? const SizedBox.shrink()
-                                : AnimatedOpacity(
-                                    duration: context.mdHeaderFadeDuration,
-                                    opacity: _headerCollapsed ? 0 : 1,
-                                    child: Column(
-                                      children: [
-                                        const SizedBox(height: 8),
-                                        Align(
-                                          alignment: Alignment.centerLeft,
-                                          child: Text(
-                                            'Forums',
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .headlineMedium
-                                                ?.copyWith(
-                                                  fontWeight: FontWeight.w700,
-                                                  color: primaryText,
-                                                ),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 2),
-                                        Align(
-                                          alignment: Alignment.centerLeft,
-                                          child: Text(
-                                            _showArchived
-                                                ? 'Archived forum posts'
-                                                : 'A safe space to share and connect',
-                                            style: TextStyle(
-                                              color: secondaryText,
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        if (!_showArchived && _showMineOnly)
+                                  ],
+                                ),
+                              ],
+                            ),
+                            AnimatedSize(
+                              duration: context.mdHeaderCollapseDuration,
+                              curve: Curves.easeOutCubic,
+                              child: _headerCollapsed
+                                  ? const SizedBox.shrink()
+                                  : AnimatedOpacity(
+                                      duration: context.mdHeaderFadeDuration,
+                                      opacity: _headerCollapsed ? 0 : 1,
+                                      child: Column(
+                                        children: [
+                                          const SizedBox(height: 8),
                                           Align(
                                             alignment: Alignment.centerLeft,
-                                            child: TextButton.icon(
-                                              onPressed: () => setState(
-                                                () => _showMineOnly = false,
-                                              ),
-                                              icon: const Icon(
-                                                Icons.filter_alt_off,
-                                                size: 18,
-                                              ),
-                                              label: const Text(
-                                                'Showing only my posts',
+                                            child: Text(
+                                              'Forums',
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .headlineMedium
+                                                  ?.copyWith(
+                                                    fontWeight: FontWeight.w700,
+                                                    color: primaryText,
+                                                  ),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Align(
+                                            alignment: Alignment.centerLeft,
+                                            child: Text(
+                                              _showArchived
+                                                  ? 'Archived forum posts'
+                                                  : 'A safe space to share and connect',
+                                              style: TextStyle(
+                                                color: secondaryText,
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w500,
                                               ),
                                             ),
                                           ),
-                                      ],
+                                          const SizedBox(height: 4),
+                                          if (!_showArchived && _showMineOnly)
+                                            Align(
+                                              alignment: Alignment.centerLeft,
+                                              child: TextButton.icon(
+                                                onPressed: () => setState(
+                                                  () => _showMineOnly = false,
+                                                ),
+                                                icon: const Icon(
+                                                  Icons.filter_alt_off,
+                                                  size: 18,
+                                                ),
+                                                label: const Text(
+                                                  'Showing only my posts',
+                                                ),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
                                     ),
-                                  ),
-                          ),
-                        ],
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ),
+                )
+              else
+                SizedBox(height: MediaQuery.of(context).padding.top + 8),
               Expanded(
                 child: NotificationListener<ScrollNotification>(
                   onNotification: _onScrollNotification,
@@ -1086,12 +1093,14 @@ class _ForumsScreenState extends State<ForumsScreen> {
               activeSection: SidebarSection.forums,
               onClose: _closeSidebar,
               onNavigateHome: () => _openShellTab(MoodiaryTab.home),
-              onNavigateUserProfile: () => _openShellTab(MoodiaryTab.profile),
+              onNavigateUserProfile: () =>
+                  _openShellTab(MoodiaryTab.profile, fromSidebar: true),
               onNavigateCalendar: () => _openScreen(
                 CalendarScreen(
                   userName: widget.userName,
                   companionId: widget.companionId,
                   companionName: widget.companionName,
+                  showTopNav: false,
                 ),
               ),
               onNavigateJournal: () => _openScreen(
@@ -1099,13 +1108,17 @@ class _ForumsScreenState extends State<ForumsScreen> {
                   userName: widget.userName,
                   companionId: widget.companionId,
                   companionName: widget.companionName,
+                  showTopNav: false,
                 ),
               ),
-              onNavigateFriends: () => _openShellTab(MoodiaryTab.buddies),
+              onNavigateFriends: () =>
+                  _openShellTab(MoodiaryTab.buddies, fromSidebar: true),
               onNavigateForums: _closeSidebar,
-              onNavigateResources: () => _openShellTab(MoodiaryTab.resources),
-              onNavigateSettings: () =>
-                  _openScreen(SettingsScreen(userName: widget.userName)),
+              onNavigateResources: () =>
+                  _openShellTab(MoodiaryTab.resources, fromSidebar: true),
+              onNavigateSettings: () => _openScreen(
+                SettingsScreen(userName: widget.userName, showAppBar: false),
+              ),
               onChangeCompanion: () =>
                   _openScreen(CompanionScreen(userName: widget.userName)),
               onLogout: () {

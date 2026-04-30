@@ -11,12 +11,15 @@ import 'resources/resources_screen.dart';
 
 enum MoodiaryTab { profile, buddies, home, forums, resources }
 
+typedef ShellTabSelector = void Function(MoodiaryTab tab, {bool fromSidebar});
+
 class MoodiaryShell extends StatefulWidget {
   final String userName;
   final int companionId;
   final String companionName;
   final String? initialProfileAvatarUrl;
   final MoodiaryTab initialTab;
+  final bool initialHideTopNav;
 
   const MoodiaryShell({
     super.key,
@@ -25,6 +28,7 @@ class MoodiaryShell extends StatefulWidget {
     required this.companionName,
     this.initialProfileAvatarUrl,
     this.initialTab = MoodiaryTab.home,
+    this.initialHideTopNav = false,
   });
 
   @override
@@ -35,17 +39,25 @@ class _MoodiaryShellState extends State<MoodiaryShell> {
   late int _index;
   late final List<Widget?> _pages;
   String? _avatarUrl;
+  final List<bool?> _tabHideTopNav = List<bool?>.filled(
+    MoodiaryTab.values.length,
+    null,
+  );
 
-  Widget _buildPage(int index) {
+  Widget _buildPage(int index, {required bool hideTopNav}) {
     switch (MoodiaryTab.values[index]) {
       case MoodiaryTab.profile:
-        return UserProfileScreen(onShellTabSelected: _selectTab);
+        return UserProfileScreen(
+          onShellTabSelected: _selectTab,
+          showTopNav: !hideTopNav,
+        );
       case MoodiaryTab.buddies:
         return FriendsScreen(
           userName: widget.userName,
           companionId: widget.companionId,
           companionName: widget.companionName,
           onShellTabSelected: _selectTab,
+          showTopNav: !hideTopNav,
         );
       case MoodiaryTab.home:
         return HomeScreen(
@@ -62,6 +74,7 @@ class _MoodiaryShellState extends State<MoodiaryShell> {
           companionId: widget.companionId,
           companionName: widget.companionName,
           onShellTabSelected: _selectTab,
+          showTopNav: !hideTopNav,
         );
       case MoodiaryTab.resources:
         return ResourcesScreen(
@@ -69,21 +82,28 @@ class _MoodiaryShellState extends State<MoodiaryShell> {
           companionId: widget.companionId,
           companionName: widget.companionName,
           onShellTabSelected: _selectTab,
+          showTopNav: !hideTopNav,
         );
     }
   }
 
-  void _ensurePage(int index) {
-    _pages[index] ??= _buildPage(index);
+  void _ensurePage(int index, {bool? hideTopNavOverride}) {
+    final hideTopNav = hideTopNavOverride ?? _tabHideTopNav[index] ?? false;
+    _tabHideTopNav[index] = hideTopNav;
+    _pages[index] ??= _buildPage(index, hideTopNav: hideTopNav);
   }
 
-  void _selectTab(MoodiaryTab tab) {
+  void _selectTab(MoodiaryTab tab, {bool fromSidebar = false}) {
     final nextIndex = tab.index;
+    final hideTopNav = fromSidebar && tab != MoodiaryTab.home;
     if (_index == nextIndex) {
       return;
     }
+    if (_tabHideTopNav[nextIndex] != hideTopNav) {
+      _pages[nextIndex] = null;
+    }
     setState(() {
-      _ensurePage(nextIndex);
+      _ensurePage(nextIndex, hideTopNavOverride: hideTopNav);
       _index = nextIndex;
     });
   }
@@ -94,7 +114,8 @@ class _MoodiaryShellState extends State<MoodiaryShell> {
     _index = widget.initialTab.index;
     _avatarUrl = widget.initialProfileAvatarUrl;
     _pages = List<Widget?>.filled(MoodiaryTab.values.length, null);
-    _ensurePage(_index);
+    _tabHideTopNav[_index] = widget.initialHideTopNav;
+    _ensurePage(_index, hideTopNavOverride: widget.initialHideTopNav);
     _loadAvatarUrl();
   }
 
