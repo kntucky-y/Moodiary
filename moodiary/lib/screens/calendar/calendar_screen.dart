@@ -145,11 +145,13 @@ class CalendarScreen extends StatefulWidget {
   final String userName;
   final int companionId;
   final String companionName;
+  final bool showTopNav;
   const CalendarScreen({
     super.key,
     required this.userName,
     required this.companionId,
     required this.companionName,
+    this.showTopNav = true,
   });
 
   @override
@@ -233,7 +235,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     Navigator.of(context).push(FadeSlideRoute(page: page));
   }
 
-  void _openShellTab(MoodiaryTab tab) {
+  void _openShellTab(MoodiaryTab tab, {bool fromSidebar = false}) {
     _closeSidebar();
     Navigator.of(context).pushAndRemoveUntil(
       FadeSlideRoute(
@@ -242,6 +244,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
           companionId: widget.companionId,
           companionName: widget.companionName,
           initialTab: tab,
+          initialHideTopNav: fromSidebar,
         ),
       ),
       (_) => false,
@@ -381,7 +384,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
         children: [
           Column(
             children: [
-              _buildHeader(),
+              if (widget.showTopNav)
+                _buildHeader()
+              else
+                SizedBox(height: MediaQuery.of(context).padding.top + 8),
               Expanded(
                 child: GlassContainer(
                   blurSigma: context.mdGlassBlurMedium,
@@ -428,20 +434,26 @@ class _CalendarScreenState extends State<CalendarScreen> {
               activeSection: SidebarSection.calendar,
               onClose: _closeSidebar,
               onNavigateHome: () => _openShellTab(MoodiaryTab.home),
-              onNavigateUserProfile: () => _openShellTab(MoodiaryTab.profile),
+              onNavigateUserProfile: () =>
+                  _openShellTab(MoodiaryTab.profile, fromSidebar: true),
               onNavigateCalendar: _closeSidebar,
               onNavigateJournal: () => _openScreen(
                 JournalScreen(
                   userName: widget.userName,
                   companionId: widget.companionId,
                   companionName: widget.companionName,
+                  showTopNav: false,
                 ),
               ),
-              onNavigateFriends: () => _openShellTab(MoodiaryTab.buddies),
-              onNavigateForums: () => _openShellTab(MoodiaryTab.forums),
-              onNavigateResources: () => _openShellTab(MoodiaryTab.resources),
-              onNavigateSettings: () =>
-                  _openScreen(SettingsScreen(userName: widget.userName)),
+              onNavigateFriends: () =>
+                  _openShellTab(MoodiaryTab.buddies, fromSidebar: true),
+              onNavigateForums: () =>
+                  _openShellTab(MoodiaryTab.forums, fromSidebar: true),
+              onNavigateResources: () =>
+                  _openShellTab(MoodiaryTab.resources, fromSidebar: true),
+              onNavigateSettings: () => _openScreen(
+                SettingsScreen(userName: widget.userName, showAppBar: false),
+              ),
               onChangeCompanion: () =>
                   _openScreen(CompanionScreen(userName: widget.userName)),
               onLogout: () {

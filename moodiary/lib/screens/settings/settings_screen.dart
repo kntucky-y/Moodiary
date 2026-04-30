@@ -13,7 +13,12 @@ import '../legal/legal_screens.dart';
 
 class SettingsScreen extends StatefulWidget {
   final String userName;
-  const SettingsScreen({super.key, required this.userName});
+  final bool showAppBar;
+  const SettingsScreen({
+    super.key,
+    required this.userName,
+    this.showAppBar = true,
+  });
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -158,10 +163,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
+    final topInset = MediaQuery.of(context).padding.top;
+    final listPadding = widget.showAppBar
+        ? const EdgeInsets.fromLTRB(20, 16, 20, 32)
+        : EdgeInsets.fromLTRB(20, topInset + 12, 20, 32);
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings'), centerTitle: true),
+      appBar: widget.showAppBar
+          ? AppBar(title: const Text('Settings'), centerTitle: true)
+          : null,
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+        padding: listPadding,
         children: [
           _SectionHeader(label: 'Appearance'),
           GlassContainer(

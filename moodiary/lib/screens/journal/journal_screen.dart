@@ -64,12 +64,14 @@ class JournalScreen extends StatefulWidget {
   final String userName;
   final int companionId;
   final String companionName;
+  final bool showTopNav;
 
   const JournalScreen({
     super.key,
     required this.userName,
     required this.companionId,
     required this.companionName,
+    this.showTopNav = true,
   });
 
   @override
@@ -170,7 +172,7 @@ class _JournalScreenState extends State<JournalScreen> {
     Navigator.of(context).push(FadeSlideRoute(page: page));
   }
 
-  void _openShellTab(MoodiaryTab tab) {
+  void _openShellTab(MoodiaryTab tab, {bool fromSidebar = false}) {
     _closeSidebar();
     Navigator.of(context).pushAndRemoveUntil(
       FadeSlideRoute(
@@ -179,6 +181,7 @@ class _JournalScreenState extends State<JournalScreen> {
           companionId: widget.companionId,
           companionName: widget.companionName,
           initialTab: tab,
+          initialHideTopNav: fromSidebar,
         ),
       ),
       (_) => false,
@@ -431,89 +434,93 @@ class _JournalScreenState extends State<JournalScreen> {
         children: [
           Column(
             children: [
-              // ── Header ──────────────────────────────────────────────────────
-              SafeArea(
-                bottom: false,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          GestureDetector(
-                            onTap: _openSidebar,
-                            child: Icon(
-                              Icons.menu,
-                              size: 26,
-                              color: primaryText,
-                            ),
-                          ),
-                          const Spacer(),
-                          Text(
-                            _todayStr(),
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: primaryText,
-                            ),
-                          ),
-                          const Spacer(),
-                          IconButton(
-                            tooltip: _showArchived
-                                ? 'Show active journals'
-                                : 'Show archived journals',
-                            onPressed: _toggleArchived,
-                            icon: Icon(
-                              _showArchived
-                                  ? Icons.unarchive_outlined
-                                  : Icons.archive_outlined,
-                              size: 22,
-                              color: _showArchived ? _kPurple : primaryText,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      // "Journa/" title — Playfair "J" + Lexend "ourna" + Caveat "l"
-                      RichText(
-                        text: TextSpan(
+              if (widget.showTopNav)
+                SafeArea(
+                  bottom: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                    child: Column(
+                      children: [
+                        Row(
                           children: [
-                            TextSpan(
-                              text: 'J',
-                              style: GoogleFonts.playfairDisplay(
-                                fontSize: 36,
+                            GestureDetector(
+                              onTap: _openSidebar,
+                              child: Icon(
+                                Icons.menu,
+                                size: 26,
+                                color: primaryText,
+                              ),
+                            ),
+                            const Spacer(),
+                            Text(
+                              _todayStr(),
+                              style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 color: primaryText,
                               ),
                             ),
-                            TextSpan(
-                              text: 'ourna',
-                              style: GoogleFonts.lexend(
-                                fontSize: 36,
-                                fontWeight: FontWeight.bold,
-                                color: primaryText,
-                              ),
-                            ),
-                            TextSpan(
-                              text: 'l',
-                              style: GoogleFonts.caveat(
-                                fontSize: 44,
-                                fontWeight: FontWeight.bold,
-                                color: _kPurple,
+                            const Spacer(),
+                            IconButton(
+                              tooltip: _showArchived
+                                  ? 'Show active journals'
+                                  : 'Show archived journals',
+                              onPressed: _toggleArchived,
+                              icon: Icon(
+                                _showArchived
+                                    ? Icons.unarchive_outlined
+                                    : Icons.archive_outlined,
+                                size: 22,
+                                color: _showArchived ? _kPurple : primaryText,
                               ),
                             ),
                           ],
                         ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        _showArchived ? 'Archived journals' : 'Write anything!',
-                        style: const TextStyle(color: _kSubtle, fontSize: 13),
-                      ),
-                      const SizedBox(height: 16),
-                    ],
+                        const SizedBox(height: 10),
+                        // "Journa/" title — Playfair "J" + Lexend "ourna" + Caveat "l"
+                        RichText(
+                          text: TextSpan(
+                            children: [
+                              TextSpan(
+                                text: 'J',
+                                style: GoogleFonts.playfairDisplay(
+                                  fontSize: 36,
+                                  fontWeight: FontWeight.bold,
+                                  color: primaryText,
+                                ),
+                              ),
+                              TextSpan(
+                                text: 'ourna',
+                                style: GoogleFonts.lexend(
+                                  fontSize: 36,
+                                  fontWeight: FontWeight.bold,
+                                  color: primaryText,
+                                ),
+                              ),
+                              TextSpan(
+                                text: 'l',
+                                style: GoogleFonts.caveat(
+                                  fontSize: 44,
+                                  fontWeight: FontWeight.bold,
+                                  color: _kPurple,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          _showArchived
+                              ? 'Archived journals'
+                              : 'Write anything!',
+                          style: const TextStyle(color: _kSubtle, fontSize: 13),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                    ),
                   ),
-                ),
-              ),
+                )
+              else
+                SizedBox(height: MediaQuery.of(context).padding.top + 8),
               // ── Entry list ──────────────────────────────────────────────────
               Expanded(
                 child: GlassContainer(
@@ -584,20 +591,26 @@ class _JournalScreenState extends State<JournalScreen> {
               activeSection: SidebarSection.journal,
               onClose: _closeSidebar,
               onNavigateHome: () => _openShellTab(MoodiaryTab.home),
-              onNavigateUserProfile: () => _openShellTab(MoodiaryTab.profile),
+              onNavigateUserProfile: () =>
+                  _openShellTab(MoodiaryTab.profile, fromSidebar: true),
               onNavigateCalendar: () => _openScreen(
                 CalendarScreen(
                   userName: widget.userName,
                   companionId: widget.companionId,
                   companionName: widget.companionName,
+                  showTopNav: false,
                 ),
               ),
               onNavigateJournal: _closeSidebar,
-              onNavigateFriends: () => _openShellTab(MoodiaryTab.buddies),
-              onNavigateForums: () => _openShellTab(MoodiaryTab.forums),
-              onNavigateResources: () => _openShellTab(MoodiaryTab.resources),
-              onNavigateSettings: () =>
-                  _openScreen(SettingsScreen(userName: widget.userName)),
+              onNavigateFriends: () =>
+                  _openShellTab(MoodiaryTab.buddies, fromSidebar: true),
+              onNavigateForums: () =>
+                  _openShellTab(MoodiaryTab.forums, fromSidebar: true),
+              onNavigateResources: () =>
+                  _openShellTab(MoodiaryTab.resources, fromSidebar: true),
+              onNavigateSettings: () => _openScreen(
+                SettingsScreen(userName: widget.userName, showAppBar: false),
+              ),
               onChangeCompanion: () =>
                   _openScreen(CompanionScreen(userName: widget.userName)),
               onLogout: () {

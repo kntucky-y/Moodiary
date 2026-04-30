@@ -4,10 +4,13 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const MoodLog = require('../models/Mood');
 const MoodInsight = require('../models/MoodInsight');
+const JournalEntry = require('../models/JournalEntry');
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const MAX_BOOSTERS = 3;
 const AI_TASK_COUNT = 3;
+const JOURNAL_LOOKBACK = 3;
+const JOURNAL_SNIPPET_MAX = 180;
 
 const groq = process.env.GROQ_API_KEY
   ? new Groq({ apiKey: process.env.GROQ_API_KEY })
@@ -22,17 +25,17 @@ const fallbackReply =
 const fallbackTasks = [
   {
     title: 'Take a 10-minute walk',
-    description: 'A short walk can reset your mind and boost energy.',
+    description: 'Step outside and walk for 10 minutes to reset your mood.',
     points: 10,
   },
   {
     title: 'Write 3 gratitudes',
-    description: 'Note small wins from today to shift your focus.',
+    description: 'Jot down three small wins or moments you appreciate today.',
     points: 15,
   },
   {
     title: 'Deep breathing (4-7-8)',
-    description: 'Slow breathing can calm your nervous system quickly.',
+    description: 'Do 3 rounds of 4-7-8 breathing to calm your body.',
     points: 10,
   },
 ];
@@ -131,11 +134,62 @@ const buildBoosters = (logs, baselineAvg) => {
   }));
 };
 
-const buildPrompt = ({ last7, trendLabel }) => {
+const normalizeSnippet = (text, maxLen) => {
+  const clean = (text || '')
+    .replace(/\s+/g, ' ')
+    .replace(/[\r\n]+/g, ' ')
+    .trim();
+  if (!clean) return '';
+  if (clean.length <= maxLen) return clean;
+  if (maxLen <= 3) return clean.slice(0, maxLen);
+  return `${clean.slice(0, maxLen - 3)}...`;
+};
+
+const summarizeActivities = (logs) => {
+  const counts = new Map();
+  for (const log of logs) {
+    for (const activity of log.activities || []) {
+      const key = String(activity).trim();
+      if (!key) continue;
+      counts.set(key, (counts.get(key) || 0) + 1);
+    }
+  }
+  return Array.from(counts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 6)
+    .map(([name]) => name);
+};
+
+const buildJournalSnippets = (entries) =>
+  entries.map((entry) => {
+    const createdAt = entry.createdAt
+      ? new Date(entry.createdAt).toISOString().slice(0, 10)
+      : 'recent';
+    const title = normalizeSnippet(entry.title, 60) || 'Untitled';
+    const excerpt = normalizeSnippet(entry.content, JOURNAL_SNIPPET_MAX);
+    const tag = entry.tag || 'okay';
+    return `${createdAt} [${tag}] ${title} — ${excerpt}`;
+  });
+
+const buildPrompt = ({ last7, trendLabel, activities, journalSnippets }) => {
   const last7Formatted = last7
     .map((v) => (v == null ? '-' : String(v)))
     .join(', ');
-  return `Last 7 days: ${last7Formatted}. Trend: ${trendLabel}.\n\nReturn JSON only with keys: aiMessage (string) and tasks (array of ${AI_TASK_COUNT} items). Each task should have title, description, and points (5-20).`;
+  const activityLine = activities.length
+    ? `Recent activities: ${activities.join(', ')}.`
+    : 'Recent activities: none logged.';
+  const journalLine = journalSnippets.length
+    ? `Recent journal notes: ${journalSnippets.join(' | ')}.`
+    : 'Recent journal notes: none available.';
+  return [
+    `Last 7 days mood index: ${last7Formatted}. Trend: ${trendLabel}.`,
+    activityLine,
+    journalLine,
+    `Return JSON only with keys: aiMessage (string) and tasks (array of ${AI_TASK_COUNT} items).`,
+    'Each task must be a concrete, time-boxed action for today (5-30 minutes), start with a verb, and be based on the recent mood, activities, or journal notes.',
+    'Avoid goals, streaks, or vague intentions. No lists or extra keys in the JSON.',
+    'Each task needs title, description, and points (5-20).',
+  ].join('\n');
 };
 
 const parseAiJson = (raw) => {
@@ -236,6 +290,15 @@ router.get('/mood-insights', auth, async (req, res) => {
       dateKey: { $in: keys },
     }).lean();
 
+    const journalEntries = await JournalEntry.find({
+      userId: req.userId,
+      isArchived: { $ne: true },
+    })
+      .sort({ createdAt: -1 })
+      .limit(JOURNAL_LOOKBACK)
+      .select('title content tag createdAt')
+      .lean();
+
     const logByKey = new Map();
     for (const log of logs) {
       logByKey.set(log.dateKey, log);
@@ -260,7 +323,14 @@ router.get('/mood-insights', auth, async (req, res) => {
 
     const boosters = buildBoosters(logs, baseline);
     const trendLabel = `${direction}${percent ? ` ${Math.abs(percent)}%` : ''}`.trim();
-    const prompt = buildPrompt({ last7: last7Values, trendLabel });
+    const activities = summarizeActivities(logs);
+    const journalSnippets = buildJournalSnippets(journalEntries);
+    const prompt = buildPrompt({
+      last7: last7Values,
+      trendLabel,
+      activities,
+      journalSnippets,
+    });
     const aiBundle = await getAiBundle(prompt);
 
     const payload = {
