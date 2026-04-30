@@ -206,7 +206,7 @@ const parseAiJson = (raw) => {
 };
 
 const normalizeTasks = (tasks) => {
-  if (!Array.isArray(tasks)) return fallbackTasks;
+  if (!Array.isArray(tasks)) return [];
   const normalized = tasks
     .map((task) => {
       if (!task || typeof task !== 'object') return null;
@@ -222,10 +222,6 @@ const normalizeTasks = (tasks) => {
     .filter(Boolean)
     .slice(0, AI_TASK_COUNT);
 
-  if (normalized.length < AI_TASK_COUNT) {
-    return fallbackTasks.slice(0, AI_TASK_COUNT);
-  }
-
   return normalized;
 };
 
@@ -238,9 +234,7 @@ const normalizeMessage = (text) => {
 };
 
 const getAiBundle = async (message) => {
-  if (!groq) {
-    return { aiMessage: fallbackReply, tasks: fallbackTasks };
-  }
+  if (!groq) return null;
   try {
     const completion = await groq.chat.completions.create({
       model: 'llama-3.3-70b-versatile',
@@ -253,15 +247,12 @@ const getAiBundle = async (message) => {
 
     const reply = completion.choices[0].message.content || '';
     const parsed = parseAiJson(reply);
-    if (!parsed) {
-      return { aiMessage: normalizeMessage(reply), tasks: fallbackTasks };
-    }
-    return {
-      aiMessage: normalizeMessage(parsed.aiMessage),
-      tasks: normalizeTasks(parsed.tasks),
-    };
+    if (!parsed) return null;
+    const tasks = normalizeTasks(parsed.tasks);
+    if (!tasks.length) return null;
+    return { aiMessage: normalizeMessage(parsed.aiMessage), tasks };
   } catch (err) {
-    return { aiMessage: fallbackReply, tasks: fallbackTasks };
+    return null;
   }
 };
 
@@ -332,13 +323,24 @@ router.get('/mood-insights', auth, async (req, res) => {
       journalSnippets,
     });
     const aiBundle = await getAiBundle(prompt);
+    const cachedTasks = cached?.payload?.tasks;
+    const cachedMessage = cached?.payload?.aiMessage;
+    const hasCachedTasks = Array.isArray(cachedTasks) && cachedTasks.length;
+
+    const cachedNormalized = hasCachedTasks ? normalizeTasks(cachedTasks) : [];
+    const finalTasks = aiBundle?.tasks?.length
+      ? aiBundle.tasks
+      : cachedNormalized.length
+      ? cachedNormalized
+      : fallbackTasks;
+    const finalMessage = aiBundle?.aiMessage || cachedMessage || fallbackReply;
 
     const payload = {
       last7: last7Values,
       trendPercent: percent,
       trendDirection: direction,
-      aiMessage: aiBundle.aiMessage,
-      tasks: aiBundle.tasks,
+      aiMessage: finalMessage,
+      tasks: finalTasks,
       boosters,
       lastMoodDateKey,
       generatedAt: now.toISOString(),

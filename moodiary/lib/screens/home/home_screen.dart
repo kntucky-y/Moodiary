@@ -386,7 +386,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
     if (savedDate != today) {
       await prefs.setString('tasks_date', today);
-      await prefs.remove(_kAiTasksCacheKey);
       await prefs.setString('tasks_completed', 'false,false,false');
       await prefs.setInt('mood_score_$today', 0);
       completed = [false, false, false];
@@ -401,9 +400,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       try {
         final decoded = jsonDecode(rawTasks) as List<dynamic>;
         tasks = _decodeAiTasks(decoded);
-        if (tasks.isEmpty) {
-          await prefs.remove(_kAiTasksCacheKey);
-        }
       } catch (_) {}
     }
 
