@@ -181,7 +181,7 @@ class _JournalScreenState extends State<JournalScreen> {
           companionId: widget.companionId,
           companionName: widget.companionName,
           initialTab: tab,
-          initialHideTopNav: fromSidebar,
+          initialHideTopNav: false,
         ),
       ),
       (_) => false,
@@ -591,26 +591,20 @@ class _JournalScreenState extends State<JournalScreen> {
               activeSection: SidebarSection.journal,
               onClose: _closeSidebar,
               onNavigateHome: () => _openShellTab(MoodiaryTab.home),
-              onNavigateUserProfile: () =>
-                  _openShellTab(MoodiaryTab.profile, fromSidebar: true),
+              onNavigateUserProfile: () => _openShellTab(MoodiaryTab.profile),
               onNavigateCalendar: () => _openScreen(
                 CalendarScreen(
                   userName: widget.userName,
                   companionId: widget.companionId,
                   companionName: widget.companionName,
-                  showTopNav: false,
                 ),
               ),
               onNavigateJournal: _closeSidebar,
-              onNavigateFriends: () =>
-                  _openShellTab(MoodiaryTab.buddies, fromSidebar: true),
-              onNavigateForums: () =>
-                  _openShellTab(MoodiaryTab.forums, fromSidebar: true),
-              onNavigateResources: () =>
-                  _openShellTab(MoodiaryTab.resources, fromSidebar: true),
-              onNavigateSettings: () => _openScreen(
-                SettingsScreen(userName: widget.userName, showAppBar: false),
-              ),
+              onNavigateFriends: () => _openShellTab(MoodiaryTab.buddies),
+              onNavigateForums: () => _openShellTab(MoodiaryTab.forums),
+              onNavigateResources: () => _openShellTab(MoodiaryTab.resources),
+              onNavigateSettings: () =>
+                  _openScreen(SettingsScreen(userName: widget.userName)),
               onChangeCompanion: () =>
                   _openScreen(CompanionScreen(userName: widget.userName)),
               onLogout: () {

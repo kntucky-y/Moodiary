@@ -12,6 +12,7 @@ import 'resources/resources_screen.dart';
 enum MoodiaryTab { profile, buddies, home, forums, resources }
 
 typedef ShellTabSelector = void Function(MoodiaryTab tab, {bool fromSidebar});
+typedef ShellNavVisibilitySetter = void Function(bool hidden);
 
 class MoodiaryShell extends StatefulWidget {
   final String userName;
@@ -39,10 +40,16 @@ class _MoodiaryShellState extends State<MoodiaryShell> {
   late int _index;
   late final List<Widget?> _pages;
   String? _avatarUrl;
+  final ValueNotifier<bool> _hideBottomNav = ValueNotifier<bool>(false);
   final List<bool?> _tabHideTopNav = List<bool?>.filled(
     MoodiaryTab.values.length,
     null,
   );
+
+  void _setShellNavHidden(bool hidden) {
+    if (_hideBottomNav.value == hidden) return;
+    _hideBottomNav.value = hidden;
+  }
 
   Widget _buildPage(int index, {required bool hideTopNav}) {
     switch (MoodiaryTab.values[index]) {
@@ -50,6 +57,7 @@ class _MoodiaryShellState extends State<MoodiaryShell> {
         return UserProfileScreen(
           onShellTabSelected: _selectTab,
           showTopNav: !hideTopNav,
+          onShellNavVisibilityChanged: _setShellNavHidden,
         );
       case MoodiaryTab.buddies:
         return FriendsScreen(
@@ -58,6 +66,7 @@ class _MoodiaryShellState extends State<MoodiaryShell> {
           companionName: widget.companionName,
           onShellTabSelected: _selectTab,
           showTopNav: !hideTopNav,
+          onShellNavVisibilityChanged: _setShellNavHidden,
         );
       case MoodiaryTab.home:
         return HomeScreen(
@@ -75,6 +84,7 @@ class _MoodiaryShellState extends State<MoodiaryShell> {
           companionName: widget.companionName,
           onShellTabSelected: _selectTab,
           showTopNav: !hideTopNav,
+          onShellNavVisibilityChanged: _setShellNavHidden,
         );
       case MoodiaryTab.resources:
         return ResourcesScreen(
@@ -83,6 +93,7 @@ class _MoodiaryShellState extends State<MoodiaryShell> {
           companionName: widget.companionName,
           onShellTabSelected: _selectTab,
           showTopNav: !hideTopNav,
+          onShellNavVisibilityChanged: _setShellNavHidden,
         );
     }
   }
@@ -95,7 +106,7 @@ class _MoodiaryShellState extends State<MoodiaryShell> {
 
   void _selectTab(MoodiaryTab tab, {bool fromSidebar = false}) {
     final nextIndex = tab.index;
-    final hideTopNav = fromSidebar && tab != MoodiaryTab.home;
+    final hideTopNav = false;
     if (_index == nextIndex) {
       return;
     }
@@ -114,9 +125,15 @@ class _MoodiaryShellState extends State<MoodiaryShell> {
     _index = widget.initialTab.index;
     _avatarUrl = widget.initialProfileAvatarUrl;
     _pages = List<Widget?>.filled(MoodiaryTab.values.length, null);
-    _tabHideTopNav[_index] = widget.initialHideTopNav;
-    _ensurePage(_index, hideTopNavOverride: widget.initialHideTopNav);
+    _tabHideTopNav[_index] = false;
+    _ensurePage(_index, hideTopNavOverride: false);
     _loadAvatarUrl();
+  }
+
+  @override
+  void dispose() {
+    _hideBottomNav.dispose();
+    super.dispose();
   }
 
   Future<void> _loadAvatarUrl() async {
@@ -158,60 +175,68 @@ class _MoodiaryShellState extends State<MoodiaryShell> {
           (index) => _pages[index] ?? const SizedBox.shrink(),
         ),
       ),
-      bottomNavigationBar: SafeArea(
-        minimum: EdgeInsets.fromLTRB(
-          horizontalInset,
-          0,
-          horizontalInset,
-          bottomInset,
-        ),
-        child: GlassContainer(
-          blurSigma: context.mdGlassBlurSmall,
-          borderRadius: BorderRadius.circular(context.mdRadiusLg),
-          backgroundColor: context.mdGlassSurfaceStrong,
-          padding: EdgeInsets.zero,
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: navInnerHorizontalInset),
-            child: NavigationBar(
-              selectedIndex: _index,
-              onDestinationSelected: (index) =>
-                  _selectTab(MoodiaryTab.values[index]),
-              height: 58,
-              backgroundColor: Colors.transparent,
-              indicatorColor: cs.primaryContainer.withValues(alpha: 0.56),
-              elevation: 0,
-              labelBehavior:
-                  NavigationDestinationLabelBehavior.onlyShowSelected,
-              destinations: const [
-                NavigationDestination(
-                  icon: Icon(Icons.account_circle_outlined),
-                  selectedIcon: Icon(Icons.account_circle),
-                  label: 'Profile',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.people_alt_outlined),
-                  selectedIcon: Icon(Icons.people_alt),
-                  label: 'Buddies',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.home_outlined),
-                  selectedIcon: Icon(Icons.home),
-                  label: 'Home',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.chat_bubble_outline),
-                  selectedIcon: Icon(Icons.chat_bubble),
-                  label: 'Forums',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.folder_outlined),
-                  selectedIcon: Icon(Icons.folder),
-                  label: 'Resources',
-                ),
-              ],
+      bottomNavigationBar: ValueListenableBuilder<bool>(
+        valueListenable: _hideBottomNav,
+        builder: (context, hidden, child) {
+          if (hidden) return const SizedBox.shrink();
+          return SafeArea(
+            minimum: EdgeInsets.fromLTRB(
+              horizontalInset,
+              0,
+              horizontalInset,
+              bottomInset,
             ),
-          ),
-        ),
+            child: GlassContainer(
+              blurSigma: context.mdGlassBlurSmall,
+              borderRadius: BorderRadius.circular(context.mdRadiusLg),
+              backgroundColor: context.mdGlassSurfaceStrong,
+              padding: EdgeInsets.zero,
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: navInnerHorizontalInset,
+                ),
+                child: NavigationBar(
+                  selectedIndex: _index,
+                  onDestinationSelected: (index) =>
+                      _selectTab(MoodiaryTab.values[index]),
+                  height: 58,
+                  backgroundColor: Colors.transparent,
+                  indicatorColor: cs.primaryContainer.withValues(alpha: 0.56),
+                  elevation: 0,
+                  labelBehavior:
+                      NavigationDestinationLabelBehavior.onlyShowSelected,
+                  destinations: const [
+                    NavigationDestination(
+                      icon: Icon(Icons.account_circle_outlined),
+                      selectedIcon: Icon(Icons.account_circle),
+                      label: 'Profile',
+                    ),
+                    NavigationDestination(
+                      icon: Icon(Icons.people_alt_outlined),
+                      selectedIcon: Icon(Icons.people_alt),
+                      label: 'Buddies',
+                    ),
+                    NavigationDestination(
+                      icon: Icon(Icons.home_outlined),
+                      selectedIcon: Icon(Icons.home),
+                      label: 'Home',
+                    ),
+                    NavigationDestination(
+                      icon: Icon(Icons.chat_bubble_outline),
+                      selectedIcon: Icon(Icons.chat_bubble),
+                      label: 'Forums',
+                    ),
+                    NavigationDestination(
+                      icon: Icon(Icons.folder_outlined),
+                      selectedIcon: Icon(Icons.folder),
+                      label: 'Resources',
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }

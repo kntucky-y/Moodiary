@@ -244,7 +244,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
           companionId: widget.companionId,
           companionName: widget.companionName,
           initialTab: tab,
-          initialHideTopNav: fromSidebar,
+          initialHideTopNav: false,
         ),
       ),
       (_) => false,
@@ -434,26 +434,20 @@ class _CalendarScreenState extends State<CalendarScreen> {
               activeSection: SidebarSection.calendar,
               onClose: _closeSidebar,
               onNavigateHome: () => _openShellTab(MoodiaryTab.home),
-              onNavigateUserProfile: () =>
-                  _openShellTab(MoodiaryTab.profile, fromSidebar: true),
+              onNavigateUserProfile: () => _openShellTab(MoodiaryTab.profile),
               onNavigateCalendar: _closeSidebar,
               onNavigateJournal: () => _openScreen(
                 JournalScreen(
                   userName: widget.userName,
                   companionId: widget.companionId,
                   companionName: widget.companionName,
-                  showTopNav: false,
                 ),
               ),
-              onNavigateFriends: () =>
-                  _openShellTab(MoodiaryTab.buddies, fromSidebar: true),
-              onNavigateForums: () =>
-                  _openShellTab(MoodiaryTab.forums, fromSidebar: true),
-              onNavigateResources: () =>
-                  _openShellTab(MoodiaryTab.resources, fromSidebar: true),
-              onNavigateSettings: () => _openScreen(
-                SettingsScreen(userName: widget.userName, showAppBar: false),
-              ),
+              onNavigateFriends: () => _openShellTab(MoodiaryTab.buddies),
+              onNavigateForums: () => _openShellTab(MoodiaryTab.forums),
+              onNavigateResources: () => _openShellTab(MoodiaryTab.resources),
+              onNavigateSettings: () =>
+                  _openScreen(SettingsScreen(userName: widget.userName)),
               onChangeCompanion: () =>
                   _openScreen(CompanionScreen(userName: widget.userName)),
               onLogout: () {

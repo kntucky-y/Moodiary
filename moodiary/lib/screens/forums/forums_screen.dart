@@ -50,6 +50,7 @@ class ForumsScreen extends StatefulWidget {
   final String? initialPostId;
   final ShellTabSelector? onShellTabSelected;
   final bool showTopNav;
+  final ShellNavVisibilitySetter? onShellNavVisibilityChanged;
 
   const ForumsScreen({
     super.key,
@@ -59,6 +60,7 @@ class ForumsScreen extends StatefulWidget {
     this.initialPostId,
     this.onShellTabSelected,
     this.showTopNav = true,
+    this.onShellNavVisibilityChanged,
   });
 
   @override
@@ -213,14 +215,18 @@ class _ForumsScreenState extends State<ForumsScreen> {
     }
   }
 
-  void _openSidebar() {
+  void _setSidebarOpen(bool open) {
+    if (_sidebarOpen == open) return;
     setState(() {
-      _sidebarOpen = true;
-      _fabExpanded = false;
+      _sidebarOpen = open;
+      if (open) _fabExpanded = false;
     });
+    widget.onShellNavVisibilityChanged?.call(open);
   }
 
-  void _closeSidebar() => setState(() => _sidebarOpen = false);
+  void _openSidebar() => _setSidebarOpen(true);
+
+  void _closeSidebar() => _setSidebarOpen(false);
 
   void _openScreen(Widget page) {
     _closeSidebar();
@@ -231,7 +237,7 @@ class _ForumsScreenState extends State<ForumsScreen> {
     _closeSidebar();
     final onShellTabSelected = widget.onShellTabSelected;
     if (onShellTabSelected != null) {
-      onShellTabSelected(tab, fromSidebar: fromSidebar);
+      onShellTabSelected(tab, fromSidebar: false);
       return;
     }
     Navigator.of(context).pushAndRemoveUntil(
@@ -241,7 +247,7 @@ class _ForumsScreenState extends State<ForumsScreen> {
           companionId: widget.companionId,
           companionName: widget.companionName,
           initialTab: tab,
-          initialHideTopNav: fromSidebar,
+          initialHideTopNav: false,
         ),
       ),
       (_) => false,
@@ -1093,14 +1099,12 @@ class _ForumsScreenState extends State<ForumsScreen> {
               activeSection: SidebarSection.forums,
               onClose: _closeSidebar,
               onNavigateHome: () => _openShellTab(MoodiaryTab.home),
-              onNavigateUserProfile: () =>
-                  _openShellTab(MoodiaryTab.profile, fromSidebar: true),
+              onNavigateUserProfile: () => _openShellTab(MoodiaryTab.profile),
               onNavigateCalendar: () => _openScreen(
                 CalendarScreen(
                   userName: widget.userName,
                   companionId: widget.companionId,
                   companionName: widget.companionName,
-                  showTopNav: false,
                 ),
               ),
               onNavigateJournal: () => _openScreen(
@@ -1108,17 +1112,13 @@ class _ForumsScreenState extends State<ForumsScreen> {
                   userName: widget.userName,
                   companionId: widget.companionId,
                   companionName: widget.companionName,
-                  showTopNav: false,
                 ),
               ),
-              onNavigateFriends: () =>
-                  _openShellTab(MoodiaryTab.buddies, fromSidebar: true),
+              onNavigateFriends: () => _openShellTab(MoodiaryTab.buddies),
               onNavigateForums: _closeSidebar,
-              onNavigateResources: () =>
-                  _openShellTab(MoodiaryTab.resources, fromSidebar: true),
-              onNavigateSettings: () => _openScreen(
-                SettingsScreen(userName: widget.userName, showAppBar: false),
-              ),
+              onNavigateResources: () => _openShellTab(MoodiaryTab.resources),
+              onNavigateSettings: () =>
+                  _openScreen(SettingsScreen(userName: widget.userName)),
               onChangeCompanion: () =>
                   _openScreen(CompanionScreen(userName: widget.userName)),
               onLogout: () {

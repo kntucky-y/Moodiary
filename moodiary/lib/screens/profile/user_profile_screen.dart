@@ -28,11 +28,13 @@ import 'mbti_test_screen.dart';
 class UserProfileScreen extends StatefulWidget {
   final ShellTabSelector? onShellTabSelected;
   final bool showTopNav;
+  final ShellNavVisibilitySetter? onShellNavVisibilityChanged;
 
   const UserProfileScreen({
     super.key,
     this.onShellTabSelected,
     this.showTopNav = true,
+    this.onShellNavVisibilityChanged,
   });
 
   @override
@@ -286,16 +288,22 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     }
   }
 
+  void _setSidebarOpen(bool open) {
+    if (_sidebarOpen == open) return;
+    setState(() => _sidebarOpen = open);
+    widget.onShellNavVisibilityChanged?.call(open);
+  }
+
   void _openScreen(Widget page) {
-    setState(() => _sidebarOpen = false);
+    _setSidebarOpen(false);
     Navigator.of(context).push(FadeSlideRoute(page: page));
   }
 
   void _openShellTab(MoodiaryTab tab, {bool fromSidebar = false}) {
-    setState(() => _sidebarOpen = false);
+    _setSidebarOpen(false);
     final onShellTabSelected = widget.onShellTabSelected;
     if (onShellTabSelected != null) {
-      onShellTabSelected(tab, fromSidebar: fromSidebar);
+      onShellTabSelected(tab, fromSidebar: false);
       return;
     }
     Navigator.of(context).pushAndRemoveUntil(
@@ -306,7 +314,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           companionName: _companionName,
           initialProfileAvatarUrl: _selectedAvatarDataUrl ?? _currentAvatarUrl,
           initialTab: tab,
-          initialHideTopNav: fromSidebar,
+          initialHideTopNav: false,
         ),
       ),
       (_) => false,
@@ -411,7 +419,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                 Row(
                   children: [
                     IconButton(
-                      onPressed: () => setState(() => _sidebarOpen = true),
+                      onPressed: () => _setSidebarOpen(true),
                       icon: Icon(Icons.menu, color: primaryText, size: 26),
                       tooltip: 'Open menu',
                     ),
@@ -1216,7 +1224,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           ),
           if (_sidebarOpen)
             GestureDetector(
-              onTap: () => setState(() => _sidebarOpen = false),
+              onTap: () => _setSidebarOpen(false),
               child: Container(color: context.mdOverlayBarrier),
             ),
           AnimatedPositioned(
@@ -1229,15 +1237,14 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             child: AppSidebar(
               userName: _currentUserName,
               activeSection: SidebarSection.userProfile,
-              onClose: () => setState(() => _sidebarOpen = false),
+              onClose: () => _setSidebarOpen(false),
               onNavigateHome: () => _openShellTab(MoodiaryTab.home),
-              onNavigateUserProfile: () => setState(() => _sidebarOpen = false),
+              onNavigateUserProfile: () => _setSidebarOpen(false),
               onNavigateCalendar: () => _openScreen(
                 CalendarScreen(
                   userName: _currentUserName,
                   companionId: _companionId,
                   companionName: _companionName,
-                  showTopNav: false,
                 ),
               ),
               onNavigateJournal: () => _openScreen(
@@ -1245,22 +1252,17 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   userName: _currentUserName,
                   companionId: _companionId,
                   companionName: _companionName,
-                  showTopNav: false,
                 ),
               ),
-              onNavigateFriends: () =>
-                  _openShellTab(MoodiaryTab.buddies, fromSidebar: true),
-              onNavigateForums: () =>
-                  _openShellTab(MoodiaryTab.forums, fromSidebar: true),
-              onNavigateResources: () =>
-                  _openShellTab(MoodiaryTab.resources, fromSidebar: true),
-              onNavigateSettings: () => _openScreen(
-                SettingsScreen(userName: _currentUserName, showAppBar: false),
-              ),
+              onNavigateFriends: () => _openShellTab(MoodiaryTab.buddies),
+              onNavigateForums: () => _openShellTab(MoodiaryTab.forums),
+              onNavigateResources: () => _openShellTab(MoodiaryTab.resources),
+              onNavigateSettings: () =>
+                  _openScreen(SettingsScreen(userName: _currentUserName)),
               onChangeCompanion: () =>
                   _openScreen(CompanionScreen(userName: _currentUserName)),
               onLogout: () {
-                setState(() => _sidebarOpen = false);
+                _setSidebarOpen(false);
                 _logout();
               },
             ),

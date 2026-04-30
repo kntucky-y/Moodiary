@@ -26,6 +26,7 @@ class ResourcesScreen extends StatefulWidget {
   final String companionName;
   final ShellTabSelector? onShellTabSelected;
   final bool showTopNav;
+  final ShellNavVisibilitySetter? onShellNavVisibilityChanged;
 
   const ResourcesScreen({
     super.key,
@@ -34,6 +35,7 @@ class ResourcesScreen extends StatefulWidget {
     required this.companionName,
     this.onShellTabSelected,
     this.showTopNav = true,
+    this.onShellNavVisibilityChanged,
   });
 
   @override
@@ -306,9 +308,15 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
     return '${weekdays[now.weekday - 1]}, ${months[now.month - 1]} ${now.day}';
   }
 
-  void _openSidebar() => setState(() => _sidebarOpen = true);
+  void _setSidebarOpen(bool open) {
+    if (_sidebarOpen == open) return;
+    setState(() => _sidebarOpen = open);
+    widget.onShellNavVisibilityChanged?.call(open);
+  }
 
-  void _closeSidebar() => setState(() => _sidebarOpen = false);
+  void _openSidebar() => _setSidebarOpen(true);
+
+  void _closeSidebar() => _setSidebarOpen(false);
 
   void _openScreen(Widget page) {
     _closeSidebar();
@@ -319,7 +327,7 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
     _closeSidebar();
     final onShellTabSelected = widget.onShellTabSelected;
     if (onShellTabSelected != null) {
-      onShellTabSelected(tab, fromSidebar: fromSidebar);
+      onShellTabSelected(tab, fromSidebar: false);
       return;
     }
     Navigator.of(context).pushAndRemoveUntil(
@@ -329,7 +337,7 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
           companionId: widget.companionId,
           companionName: widget.companionName,
           initialTab: tab,
-          initialHideTopNav: fromSidebar,
+          initialHideTopNav: false,
         ),
       ),
       (_) => false,
@@ -1184,14 +1192,12 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
               activeSection: SidebarSection.resources,
               onClose: _closeSidebar,
               onNavigateHome: () => _openShellTab(MoodiaryTab.home),
-              onNavigateUserProfile: () =>
-                  _openShellTab(MoodiaryTab.profile, fromSidebar: true),
+              onNavigateUserProfile: () => _openShellTab(MoodiaryTab.profile),
               onNavigateCalendar: () => _openScreen(
                 CalendarScreen(
                   userName: widget.userName,
                   companionId: widget.companionId,
                   companionName: widget.companionName,
-                  showTopNav: false,
                 ),
               ),
               onNavigateJournal: () => _openScreen(
@@ -1199,17 +1205,13 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
                   userName: widget.userName,
                   companionId: widget.companionId,
                   companionName: widget.companionName,
-                  showTopNav: false,
                 ),
               ),
-              onNavigateFriends: () =>
-                  _openShellTab(MoodiaryTab.buddies, fromSidebar: true),
-              onNavigateForums: () =>
-                  _openShellTab(MoodiaryTab.forums, fromSidebar: true),
+              onNavigateFriends: () => _openShellTab(MoodiaryTab.buddies),
+              onNavigateForums: () => _openShellTab(MoodiaryTab.forums),
               onNavigateResources: _closeSidebar,
-              onNavigateSettings: () => _openScreen(
-                SettingsScreen(userName: widget.userName, showAppBar: false),
-              ),
+              onNavigateSettings: () =>
+                  _openScreen(SettingsScreen(userName: widget.userName)),
               onChangeCompanion: () =>
                   _openScreen(CompanionScreen(userName: widget.userName)),
               onLogout: _logout,

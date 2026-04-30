@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:math' show Random;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -22,124 +21,6 @@ import '../../utils/avatar_utils.dart';
 import '../../utils/streak_utils.dart';
 
 const _kPurple = Color(0xFFA076F9);
-
-// ─── Task pool — 3 are picked randomly every day ─────────────────────────────
-const _taskPool = [
-  _MoodTask(
-    id: 'water',
-    title: 'Drink Enough Water',
-    description:
-        'Staying hydrated is crucial for brain function. Dehydration impairs concentration, memory, and mood. Drink at least 8 glasses today.',
-    points: 10,
-    asset: 'assets/water.png',
-  ),
-  _MoodTask(
-    id: 'reading',
-    title: 'Keep Reading',
-    description:
-        'Reading for 20 minutes lowers your heart rate and reduces cortisol. It builds vocabulary, empathy, and a steady sense of calm.',
-    points: 15,
-    asset: 'assets/reading.png',
-  ),
-  _MoodTask(
-    id: 'meditate',
-    title: 'Try Meditation',
-    description:
-        'Just 5 minutes of focused breathing activates your parasympathetic nervous system, reducing anxiety and improving emotional regulation.',
-    points: 15,
-    asset: 'assets/meditation.png',
-  ),
-  _MoodTask(
-    id: 'walk',
-    title: 'Take a 10-Minute Walk',
-    description:
-        'A brisk walk boosts serotonin and endorphins. Even a short stroll outside can lift your mood for hours afterwards.',
-    points: 10,
-    icon: Icons.directions_walk_rounded,
-    iconColor: Color(0xFF2563EB),
-    iconBackground: Color(0xFFE0F2FE),
-  ),
-  _MoodTask(
-    id: 'gratitude',
-    title: 'Write 3 Gratitudes',
-    description:
-        'Journaling what you\'re grateful for rewires your brain toward positivity. Try to be specific — small moments count the most.',
-    points: 15,
-    icon: Icons.favorite_border_rounded,
-    iconColor: Color(0xFFEA580C),
-    iconBackground: Color(0xFFFFEDD5),
-  ),
-  _MoodTask(
-    id: 'breathe',
-    title: 'Practice Deep Breathing',
-    description:
-        'Try the 4-7-8 technique: inhale for 4 seconds, hold for 7, exhale for 8. Repeat 3 times to calm your nervous system almost instantly.',
-    points: 10,
-    icon: Icons.air_rounded,
-    iconColor: Color(0xFF0EA5E9),
-    iconBackground: Color(0xFFE0F2FE),
-  ),
-  _MoodTask(
-    id: 'stretch',
-    title: 'Stretch for 5 Minutes',
-    description:
-        'Gentle stretching relieves built-up muscle tension and improves blood flow to the brain, making it easier to focus and feel at ease.',
-    points: 5,
-    icon: Icons.accessibility_new_rounded,
-    iconColor: Color(0xFF16A34A),
-    iconBackground: Color(0xFFDCFCE7),
-  ),
-  _MoodTask(
-    id: 'sleep',
-    title: 'Protect Your Sleep',
-    description:
-        'Even one extra hour of sleep dramatically improves emotion regulation, memory consolidation, and next-day energy. Guard your bedtime.',
-    points: 20,
-    icon: Icons.bedtime_rounded,
-    iconColor: Color(0xFF7C3AED),
-    iconBackground: Color(0xFFEDE9FE),
-  ),
-  _MoodTask(
-    id: 'screen',
-    title: 'Take a Screen Break',
-    description:
-        'Step away from all screens for 15 minutes. Look at something at least 6 metres away to rest your eyes and quiet your mind.',
-    points: 10,
-    icon: Icons.phonelink_off_rounded,
-    iconColor: Color(0xFF6366F1),
-    iconBackground: Color(0xFFE0E7FF),
-  ),
-  _MoodTask(
-    id: 'music',
-    title: 'Listen to Calming Music',
-    description:
-        'Music around 60 BPM can induce alpha brainwaves associated with relaxed alertness. Put on a gentle playlist and just breathe.',
-    points: 5,
-    icon: Icons.music_note_rounded,
-    iconColor: Color(0xFFDB2777),
-    iconBackground: Color(0xFFFCE7F3),
-  ),
-  _MoodTask(
-    id: 'connect',
-    title: 'Reach Out to Someone',
-    description:
-        'Send a kind message to a friend or family member. Social connection is one of the strongest predictors of long-term mental wellbeing.',
-    points: 15,
-    icon: Icons.chat_bubble_rounded,
-    iconColor: Color(0xFF3B82F6),
-    iconBackground: Color(0xFFE0F2FE),
-  ),
-  _MoodTask(
-    id: 'meal',
-    title: 'Prepare a Healthy Meal',
-    description:
-        'What you eat directly shapes your mood via the gut-brain axis. Prepare something colourful and nutritious — even a simple salad counts.',
-    points: 20,
-    icon: Icons.restaurant_menu,
-    iconColor: Color(0xFFDC2626),
-    iconBackground: Color(0xFFFFE4E6),
-  ),
-];
 
 const _moods = [
   _Mood('Terrible', 'assets/terrible.png'),
@@ -575,26 +456,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     }
   }
 
-  /// Generates deterministic fallback tasks from the premade pool.
-  /// Only used when the AI API fails or returns no tasks.
-  List<_MoodTask> _buildFallbackTasks() {
-    final today = _dateKey();
-    final parts = today.split('-');
-    final seed =
-        int.parse(parts[0]) * 10000 +
-        int.parse(parts[1]) * 100 +
-        int.parse(parts[2]);
-    final rng = Random(seed);
-    final all = List.generate(_taskPool.length, (i) => i);
-    for (int i = all.length - 1; i > 0; i--) {
-      final j = rng.nextInt(i + 1);
-      final tmp = all[i];
-      all[i] = all[j];
-      all[j] = tmp;
-    }
-    return all.take(3).map((i) => _taskPool[i]).toList();
-  }
-
   Future<void> _loadAiInsights() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_kAiInsightsCacheKey);
@@ -619,17 +480,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final isFresh =
         ts != null && nowMs - ts < _kAiInsightsCacheTtl.inMilliseconds;
     if (isFresh) {
-      // If the insights cache is fresh but contained no AI tasks,
-      // fall back to pool tasks so the UI doesn't stay on the loading state.
-      if (_tasksLoading && _todayTasks.isEmpty) {
-        final fallback = _buildFallbackTasks();
-        if (mounted) {
-          setState(() {
-            _todayTasks = fallback;
-            _completedStates = List<bool>.filled(fallback.length, false);
-            _tasksLoading = false;
-          });
-        }
+      if (_tasksLoading && _todayTasks.isEmpty && mounted) {
+        setState(() => _tasksLoading = false);
       }
       return;
     }
@@ -640,7 +492,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token');
     if (token == null) {
-      if (mounted) setState(() => _insightsLoading = false);
+      if (mounted) {
+        setState(() {
+          _insightsLoading = false;
+          _tasksLoading = false;
+        });
+      }
       return;
     }
 
@@ -665,16 +522,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       final aiTasks = _decodeAiTasks(payload['tasks'] as List<dynamic>?);
       if (aiTasks.isNotEmpty) {
         await _applyAiTasks(aiTasks, resetProgress: false);
-      } else if (_tasksLoading && _todayTasks.isEmpty) {
-        // AI returned no tasks — fall back to pool tasks
-        final fallback = _buildFallbackTasks();
-        if (mounted) {
-          setState(() {
-            _todayTasks = fallback;
-            _completedStates = List<bool>.filled(fallback.length, false);
-            _tasksLoading = false;
-          });
-        }
+      } else if (_tasksLoading && _todayTasks.isEmpty && mounted) {
+        setState(() => _tasksLoading = false);
       }
       if (!mounted) return;
       setState(() {
@@ -683,22 +532,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       });
     } catch (e) {
       if (!mounted) return;
-      // If tasks are still loading (no AI tasks yet), fall back to pool tasks
-      if (_tasksLoading && _todayTasks.isEmpty) {
-        final fallback = _buildFallbackTasks();
-        setState(() {
-          _todayTasks = fallback;
-          _completedStates = List<bool>.filled(fallback.length, false);
+      setState(() {
+        if (_tasksLoading && _todayTasks.isEmpty) {
           _tasksLoading = false;
-          _insightsError = e.toString();
-          _insightsLoading = false;
-        });
-      } else {
-        setState(() {
-          _insightsError = e.toString();
-          _insightsLoading = false;
-        });
-      }
+        }
+        _insightsError = e.toString();
+        _insightsLoading = false;
+      });
     }
   }
 
@@ -1088,7 +928,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     setState(() => _sidebarOpen = false);
     final onShellTabSelected = widget.onShellTabSelected;
     if (onShellTabSelected != null) {
-      onShellTabSelected(tab, fromSidebar: fromSidebar);
+      onShellTabSelected(tab, fromSidebar: false);
       return;
     }
     Navigator.of(context).pushAndRemoveUntil(
@@ -1098,7 +938,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           companionId: widget.companionId,
           companionName: widget.companionName,
           initialTab: tab,
-          initialHideTopNav: fromSidebar,
+          initialHideTopNav: false,
         ),
       ),
       (_) => false,
@@ -1482,8 +1322,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           ],
                         ),
                         const SizedBox(height: 12),
-                        if (_tasksLoading || _todayTasks.isEmpty)
+                        if (_tasksLoading)
                           _TasksLoadingIndicator()
+                        else if (_todayTasks.isEmpty)
+                          _AiTasksEmptyState(onRetry: _fetchAiInsights)
                         else
                           LayoutBuilder(
                             builder: (context, constraints) {
@@ -1540,8 +1382,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               activeSection: SidebarSection.home,
               onClose: () => setState(() => _sidebarOpen = false),
               onNavigateHome: () => setState(() => _sidebarOpen = false),
-              onNavigateUserProfile: () =>
-                  _openShellTab(MoodiaryTab.profile, fromSidebar: true),
+              onNavigateUserProfile: () => _openShellTab(MoodiaryTab.profile),
               onNavigateCalendar: () {
                 setState(() => _sidebarOpen = false);
                 Navigator.of(context).push(
@@ -1550,7 +1391,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       userName: widget.userName,
                       companionId: widget.companionId,
                       companionName: widget.companionName,
-                      showTopNav: false,
                     ),
                   ),
                 );
@@ -1563,25 +1403,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       userName: widget.userName,
                       companionId: widget.companionId,
                       companionName: widget.companionName,
-                      showTopNav: false,
                     ),
                   ),
                 );
               },
-              onNavigateFriends: () =>
-                  _openShellTab(MoodiaryTab.buddies, fromSidebar: true),
-              onNavigateForums: () =>
-                  _openShellTab(MoodiaryTab.forums, fromSidebar: true),
-              onNavigateResources: () =>
-                  _openShellTab(MoodiaryTab.resources, fromSidebar: true),
+              onNavigateFriends: () => _openShellTab(MoodiaryTab.buddies),
+              onNavigateForums: () => _openShellTab(MoodiaryTab.forums),
+              onNavigateResources: () => _openShellTab(MoodiaryTab.resources),
               onNavigateSettings: () {
                 setState(() => _sidebarOpen = false);
                 Navigator.of(context).push(
                   FadeSlideRoute(
-                    page: SettingsScreen(
-                      userName: widget.userName,
-                      showAppBar: false,
-                    ),
+                    page: SettingsScreen(userName: widget.userName),
                   ),
                 );
               },
@@ -2402,6 +2235,46 @@ class _TasksLoadingIndicator extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _AiTasksEmptyState extends StatelessWidget {
+  final VoidCallback onRetry;
+  const _AiTasksEmptyState({required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    final subtleText = context.mdSecondaryText;
+    return GlassContainer(
+      blurSigma: context.mdGlassBlurMedium,
+      backgroundColor: context.mdGlassSurface,
+      borderColor: context.mdGlassBorder,
+      borderRadius: BorderRadius.circular(18),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          Text(
+            'No AI tasks yet.',
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              color: context.mdPrimaryText,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Refresh AI Insights to generate new tasks based on your latest data.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12, color: subtleText),
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: onRetry,
+            icon: const Icon(Icons.refresh_rounded, size: 18),
+            label: const Text('Retry'),
+          ),
+        ],
+      ),
     );
   }
 }
