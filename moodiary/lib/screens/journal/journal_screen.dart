@@ -16,6 +16,7 @@ import '../../utils/transitions.dart';
 import '../../widgets/app_sidebar.dart';
 import '../../widgets/glass.dart';
 import '../../theme/moodiary_colors.dart';
+import '../../utils/route_observer.dart';
 
 const _kPurple = Color(0xFFA076F9);
 const _kSubtle = Color(0xFF8A8A8D);
@@ -78,7 +79,7 @@ class JournalScreen extends StatefulWidget {
   State<JournalScreen> createState() => _JournalScreenState();
 }
 
-class _JournalScreenState extends State<JournalScreen> {
+class _JournalScreenState extends State<JournalScreen> with RouteAware {
   List<_JournalEntry> _activeEntries = [];
   List<_JournalEntry> _archivedEntries = [];
   bool _loading = true;
@@ -96,10 +97,39 @@ class _JournalScreenState extends State<JournalScreen> {
     _init();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route is PageRoute) {
+      routeObserver.subscribe(this, route);
+    }
+  }
+
+  @override
+  void dispose() {
+    routeObserver.unsubscribe(this);
+    super.dispose();
+  }
+
+  @override
+  void didPopNext() {
+    _refreshEntries();
+  }
+
   Future<void> _init() async {
     final prefs = await SharedPreferences.getInstance();
     _token = prefs.getString('token');
     await _fetchEntries(archived: false, force: true);
+  }
+
+  Future<void> _refreshEntries() async {
+    _activeLoaded = false;
+    _archivedLoaded = false;
+    await _fetchEntries(archived: false, force: true);
+    if (_showArchived) {
+      await _fetchEntries(archived: true, force: true);
+    }
   }
 
   Future<void> _fetchEntries({

@@ -17,6 +17,7 @@ import '../../services/realtime_notifications.dart';
 import '../../services/theme_controller.dart';
 import '../../theme/moodiary_colors.dart';
 import '../../widgets/glass.dart';
+import '../../utils/route_observer.dart';
 
 const _kPurple = Color(0xFFA076F9);
 const _kSubtle = Color(0xFF8A8A8D);
@@ -158,7 +159,7 @@ class CalendarScreen extends StatefulWidget {
   State<CalendarScreen> createState() => _CalendarScreenState();
 }
 
-class _CalendarScreenState extends State<CalendarScreen> {
+class _CalendarScreenState extends State<CalendarScreen> with RouteAware {
   DateTime _displayMonth = DateTime(DateTime.now().year, DateTime.now().month);
   final Map<String, _MoodLog> _logs = {};
   bool _loading = true;
@@ -171,6 +172,26 @@ class _CalendarScreenState extends State<CalendarScreen> {
     _init();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route is PageRoute) {
+      routeObserver.subscribe(this, route);
+    }
+  }
+
+  @override
+  void dispose() {
+    routeObserver.unsubscribe(this);
+    super.dispose();
+  }
+
+  @override
+  void didPopNext() {
+    _refreshLogs();
+  }
+
   Future<void> _init() async {
     final prefs = await SharedPreferences.getInstance();
     _token = prefs.getString('token');
@@ -178,6 +199,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
     // Load from local cache instantly, then refresh from DB in background
     _loadFromCache(prefs);
     _fetchLogs(prefs);
+  }
+
+  Future<void> _refreshLogs() async {
+    final prefs = await SharedPreferences.getInstance();
+    _loadFromCache(prefs);
+    await _fetchLogs(prefs);
   }
 
   void _loadFromCache(SharedPreferences prefs) {

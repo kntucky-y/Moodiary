@@ -17,6 +17,7 @@ import 'theme/moodiary_colors.dart';
 import 'utils/transitions.dart';
 import 'utils/in_app_notifications.dart';
 import 'utils/user_cache.dart';
+import 'utils/route_observer.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -84,6 +85,7 @@ class MoodiaryApp extends StatelessWidget {
           navigatorKey: _rootNavigatorKey,
           title: 'Moodiary',
           debugShowCheckedModeBanner: false,
+          navigatorObservers: [routeObserver],
           themeMode: mode,
           theme: _buildLightTheme(),
           darkTheme: _buildDarkTheme(),
