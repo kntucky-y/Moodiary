@@ -105,11 +105,36 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
     await Future.wait([_loadResources(), _bootstrapNearbyClinics()]);
   }
 
+  Uri? _normalizeUrl(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) return null;
+    final withScheme =
+        trimmed.startsWith('http://') || trimmed.startsWith('https://')
+        ? trimmed
+        : 'https://$trimmed';
+    return Uri.tryParse(withScheme);
+  }
+
+  void _showLaunchError() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Unable to open that link right now.')),
+    );
+  }
+
   Future<void> _launchUrl(String url) async {
-    if (url.trim().isEmpty) return;
-    final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    final uri = _normalizeUrl(url);
+    if (uri == null) return;
+    try {
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!launched) {
+        _showLaunchError();
+      }
+    } catch (_) {
+      _showLaunchError();
     }
   }
 

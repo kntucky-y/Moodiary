@@ -189,28 +189,50 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 children: [
                   Text('Theme', style: theme.textTheme.titleMedium),
                   const SizedBox(height: 12),
-                  SegmentedButton<ThemeMode>(
-                    showSelectedIcon: false,
-                    segments: const [
-                      ButtonSegment(
-                        value: ThemeMode.system,
-                        icon: Icon(Icons.phone_iphone_outlined),
-                        label: Text('System'),
-                      ),
-                      ButtonSegment(
-                        value: ThemeMode.light,
-                        icon: Icon(Icons.wb_sunny_outlined),
-                        label: Text('Light'),
-                      ),
-                      ButtonSegment(
-                        value: ThemeMode.dark,
-                        icon: Icon(Icons.nightlight_round),
-                        label: Text('Dark'),
-                      ),
-                    ],
-                    selected: <ThemeMode>{_themeMode},
-                    onSelectionChanged: (selection) =>
-                        _updateTheme(selection.first),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isCompact = constraints.maxWidth < 360;
+                      final labelStyle = TextStyle(
+                        fontSize: isCompact ? 12 : 14,
+                        fontWeight: FontWeight.w600,
+                      );
+                      final iconSize = isCompact ? 18.0 : 20.0;
+                      return SegmentedButton<ThemeMode>(
+                        showSelectedIcon: false,
+                        style: ButtonStyle(
+                          padding: WidgetStateProperty.all(
+                            EdgeInsets.symmetric(
+                              horizontal: isCompact ? 8 : 12,
+                              vertical: isCompact ? 6 : 10,
+                            ),
+                          ),
+                          textStyle: WidgetStateProperty.all(labelStyle),
+                        ),
+                        segments: [
+                          ButtonSegment(
+                            value: ThemeMode.system,
+                            icon: Icon(
+                              Icons.phone_iphone_outlined,
+                              size: iconSize,
+                            ),
+                            label: Text(isCompact ? 'Sys' : 'System'),
+                          ),
+                          ButtonSegment(
+                            value: ThemeMode.light,
+                            icon: Icon(Icons.wb_sunny_outlined, size: iconSize),
+                            label: Text('Light'),
+                          ),
+                          ButtonSegment(
+                            value: ThemeMode.dark,
+                            icon: Icon(Icons.nightlight_round, size: iconSize),
+                            label: Text('Dark'),
+                          ),
+                        ],
+                        selected: <ThemeMode>{_themeMode},
+                        onSelectionChanged: (selection) =>
+                            _updateTheme(selection.first),
+                      );
+                    },
                   ),
                 ],
               ),

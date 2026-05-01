@@ -152,19 +152,25 @@ class _MoodiaryShellState extends State<MoodiaryShell> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final media = MediaQuery.of(context);
+    final width = media.size.width;
     final horizontalInset = media.size.width >= 1000
         ? 32.0
         : media.size.width >= 700
         ? 24.0
         : 22.0;
     final bottomInset = media.padding.bottom > 0 ? 4.0 : 8.0;
-    final navInnerHorizontalInset = media.size.width >= 1000
+    final navInnerHorizontalInset = width >= 1000
         ? 180.0
-        : media.size.width >= 800
+        : width >= 800
         ? 120.0
-        : media.size.width >= 600
+        : width >= 600
         ? 72.0
-        : 28.0;
+        : width >= 380
+        ? 28.0
+        : 12.0;
+    final labelBehavior = width < 380
+        ? NavigationDestinationLabelBehavior.alwaysHide
+        : NavigationDestinationLabelBehavior.onlyShowSelected;
 
     return Scaffold(
       extendBody: true,
@@ -203,8 +209,7 @@ class _MoodiaryShellState extends State<MoodiaryShell> {
                   backgroundColor: Colors.transparent,
                   indicatorColor: cs.primaryContainer.withValues(alpha: 0.56),
                   elevation: 0,
-                  labelBehavior:
-                      NavigationDestinationLabelBehavior.onlyShowSelected,
+                  labelBehavior: labelBehavior,
                   destinations: const [
                     NavigationDestination(
                       icon: Icon(Icons.account_circle_outlined),
