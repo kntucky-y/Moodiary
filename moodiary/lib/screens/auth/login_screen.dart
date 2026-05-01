@@ -191,6 +191,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     final primaryText = context.mdPrimaryText;
     final subtleText = context.mdSecondaryText;
+    final viewPadding = MediaQuery.of(context).padding;
 
     return Scaffold(
       backgroundColor: context.mdScaffold,
@@ -209,219 +210,260 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
           // Scrollable content
           SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 28),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 72),
-                  // Title
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 300),
-                    child: _isLogin
-                        ? RichText(
-                            key: const ValueKey('login-title'),
-                            text: TextSpan(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final topInset = constraints.maxHeight < 700 ? 48.0 : 72.0;
+                final sectionGap = constraints.maxHeight < 700 ? 28.0 : 36.0;
+                return Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 420),
+                    child: SingleChildScrollView(
+                      keyboardDismissBehavior:
+                          ScrollViewKeyboardDismissBehavior.onDrag,
+                      padding: EdgeInsets.fromLTRB(
+                        28,
+                        topInset,
+                        28,
+                        24 + viewPadding.bottom,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Title
+                          AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 300),
+                            child: _isLogin
+                                ? RichText(
+                                    key: const ValueKey('login-title'),
+                                    text: TextSpan(
+                                      style: TextStyle(
+                                        fontSize: 34,
+                                        fontWeight: FontWeight.bold,
+                                        color: primaryText,
+                                      ),
+                                      children: const [
+                                        TextSpan(text: 'Log '),
+                                        TextSpan(
+                                          text: 'I',
+                                          style: TextStyle(
+                                            color: Color(0xFF4A90D9),
+                                          ),
+                                        ),
+                                        TextSpan(text: 'n'),
+                                      ],
+                                    ),
+                                  )
+                                : RichText(
+                                    key: const ValueKey('signup-title'),
+                                    text: TextSpan(
+                                      style: TextStyle(
+                                        fontSize: 34,
+                                        fontWeight: FontWeight.bold,
+                                        color: primaryText,
+                                      ),
+                                      children: const [
+                                        TextSpan(text: 'Sign '),
+                                        TextSpan(
+                                          text: 'U',
+                                          style: TextStyle(
+                                            color: Color(0xFF5DB87A),
+                                          ),
+                                        ),
+                                        TextSpan(text: 'p'),
+                                      ],
+                                    ),
+                                  ),
+                          ),
+                          SizedBox(height: sectionGap),
+                          // Email field (shared)
+                          Text(
+                            'Your Email',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: primaryText,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: _emailController,
+                            keyboardType: TextInputType.emailAddress,
+                            style: TextStyle(color: primaryText),
+                            decoration: _fieldDecoration(
+                              context,
+                              'Enter your email',
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          // Name field (signup only)
+                          if (!_isLogin) ...[
+                            Text(
+                              'Name',
                               style: TextStyle(
-                                fontSize: 34,
-                                fontWeight: FontWeight.bold,
-                                color: primaryText,
-                              ),
-                              children: const [
-                                TextSpan(text: 'Log '),
-                                TextSpan(
-                                  text: 'I',
-                                  style: TextStyle(color: Color(0xFF4A90D9)),
-                                ),
-                                TextSpan(text: 'n'),
-                              ],
-                            ),
-                          )
-                        : RichText(
-                            key: const ValueKey('signup-title'),
-                            text: TextSpan(
-                              style: TextStyle(
-                                fontSize: 34,
-                                fontWeight: FontWeight.bold,
-                                color: primaryText,
-                              ),
-                              children: const [
-                                TextSpan(text: 'Sign '),
-                                TextSpan(
-                                  text: 'U',
-                                  style: TextStyle(color: Color(0xFF5DB87A)),
-                                ),
-                                TextSpan(text: 'p'),
-                              ],
-                            ),
-                          ),
-                  ),
-                  const SizedBox(height: 36),
-                  // Email field (shared)
-                  Text(
-                    'Your Email',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: primaryText,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    style: TextStyle(color: primaryText),
-                    decoration: _fieldDecoration(context, 'Enter your email'),
-                  ),
-                  const SizedBox(height: 24),
-                  // Name field (signup only)
-                  if (!_isLogin) ...[
-                    Text(
-                      'Name',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: primaryText,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      style: TextStyle(color: primaryText),
-                      decoration: _fieldDecoration(context, 'Enter your name'),
-                      controller: _nameController,
-                    ),
-                    const SizedBox(height: 24),
-                  ],
-                  // Password label
-                  if (_isLogin)
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Password',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: primaryText,
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: _showForgotPasswordSheet,
-                          style: TextButton.styleFrom(
-                            padding: EdgeInsets.zero,
-                            minimumSize: Size.zero,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                          child: Text(
-                            'Forgot password?',
-                            style: TextStyle(fontSize: 13, color: subtleText),
-                          ),
-                        ),
-                      ],
-                    )
-                  else
-                    Text(
-                      'Password',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: primaryText,
-                      ),
-                    ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _passwordController,
-                    style: TextStyle(color: primaryText),
-                    obscureText: _isLogin
-                        ? _obscurePassword
-                        : _obscurePasswordSignup,
-                    decoration:
-                        _fieldDecoration(
-                          context,
-                          _isLogin
-                              ? 'Enter your password'
-                              : 'Create a password',
-                        ).copyWith(
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              (_isLogin
-                                      ? _obscurePassword
-                                      : _obscurePasswordSignup)
-                                  ? Icons.visibility_off_outlined
-                                  : Icons.visibility_outlined,
-                              color: subtleText,
-                              size: 20,
-                            ),
-                            onPressed: () => setState(() {
-                              if (_isLogin) {
-                                _obscurePassword = !_obscurePassword;
-                              } else {
-                                _obscurePasswordSignup =
-                                    !_obscurePasswordSignup;
-                              }
-                            }),
-                          ),
-                        ),
-                  ),
-                  const SizedBox(height: 36),
-                  // Submit button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 54,
-                    child: ElevatedButton(
-                      onPressed: _isLoading ? null : _submit,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF2C2C2C),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(50),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: _isLoading
-                          ? const SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2.5,
-                              ),
-                            )
-                          : Text(
-                              _isLogin ? 'Log in' : 'Sign up',
-                              style: const TextStyle(
-                                fontSize: 16,
+                                fontSize: 14,
                                 fontWeight: FontWeight.w600,
+                                color: primaryText,
                               ),
                             ),
+                            const SizedBox(height: 8),
+                            TextField(
+                              style: TextStyle(color: primaryText),
+                              decoration: _fieldDecoration(
+                                context,
+                                'Enter your name',
+                              ),
+                              controller: _nameController,
+                            ),
+                            const SizedBox(height: 24),
+                          ],
+                          // Password label
+                          if (_isLogin)
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Password',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: primaryText,
+                                  ),
+                                ),
+                                TextButton(
+                                  onPressed: _showForgotPasswordSheet,
+                                  style: TextButton.styleFrom(
+                                    padding: EdgeInsets.zero,
+                                    minimumSize: Size.zero,
+                                    tapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                  child: Text(
+                                    'Forgot password?',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: subtleText,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            )
+                          else
+                            Text(
+                              'Password',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: primaryText,
+                              ),
+                            ),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: _passwordController,
+                            style: TextStyle(color: primaryText),
+                            obscureText: _isLogin
+                                ? _obscurePassword
+                                : _obscurePasswordSignup,
+                            decoration:
+                                _fieldDecoration(
+                                  context,
+                                  _isLogin
+                                      ? 'Enter your password'
+                                      : 'Create a password',
+                                ).copyWith(
+                                  suffixIcon: IconButton(
+                                    icon: Icon(
+                                      (_isLogin
+                                              ? _obscurePassword
+                                              : _obscurePasswordSignup)
+                                          ? Icons.visibility_off_outlined
+                                          : Icons.visibility_outlined,
+                                      color: subtleText,
+                                      size: 20,
+                                    ),
+                                    onPressed: () => setState(() {
+                                      if (_isLogin) {
+                                        _obscurePassword = !_obscurePassword;
+                                      } else {
+                                        _obscurePasswordSignup =
+                                            !_obscurePasswordSignup;
+                                      }
+                                    }),
+                                  ),
+                                ),
+                          ),
+                          SizedBox(height: sectionGap),
+                          // Submit button
+                          SizedBox(
+                            width: double.infinity,
+                            height: 54,
+                            child: ElevatedButton(
+                              onPressed: _isLoading ? null : _submit,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF2C2C2C),
+                                disabledBackgroundColor: const Color(
+                                  0xFF2C2C2C,
+                                ),
+                                foregroundColor: Colors.white,
+                                disabledForegroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(50),
+                                ),
+                                elevation: 0,
+                              ),
+                              child: AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 200),
+                                child: _isLoading
+                                    ? const SizedBox(
+                                        key: ValueKey('loading'),
+                                        width: 22,
+                                        height: 22,
+                                        child: CircularProgressIndicator(
+                                          color: Colors.white,
+                                          strokeWidth: 2.5,
+                                        ),
+                                      )
+                                    : Text(
+                                        _isLogin ? 'Log in' : 'Sign up',
+                                        key: const ValueKey('label'),
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                              ),
+                            ),
+                          ),
+                          SizedBox(height: sectionGap),
+                          // Sign up link
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                _isLogin
+                                    ? "Don't have an account?  "
+                                    : 'Already have an account?  ',
+                                style: TextStyle(color: subtleText),
+                              ),
+                              GestureDetector(
+                                onTap: () =>
+                                    setState(() => _isLogin = !_isLogin),
+                                child: Text(
+                                  _isLogin ? 'Sign up' : 'Log in',
+                                  style: const TextStyle(
+                                    color: _kPurple,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 32),
+                        ],
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 36),
-                  // Sign up link
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        _isLogin
-                            ? "Don't have an account?  "
-                            : 'Already have an account?  ',
-                        style: TextStyle(color: subtleText),
-                      ),
-                      GestureDetector(
-                        onTap: () => setState(() => _isLogin = !_isLogin),
-                        child: Text(
-                          _isLogin ? 'Sign up' : 'Log in',
-                          style: const TextStyle(
-                            color: _kPurple,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 32),
-                ],
-              ),
+                );
+              },
             ),
           ),
           // Back button — must be last in Stack to receive touches
