@@ -22,8 +22,8 @@ const mbtiTestAttemptSchema = new mongoose.Schema(
       type: [Number],
       required: true,
       validate: {
-        validator: (value) => Array.isArray(value) && value.length === 60,
-        message: 'MBTI attempts must contain exactly 60 answers',
+        validator: (value) => Array.isArray(value) && value.length === 30,
+        message: 'MBTI attempts must contain exactly 30 answers',
       },
     },
     scores: {

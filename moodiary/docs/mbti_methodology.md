@@ -5,7 +5,7 @@ It is not the official licensed MBTI instrument.
 
 ## What We Implemented
 
-- 60 self-report Likert items (1 to 5)
+- 30 self-report Likert items (1 to 5)
 - Four dichotomies: E/I, S/N, T/F, J/P
 - Deterministic scoring from item responses
 - Deterministic MBTI-type to companion mapping

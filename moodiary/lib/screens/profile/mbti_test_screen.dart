@@ -403,6 +403,13 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
                 height: 1.4,
               ),
             ),
+            const SizedBox(height: 10),
+            Text(
+              'Dimension: ${question.dimension}',
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+            ),
             const SizedBox(height: 14),
             ...List.generate(5, (i) {
               final value = i + 1;
@@ -439,18 +446,7 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(_scaleLabels[i]),
-                              if (i == 0)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 4),
-                                  child: Text(
-                                    'Dimension: ${question.dimension}',
-                                    style: Theme.of(context).textTheme.bodySmall
-                                        ?.copyWith(color: cs.onSurfaceVariant),
-                                  ),
-                                ),
-                            ],
+                            children: [Text(_scaleLabels[i])],
                           ),
                         ),
                       ],
