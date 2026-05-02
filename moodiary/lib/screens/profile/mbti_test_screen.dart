@@ -90,6 +90,10 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
   }
 
   Future<void> _submit() async {
+    if (_submitting) {
+      return;
+    }
+
     setState(() {
       _submitting = true;
       _error = null;

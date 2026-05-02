@@ -11,6 +11,7 @@ const MbtiTestAttempt = require('../models/MbtiTestAttempt');
 const Friendship = require('../models/Friendship');
 const FriendRequest = require('../models/FriendRequest');
 const auth = require('../middleware/auth');
+const { createRateLimiter } = require('../middleware/rate_limit');
 const { scoreMbti } = require('../utils/mbti');
 const { getIO, emitNotification } = require('../socket');
 
@@ -124,6 +125,34 @@ const ensureOwnUser = (req, res) => {
   }
   return true;
 };
+
+const mbtiSubmitLimiter = createRateLimiter({
+  windowMs: 60 * 60 * 1000,
+  max: 3,
+  message: 'Too many MBTI submissions. Please try again in an hour.',
+  keyGenerator: (req) => `mbti:${req.userId || req.ip}`,
+});
+
+const profileUpdateLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: 'Too many profile updates. Please wait a moment and try again.',
+  keyGenerator: (req) => `profile:${req.userId || req.ip}`,
+});
+
+const userActionLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: 'Too many account actions. Please slow down and try again.',
+  keyGenerator: (req) => `user-action:${req.userId || req.ip}`,
+});
+
+const reportLimiter = createRateLimiter({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  message: 'Too many reports. Please try again later.',
+  keyGenerator: (req) => `report:${req.userId || req.ip}`,
+});
 
 function serializePublicPost(post) {
   return {
@@ -353,7 +382,7 @@ router.get('/search/suggested', auth, async (req, res) => {
 });
 
 // POST /api/users/:id/report - Report a user for moderation review
-router.post('/:id/report', auth, async (req, res) => {
+router.post('/:id/report', auth, reportLimiter, async (req, res) => {
   try {
     const { reason, details } = req.body;
     const targetUserId = req.params.id;
@@ -390,7 +419,7 @@ router.post('/:id/report', auth, async (req, res) => {
 });
 
 // POST /api/users/:id/mbti/submit - Submit MBTI answers and compute result
-router.post('/:id/mbti/submit', auth, async (req, res) => {
+router.post('/:id/mbti/submit', auth, mbtiSubmitLimiter, async (req, res) => {
   try {
     if (!ensureOwnUser(req, res)) {
       return;
@@ -475,7 +504,7 @@ router.get('/:id/mbti/history', auth, async (req, res) => {
 });
 
 // PATCH /api/users/:id - Update user profile (authenticated)
-router.patch('/:id', auth, async (req, res) => {
+router.patch('/:id', auth, profileUpdateLimiter, async (req, res) => {
   try {
     // Only allow users to update their own profile
     if (req.userId !== req.params.id) {
@@ -580,7 +609,7 @@ router.patch('/:id', auth, async (req, res) => {
 });
 
 // DELETE /api/users/:id - Delete account (authenticated)
-router.delete('/:id', auth, async (req, res) => {
+router.delete('/:id', auth, profileUpdateLimiter, async (req, res) => {
   try {
     // Only allow users to delete their own account
     if (req.userId !== req.params.id) {
@@ -616,7 +645,7 @@ router.delete('/:id', auth, async (req, res) => {
 });
 
 // POST /api/users/:id/block - Block user
-router.post('/:id/block', auth, async (req, res) => {
+router.post('/:id/block', auth, userActionLimiter, async (req, res) => {
   try {
     if (!ensureOwnUser(req, res)) {
       return;
@@ -693,7 +722,7 @@ router.post('/:id/block', auth, async (req, res) => {
 });
 
 // POST /api/users/:id/unblock - Unblock user
-router.post('/:id/unblock', auth, async (req, res) => {
+router.post('/:id/unblock', auth, userActionLimiter, async (req, res) => {
   try {
     if (!ensureOwnUser(req, res)) {
       return;
@@ -745,7 +774,7 @@ router.get('/:id/blocked', auth, async (req, res) => {
 });
 
 // POST /api/users/:id/mute - Mute user (chat + notifications)
-router.post('/:id/mute', auth, async (req, res) => {
+router.post('/:id/mute', auth, userActionLimiter, async (req, res) => {
   try {
     if (!ensureOwnUser(req, res)) {
       return;
@@ -796,7 +825,7 @@ router.post('/:id/mute', auth, async (req, res) => {
 });
 
 // POST /api/users/:id/unmute - Unmute user
-router.post('/:id/unmute', auth, async (req, res) => {
+router.post('/:id/unmute', auth, userActionLimiter, async (req, res) => {
   try {
     if (!ensureOwnUser(req, res)) {
       return;

@@ -1,7 +1,15 @@
 const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
+const { createRateLimiter } = require('../middleware/rate_limit');
 const MoodLog = require('../models/Mood');
+
+const moodWriteLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  message: 'Too many mood updates. Please slow down and try again.',
+  keyGenerator: (req) => `mood:${req.userId || req.ip}`,
+});
 
 // GET /api/moods — all logs for the authenticated user
 router.get('/', auth, async (req, res) => {
@@ -20,7 +28,7 @@ const MOOD_LEVEL_POINTS = [5, 10, 20, 35, 50];
 //   Home  sends: { dateKey, moodLevel }  or  { dateKey, taskScore }
 //   Calendar sends: { dateKey, moodLevel, activities, activityScore }
 //   Server always auto-computes moodLevelScore, moodScore, score.
-router.post('/', auth, async (req, res) => {
+router.post('/', auth, moodWriteLimiter, async (req, res) => {
   const { dateKey, moodLevel, activities, activityScore, taskScore } = req.body;
 
   if (!dateKey) {

@@ -2,9 +2,17 @@ const express = require('express');
 const mongoose = require('mongoose');
 
 const auth = require('../middleware/auth');
+const { createRateLimiter } = require('../middleware/rate_limit');
 const NotificationHistory = require('../models/NotificationHistory');
 
 const router = express.Router();
+
+const notificationWriteLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  message: 'Too many notification updates. Please try again later.',
+  keyGenerator: (req) => `notification:${req.userId || req.ip}`,
+});
 
 const serialize = (doc) => ({
   id: doc._id.toString(),
@@ -52,7 +60,7 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-router.post('/:id/read', auth, async (req, res) => {
+router.post('/:id/read', auth, notificationWriteLimiter, async (req, res) => {
   try {
     const { id } = req.params;
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -76,7 +84,7 @@ router.post('/:id/read', auth, async (req, res) => {
   }
 });
 
-router.post('/read-all', auth, async (req, res) => {
+router.post('/read-all', auth, notificationWriteLimiter, async (req, res) => {
   try {
     const result = await NotificationHistory.updateMany(
       { recipient: req.userId, isRead: false },
@@ -90,7 +98,7 @@ router.post('/read-all', auth, async (req, res) => {
   }
 });
 
-router.delete('/:id', auth, async (req, res) => {
+router.delete('/:id', auth, notificationWriteLimiter, async (req, res) => {
   try {
     const { id } = req.params;
     if (!mongoose.Types.ObjectId.isValid(id)) {

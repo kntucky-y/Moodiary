@@ -2,10 +2,18 @@ const express = require('express');
 const mongoose = require('mongoose');
 const router = express.Router();
 const auth = require('../middleware/auth');
+const { createRateLimiter } = require('../middleware/rate_limit');
 const ForumPost = require('../models/ForumPost');
 const User = require('../models/User');
 
 const DEFAULT_COMMENT_ASSET = 'assets/okay.png';
+
+const forumWriteLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  message: 'Too many forum actions. Please slow down and try again.',
+  keyGenerator: (req) => `forum:${req.userId || req.ip}`,
+});
 
 function toObjectId(id) {
   return new mongoose.Types.ObjectId(id);
@@ -65,7 +73,7 @@ router.get('/', auth, async (req, res) => {
 });
 
 // POST /api/forums — create a post
-router.post('/', auth, async (req, res) => {
+router.post('/', auth, forumWriteLimiter, async (req, res) => {
   const { title, content, isAnonymous, companionId } = req.body;
   if (!title || !content) {
     return res.status(400).json({ error: 'title and content are required' });
@@ -97,7 +105,7 @@ router.post('/', auth, async (req, res) => {
 });
 
 // POST /api/forums/:id/like — toggle heart
-router.post('/:id/like', auth, async (req, res) => {
+router.post('/:id/like', auth, forumWriteLimiter, async (req, res) => {
   try {
     const post = await ForumPost.findById(req.params.id);
     if (!post) return res.status(404).json({ error: 'Post not found' });
@@ -126,7 +134,7 @@ router.post('/:id/like', auth, async (req, res) => {
 });
 
 // POST /api/forums/:id/comments — add comment
-router.post('/:id/comments', auth, async (req, res) => {
+router.post('/:id/comments', auth, forumWriteLimiter, async (req, res) => {
   const { text, moodAsset, isAnonymous } = req.body;
   if (!text || !String(text).trim()) {
     return res.status(400).json({ error: 'text is required' });
@@ -161,7 +169,7 @@ router.post('/:id/comments', auth, async (req, res) => {
 });
 
 // POST /api/forums/:id/report — report a post
-router.post('/:id/report', auth, async (req, res) => {
+router.post('/:id/report', auth, forumWriteLimiter, async (req, res) => {
   const { reason, details } = req.body;
   if (!reason || !String(reason).trim()) {
     return res.status(400).json({ error: 'reason is required' });
@@ -194,7 +202,7 @@ router.post('/:id/report', auth, async (req, res) => {
 });
 
 // DELETE /api/forums/:id — soft delete (archive) own active post
-router.delete('/:id', auth, async (req, res) => {
+router.delete('/:id', auth, forumWriteLimiter, async (req, res) => {
   try {
     const post = await ForumPost.findOneAndUpdate(
       {
@@ -217,7 +225,7 @@ router.delete('/:id', auth, async (req, res) => {
 });
 
 // POST /api/forums/:id/recover — restore own archived post (likes/comments kept)
-router.post('/:id/recover', auth, async (req, res) => {
+router.post('/:id/recover', auth, forumWriteLimiter, async (req, res) => {
   try {
     const post = await ForumPost.findOneAndUpdate(
       {
@@ -240,7 +248,7 @@ router.post('/:id/recover', auth, async (req, res) => {
 });
 
 // DELETE /api/forums/:id/permanent — hard delete own archived post
-router.delete('/:id/permanent', auth, async (req, res) => {
+router.delete('/:id/permanent', auth, forumWriteLimiter, async (req, res) => {
   try {
     const post = await ForumPost.findOneAndDelete({
       _id: req.params.id,

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Groq = require('groq-sdk');
 const auth = require('../middleware/auth');
+const { createRateLimiter } = require('../middleware/rate_limit');
 const ChatHistory = require('../models/ChatHistory');
 
 if (!process.env.GROQ_API_KEY) {
@@ -10,6 +11,15 @@ if (!process.env.GROQ_API_KEY) {
 }
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+
+const chatLimiter = createRateLimiter({
+  windowMs: 10 * 60 * 1000,
+  max: 30,
+  message: 'Too many chat requests. Please slow down and try again.',
+  keyGenerator: (req) => `chat:${req.userId || req.ip}`,
+});
+
+router.use(auth, chatLimiter);
 
 const conciseStyleGuide =
   'Reply like a real human friend in 1-2 concise sentences. Keep it under 220 characters and under 34 words. Let your companion personality show through tone and phrasing, but stay focused. Avoid lists, disclaimers, and overly formal language. Ask at most one short follow-up question when it naturally fits.';
@@ -63,7 +73,7 @@ function normalizeReply(text) {
 }
 
 // GET /api/chat/:companionName — load saved history for this user + companion
-router.get('/:companionName', auth, async (req, res) => {
+router.get('/:companionName', async (req, res) => {
   try {
     const record = await ChatHistory.findOne({
       userId: req.userId,
@@ -76,7 +86,7 @@ router.get('/:companionName', auth, async (req, res) => {
 });
 
 // POST /api/chat — send a message, get a reply, save both to DB
-router.post('/', auth, async (req, res) => {
+router.post('/', async (req, res) => {
   const { companionName, message } = req.body;
 
   if (!message) {

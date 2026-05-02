@@ -1,6 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const auth = require('../middleware/auth');
+const { createRateLimiter } = require('../middleware/rate_limit');
 const User = require('../models/User');
 const FriendRequest = require('../models/FriendRequest');
 const Friendship = require('../models/Friendship');
@@ -14,6 +15,27 @@ const {
 const { getIO, emitNotification } = require('../socket');
 
 const router = express.Router();
+
+const friendRequestLimiter = createRateLimiter({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  message: 'Too many friend requests. Please try again later.',
+  keyGenerator: (req) => `friend-request:${req.userId || req.ip}`,
+});
+
+const friendActionLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  message: 'Too many friend actions. Please slow down and try again.',
+  keyGenerator: (req) => `friend-action:${req.userId || req.ip}`,
+});
+
+const friendMessageLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 120,
+  message: 'Too many friend messages. Please slow down and try again.',
+  keyGenerator: (req) => `friend-message:${req.userId || req.ip}`,
+});
 
 let legacyStatusFixPromise;
 const ensureLegacyFriendshipsActive = () => {
@@ -237,7 +259,7 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-router.post('/request', auth, async (req, res) => {
+router.post('/request', auth, friendRequestLimiter, async (req, res) => {
   const email = (req.body.email || '').toLowerCase().trim();
   if (!email) {
     return res.status(400).json({ error: 'Email is required' });
@@ -305,7 +327,7 @@ router.post('/request', auth, async (req, res) => {
   }
 });
 
-router.post('/:id/accept', auth, async (req, res) => {
+router.post('/:id/accept', auth, friendActionLimiter, async (req, res) => {
   try {
     if (!isValidObjectId(req.params.id)) {
       return res.status(400).json({ error: 'Invalid request id' });
@@ -343,7 +365,7 @@ router.post('/:id/accept', auth, async (req, res) => {
   }
 });
 
-router.post('/:id/reject', auth, async (req, res) => {
+router.post('/:id/reject', auth, friendActionLimiter, async (req, res) => {
   try {
     if (!isValidObjectId(req.params.id)) {
       return res.status(400).json({ error: 'Invalid request id' });
@@ -379,7 +401,7 @@ router.get('/:id/messages', auth, async (req, res) => {
   }
 });
 
-router.post('/:id/messages', auth, async (req, res) => {
+router.post('/:id/messages', auth, friendMessageLimiter, async (req, res) => {
   const text = (req.body.text || '').trim();
   if (!text) {
     return res.status(400).json({ error: 'Message text is required' });
@@ -456,7 +478,7 @@ router.post('/:id/messages', auth, async (req, res) => {
   }
 });
 
-router.delete('/:id', auth, async (req, res) => {
+router.delete('/:id', auth, friendActionLimiter, async (req, res) => {
   try {
     const friendship = await ensureFriendshipAccess(
       req.params.id,
@@ -491,7 +513,7 @@ router.delete('/:id', auth, async (req, res) => {
   }
 });
 
-router.post('/:id/partner/request', auth, async (req, res) => {
+router.post('/:id/partner/request', auth, friendActionLimiter, async (req, res) => {
   try {
     const friendship = await ensureFriendshipAccess(req.params.id, req.userId);
     if (friendship.relationshipRole === 'partner') {
@@ -523,7 +545,7 @@ router.post('/:id/partner/request', auth, async (req, res) => {
   }
 });
 
-router.post('/:id/partner/accept', auth, async (req, res) => {
+router.post('/:id/partner/accept', auth, friendActionLimiter, async (req, res) => {
   try {
     const friendship = await ensureFriendshipAccess(req.params.id, req.userId);
     const requestedBy = friendship.partnerRequestBy?.toString();
@@ -548,7 +570,7 @@ router.post('/:id/partner/accept', auth, async (req, res) => {
   }
 });
 
-router.post('/:id/partner/decline', auth, async (req, res) => {
+router.post('/:id/partner/decline', auth, friendActionLimiter, async (req, res) => {
   try {
     const friendship = await ensureFriendshipAccess(req.params.id, req.userId);
     const requestedBy = friendship.partnerRequestBy?.toString();
@@ -573,7 +595,7 @@ router.post('/:id/partner/decline', auth, async (req, res) => {
   }
 });
 
-router.post('/:id/partner/remove', auth, async (req, res) => {
+router.post('/:id/partner/remove', auth, friendActionLimiter, async (req, res) => {
   try {
     const friendship = await ensureFriendshipAccess(req.params.id, req.userId);
     friendship.relationshipRole = 'friend';

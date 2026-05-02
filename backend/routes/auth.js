@@ -6,9 +6,38 @@ const crypto = require('crypto');
 
 const User = require('../models/User');
 const auth = require('../middleware/auth');
+const { createRateLimiter } = require('../middleware/rate_limit');
 const { sendPasswordResetEmail } = require('../utils/email');
 
 const jwtOptions = { expiresIn: '7d' };
+
+const loginLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: 'Too many login attempts. Please try again in 15 minutes.',
+  keyGenerator: (req) => `login:${req.ip}`,
+});
+
+const registerLimiter = createRateLimiter({
+  windowMs: 60 * 60 * 1000,
+  max: 3,
+  message: 'Too many sign-up attempts. Please try again later.',
+  keyGenerator: (req) => `register:${req.ip}`,
+});
+
+const passwordResetLimiter = createRateLimiter({
+  windowMs: 60 * 60 * 1000,
+  max: 3,
+  message: 'Too many password reset requests. Please try again later.',
+  keyGenerator: (req) => `password-reset:${req.ip}`,
+});
+
+const pushTokenLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: 'Too many push token updates. Please try again later.',
+  keyGenerator: (req) => `push-token:${req.userId || req.ip}`,
+});
 
 const signToken = (userId) =>
   jwt.sign({ userId }, process.env.JWT_SECRET, jwtOptions);
@@ -39,7 +68,7 @@ const normalizePushToken = (token) =>
   typeof token === 'string' ? token.trim() : '';
 
 // POST /api/auth/register
-router.post('/register', async (req, res) => {
+router.post('/register', registerLimiter, async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
@@ -74,7 +103,7 @@ router.post('/register', async (req, res) => {
 });
 
 // POST /api/auth/login
-router.post('/login', async (req, res) => {
+router.post('/login', loginLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -106,7 +135,7 @@ router.post('/login', async (req, res) => {
 });
 
 // POST /api/auth/forgot-password
-router.post('/forgot-password', async (req, res) => {
+router.post('/forgot-password', passwordResetLimiter, async (req, res) => {
   try {
     const { email } = req.body;
     if (!email) {
@@ -159,7 +188,7 @@ router.post('/forgot-password', async (req, res) => {
 });
 
 // POST /api/auth/reset-password
-router.post('/reset-password', async (req, res) => {
+router.post('/reset-password', passwordResetLimiter, async (req, res) => {
   try {
     const { token, password } = req.body;
 
@@ -198,7 +227,7 @@ router.post('/reset-password', async (req, res) => {
 });
 
 // POST /api/auth/push-token
-router.post('/push-token', auth, async (req, res) => {
+router.post('/push-token', auth, pushTokenLimiter, async (req, res) => {
   try {
     const token = normalizePushToken(req.body.token);
     if (!token) {
@@ -219,7 +248,7 @@ router.post('/push-token', auth, async (req, res) => {
 });
 
 // DELETE /api/auth/push-token
-router.delete('/push-token', auth, async (req, res) => {
+router.delete('/push-token', auth, pushTokenLimiter, async (req, res) => {
   try {
     const token = normalizePushToken(req.body.token);
     if (!token) {

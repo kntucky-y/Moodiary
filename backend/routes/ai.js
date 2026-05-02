@@ -2,6 +2,7 @@ const express = require('express');
 const Groq = require('groq-sdk');
 const router = express.Router();
 const auth = require('../middleware/auth');
+const { createRateLimiter } = require('../middleware/rate_limit');
 const MoodLog = require('../models/Mood');
 const MoodInsight = require('../models/MoodInsight');
 const JournalEntry = require('../models/JournalEntry');
@@ -15,6 +16,15 @@ const JOURNAL_SNIPPET_MAX = 180;
 const groq = process.env.GROQ_API_KEY
   ? new Groq({ apiKey: process.env.GROQ_API_KEY })
   : null;
+
+const aiLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: 'Too many AI requests. Please wait a moment and try again.',
+  keyGenerator: (req) => `ai:${req.userId || req.ip}`,
+});
+
+router.use(auth, aiLimiter);
 
 const promptStyleGuide =
   'Reply like a supportive, upbeat coach in 1-2 sentences. Keep it under 220 characters and under 34 words. Avoid lists, disclaimers, and medical advice. Ask at most one short follow-up question when it naturally fits.';
@@ -256,7 +266,7 @@ const getAiBundle = async (message) => {
   }
 };
 
-router.get('/mood-insights', auth, async (req, res) => {
+router.get('/mood-insights', async (req, res) => {
   try {
     const now = new Date();
     const latestLog = await MoodLog.findOne({ userId: req.userId })

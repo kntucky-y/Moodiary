@@ -23,6 +23,43 @@ class AuthService {
   final http.Client _client = http.Client();
   static const Duration _requestTimeout = Duration(seconds: 30);
 
+  String _messageFromResponse(
+    http.Response response, {
+    String fallback = 'Request failed',
+  }) {
+    if (response.statusCode == 429) {
+      return 'Too many requests. Please wait a moment and try again.';
+    }
+
+    if (response.statusCode == 413) {
+      return 'Request is too large. Please shorten it and try again.';
+    }
+
+    try {
+      final decoded = jsonDecode(response.body);
+      if (decoded is Map<String, dynamic>) {
+        final error = decoded['error'];
+        if (error != null) {
+          return error.toString();
+        }
+
+        final message = decoded['message'];
+        if (message != null) {
+          return message.toString();
+        }
+      }
+    } catch (_) {
+      // Fall through to the fallback message.
+    }
+
+    final body = response.body.trim();
+    if (body.isNotEmpty) {
+      return body;
+    }
+
+    return fallback;
+  }
+
   Future<Map<String, dynamic>> login({
     required String email,
     required String password,
@@ -669,14 +706,13 @@ class AuthService {
             .timeout(const Duration(seconds: 45));
       }
 
-      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
-
       if (response.statusCode >= 200 && response.statusCode < 300) {
+        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
         return decoded;
       }
 
       throw AuthException(
-        decoded['error']?.toString() ?? 'Authentication failed',
+        _messageFromResponse(response, fallback: 'Authentication failed'),
       );
     } catch (error) {
       if (error is AuthException) {
@@ -724,8 +760,7 @@ class AuthService {
       if (response.statusCode >= 200 && response.statusCode < 300) {
         return;
       }
-      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
-      throw AuthException(decoded['error']?.toString() ?? 'Request failed');
+      throw AuthException(_messageFromResponse(response));
     } catch (error) {
       if (error is AuthException) {
         rethrow;
@@ -764,12 +799,12 @@ class AuthService {
         );
       }
 
-      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
       if (response.statusCode >= 200 && response.statusCode < 300) {
+        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
         return decoded;
       }
 
-      throw AuthException(decoded['error']?.toString() ?? 'Request failed');
+      throw AuthException(_messageFromResponse(response));
     } catch (error) {
       if (error is AuthException) {
         rethrow;
