@@ -1,5 +1,5 @@
 const express = require('express');
-const Groq = require('groq-sdk');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 const router = express.Router();
 const auth = require('../middleware/auth');
 const { createRateLimiter } = require('../middleware/rate_limit');
@@ -12,9 +12,14 @@ const MAX_BOOSTERS = 3;
 const AI_TASK_COUNT = 3;
 const JOURNAL_LOOKBACK = 3;
 const JOURNAL_SNIPPET_MAX = 180;
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
 
-const groq = process.env.GROQ_API_KEY
-  ? new Groq({ apiKey: process.env.GROQ_API_KEY })
+const geminiApiKey =
+  process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+const gemini = geminiApiKey
+  ? new GoogleGenerativeAI(geminiApiKey).getGenerativeModel({
+      model: GEMINI_MODEL,
+    })
   : null;
 
 const aiLimiter = createRateLimiter({
@@ -244,24 +249,30 @@ const normalizeMessage = (text) => {
 };
 
 const getAiBundle = async (message) => {
-  if (!groq) return null;
+  if (!gemini) return null;
   try {
-    const completion = await groq.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
-      messages: [
-        { role: 'system', content: promptStyleGuide },
-        { role: 'user', content: message },
+    const result = await gemini.generateContent({
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: `${promptStyleGuide}\n\n${message}` }],
+        },
       ],
-      max_tokens: 120,
+      generationConfig: {
+        temperature: 0.45,
+        maxOutputTokens: 420,
+        responseMimeType: 'application/json',
+      },
     });
 
-    const reply = completion.choices[0].message.content || '';
+    const reply = result.response.text() || '';
     const parsed = parseAiJson(reply);
     if (!parsed) return null;
     const tasks = normalizeTasks(parsed.tasks);
     if (!tasks.length) return null;
     return { aiMessage: normalizeMessage(parsed.aiMessage), tasks };
   } catch (err) {
+    console.error('Gemini AI insights error:', err.message);
     return null;
   }
 };
@@ -354,6 +365,7 @@ router.get('/mood-insights', async (req, res) => {
       boosters,
       lastMoodDateKey,
       generatedAt: now.toISOString(),
+      aiProvider: aiBundle ? 'gemini' : 'fallback',
     };
 
     await MoodInsight.findOneAndUpdate(
