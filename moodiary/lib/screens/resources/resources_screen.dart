@@ -84,7 +84,10 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
     });
 
     try {
-      final payload = await AuthService.instance.getResources();
+      final prefs = await SharedPreferences.getInstance();
+      final payload = await AuthService.instance.getResources(
+        authToken: prefs.getString('token'),
+      );
       final rawResources = payload['resources'] as List<dynamic>? ?? const [];
       if (!mounted) return;
       setState(() {
@@ -611,7 +614,7 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
     }
 
     return SizedBox(
-      height: 176,
+      height: 226,
       child: ListView.separated(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         scrollDirection: Axis.horizontal,
@@ -943,6 +946,14 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,
                   ),
+                  if ((resource['recommendationReason'] as String? ?? '')
+                      .trim()
+                      .isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    _RecommendationReason(
+                      text: resource['recommendationReason'] as String,
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -1153,9 +1164,9 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
                               0,
                             ),
                             child: _SectionTitle(
-                              title: 'Featured guides',
+                              title: 'Suggested guides',
                               subtitle:
-                                  'Curated reads for quick support and coping tools.',
+                                  'Updated from your recent mood and journal patterns.',
                             ),
                           ),
                         ),
@@ -1184,7 +1195,7 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
                             child: _SectionTitle(
                               title: 'All resources',
                               subtitle: _selectedCategory == 'All'
-                                  ? 'Everything available right now.'
+                                  ? 'More vetted support links for today.'
                                   : 'Filtered to $_selectedCategory.',
                             ),
                           ),
@@ -1319,6 +1330,46 @@ class _SummaryChip extends StatelessWidget {
   }
 }
 
+class _RecommendationReason extends StatelessWidget {
+  final String text;
+
+  const _RecommendationReason({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassContainer(
+      blurSigma: context.mdGlassBlurSmall,
+      borderRadius: BorderRadius.circular(14),
+      backgroundColor: context.mdAccentPurple.withValues(alpha: 0.12),
+      borderColor: context.mdGlassBorder,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.auto_awesome_rounded,
+            size: 14,
+            color: context.mdAccentPurple,
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              text,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: context.mdPrimaryText,
+                fontWeight: FontWeight.w600,
+                height: 1.25,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _GuideCard extends StatelessWidget {
   final Map<String, dynamic> resource;
   final VoidCallback onTap;
@@ -1362,9 +1413,17 @@ class _GuideCard extends StatelessWidget {
                 color: context.mdSecondaryText,
                 height: 1.35,
               ),
-              maxLines: 3,
+              maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
+            if ((resource['recommendationReason'] as String? ?? '')
+                .trim()
+                .isNotEmpty) ...[
+              const SizedBox(height: 10),
+              _RecommendationReason(
+                text: resource['recommendationReason'] as String,
+              ),
+            ],
           ],
         ),
       ),

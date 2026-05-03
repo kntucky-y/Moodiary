@@ -540,12 +540,21 @@ class AuthService {
     );
   }
 
-  Future<Map<String, dynamic>> getResources({String? category}) async {
+  Future<Map<String, dynamic>> getResources({
+    String? category,
+    String? authToken,
+  }) async {
     final uri = category != null
         ? Uri.parse('$kBackendBaseUrl/api/resources?category=$category')
         : Uri.parse('$kBackendBaseUrl/api/resources');
     try {
-      final response = await _client.get(uri);
+      final response = await _client.get(
+        uri,
+        headers: {
+          if (authToken != null && authToken.trim().isNotEmpty)
+            'Authorization': 'Bearer $authToken',
+        },
+      );
       final decoded = jsonDecode(response.body) as Map<String, dynamic>;
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
