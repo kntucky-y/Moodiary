@@ -99,13 +99,27 @@ class MoodiaryApp extends StatelessWidget {
   }
 
   ThemeData _buildLightTheme() {
+    const primaryText = Color(0xFF1A1A2E);
+    const secondaryText = Color(0xFF8A8A8D);
     final base = ThemeData(
       colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF9B7FDB)),
       scaffoldBackgroundColor: const Color(0xFFF7F5F2),
       useMaterial3: true,
-      textTheme: GoogleFonts.lexendTextTheme(),
+      textTheme: GoogleFonts.lexendTextTheme().apply(
+        bodyColor: primaryText,
+        displayColor: primaryText,
+      ),
     );
     return base.copyWith(
+      inputDecorationTheme: InputDecorationTheme(
+        hintStyle: TextStyle(color: secondaryText),
+        labelStyle: TextStyle(color: secondaryText),
+      ),
+      textSelectionTheme: TextSelectionThemeData(
+        cursorColor: base.colorScheme.primary,
+        selectionColor: base.colorScheme.primary.withValues(alpha: 0.22),
+        selectionHandleColor: base.colorScheme.primary,
+      ),
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
@@ -149,6 +163,8 @@ class MoodiaryApp extends StatelessWidget {
   }
 
   ThemeData _buildDarkTheme() {
+    const primaryText = Colors.white;
+    final secondaryText = Colors.white.withValues(alpha: 0.75);
     final base = ThemeData(
       brightness: Brightness.dark,
       colorScheme: ColorScheme.fromSeed(
@@ -158,11 +174,20 @@ class MoodiaryApp extends StatelessWidget {
       useMaterial3: true,
       textTheme: GoogleFonts.lexendTextTheme(
         ThemeData(brightness: Brightness.dark).textTheme,
-      ),
+      ).apply(bodyColor: primaryText, displayColor: primaryText),
     );
     return base.copyWith(
       scaffoldBackgroundColor: const Color(0xFF0F1119),
       cardColor: const Color(0xFF1B1E2C),
+      inputDecorationTheme: InputDecorationTheme(
+        hintStyle: TextStyle(color: secondaryText),
+        labelStyle: TextStyle(color: secondaryText),
+      ),
+      textSelectionTheme: TextSelectionThemeData(
+        cursorColor: base.colorScheme.primary,
+        selectionColor: base.colorScheme.primary.withValues(alpha: 0.32),
+        selectionHandleColor: base.colorScheme.primary,
+      ),
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,

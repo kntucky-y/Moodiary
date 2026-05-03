@@ -1416,17 +1416,22 @@ class _EmptyFriends extends StatelessWidget {
       borderRadius: BorderRadius.circular(18),
       backgroundColor: context.mdGlassSurface,
       borderColor: context.mdGlassBorder,
-      padding: const EdgeInsets.symmetric(vertical: 24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.sentiment_satisfied_alt, color: secondaryText, size: 48),
-          const SizedBox(height: 8),
-          Text(
-            'No friends yet - invite someone!',
-            style: TextStyle(color: primaryText),
-          ),
-        ],
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      child: SizedBox(
+        width: double.infinity,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Icon(Icons.sentiment_satisfied_alt, color: secondaryText, size: 48),
+            const SizedBox(height: 8),
+            Text(
+              'No friends yet - invite someone!',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: primaryText),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 import 'dart:math' show Random;
 
 import 'package:flutter/material.dart';
@@ -486,8 +486,17 @@ class _ForumsScreenState extends State<ForumsScreen> {
     if (idx < 0 || _token == null) return;
     final post = _posts[idx];
     if (_likeBusyPostIds.contains(post.id)) return;
+    final previousLikes = post.likes;
+    final previousLikedByMe = post.likedByMe;
+    final optimisticLikes = previousLikedByMe
+        ? (previousLikes - 1).clamp(0, 1 << 31).toInt()
+        : previousLikes + 1;
 
-    setState(() => _likeBusyPostIds.add(post.id));
+    setState(() {
+      _likeBusyPostIds.add(post.id);
+      post.likedByMe = !previousLikedByMe;
+      post.likes = optimisticLikes;
+    });
     try {
       final resp = await http.post(
         Uri.parse('$_kBaseUrl/api/forums/${post.id}/like'),
@@ -503,12 +512,20 @@ class _ForumsScreenState extends State<ForumsScreen> {
         await _savePostsCache();
         if (!mounted) return;
       } else {
+        setState(() {
+          post.likes = previousLikes;
+          post.likedByMe = previousLikedByMe;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to update like: ${resp.body}')),
         );
       }
     } catch (e) {
       if (mounted) {
+        setState(() {
+          post.likes = previousLikes;
+          post.likedByMe = previousLikedByMe;
+        });
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Failed to update like: $e')));
