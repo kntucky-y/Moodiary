@@ -106,7 +106,8 @@ const _kFallbackTaskPool = [
   _MoodTask(
     id: 'fallback_stretch',
     title: 'Do a Quick Stretch',
-    description: 'Stretch for 5 minutes to relieve tension and improve circulation.',
+    description:
+        'Stretch for 5 minutes to relieve tension and improve circulation.',
     points: 10,
     icon: Icons.self_improvement_rounded,
     iconColor: Color(0xFFF59E0B),
@@ -115,7 +116,8 @@ const _kFallbackTaskPool = [
   _MoodTask(
     id: 'fallback_music',
     title: 'Listen to Your Favorite Song',
-    description: 'Music can instantly lift your spirits \u2014 put on a feel-good track.',
+    description:
+        'Music can instantly lift your spirits \u2014 put on a feel-good track.',
     points: 5,
     icon: Icons.music_note_rounded,
     iconColor: Color(0xFFE11D48),
@@ -124,7 +126,8 @@ const _kFallbackTaskPool = [
   _MoodTask(
     id: 'fallback_tidy',
     title: 'Tidy Up Your Space',
-    description: 'A clean environment can reduce stress and boost productivity.',
+    description:
+        'A clean environment can reduce stress and boost productivity.',
     points: 10,
     icon: Icons.cleaning_services_rounded,
     iconColor: Color(0xFF0EA5E9),
@@ -2719,11 +2722,13 @@ class _CompanionChatState extends State<_CompanionChat> {
 
   Future<void> _init() async {
     final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
     _token = prefs.getString('token');
     await _loadHistory();
   }
 
   Future<void> _loadHistory() async {
+    if (!mounted) return;
     if (_token == null) {
       _addCompanion(
         'Hi! I\'m ${widget.companionName}. How are you feeling today?',
@@ -2737,6 +2742,7 @@ class _CompanionChatState extends State<_CompanionChat> {
         ),
         headers: {'Authorization': 'Bearer $_token'},
       );
+      if (!mounted) return;
       final data = jsonDecode(response.body);
       final List<dynamic> msgs = data['messages'] ?? [];
       if (msgs.isEmpty) {
@@ -2764,13 +2770,14 @@ class _CompanionChatState extends State<_CompanionChat> {
   }
 
   void _addCompanion(String text) {
+    if (!mounted) return;
     setState(() => _messages.add(_ChatMessage(text: text, isUser: false)));
     _scrollDown();
   }
 
   void _scrollDown() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scroll.hasClients) {
+      if (mounted && _scroll.hasClients) {
         _scroll.animateTo(
           _scroll.position.maxScrollExtent,
           duration: const Duration(milliseconds: 300),
@@ -2784,6 +2791,7 @@ class _CompanionChatState extends State<_CompanionChat> {
     final msg = text.trim();
     if (msg.isEmpty || _loading) return;
     _input.clear();
+    if (!mounted) return;
     setState(() {
       _messages.add(_ChatMessage(text: msg, isUser: true));
       _loading = true;
