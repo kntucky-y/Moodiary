@@ -49,7 +49,7 @@ router.post('/', auth, moodWriteLimiter, async (req, res) => {
     const log = await MoodLog.findOneAndUpdate(
       { userId: req.userId, dateKey },
       { moodLevel: newMoodLevel, activities: newActivities, moodLevelScore: newMoodLevelScore, activityScore: newActivityScore, moodScore: newMoodScore, taskScore: newTaskScore, score: newScore },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: 'after' }
     );
     res.json(log);
   } catch (err) {

@@ -310,10 +310,11 @@ async function getNearbyMentalHealthClinics({ lat, lng, radius = 5000, limit = 2
   }
 
   let clinics = [];
+  let overpassError = null;
   try {
     clinics = await queryOverpassNearbyClinics(normalizedLat, normalizedLng, safeRadius);
   } catch (error) {
-    console.warn('Overpass clinic lookup failed:', error.message);
+    overpassError = error;
   }
 
   if (!clinics.length) {
@@ -327,6 +328,10 @@ async function getNearbyMentalHealthClinics({ lat, lng, radius = 5000, limit = 2
     } catch (error) {
       console.warn('Nominatim clinic fallback failed:', error.message);
     }
+  }
+
+  if (!clinics.length && overpassError) {
+    console.warn('Overpass clinic lookup failed:', overpassError.message);
   }
 
   const data = {

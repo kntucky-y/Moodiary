@@ -70,7 +70,7 @@ router.post('/:id/read', auth, notificationWriteLimiter, async (req, res) => {
     const updated = await NotificationHistory.findOneAndUpdate(
       { _id: id, recipient: req.userId },
       { $set: { isRead: true, readAt: new Date() } },
-      { new: true },
+      { returnDocument: 'after' },
     ).lean();
 
     if (!updated) {

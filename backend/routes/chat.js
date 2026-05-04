@@ -131,7 +131,7 @@ router.post('/', async (req, res) => {
           },
         },
       },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: 'after' }
     );
 
     res.json({ reply });

@@ -214,7 +214,7 @@ router.delete('/:id', auth, forumWriteLimiter, async (req, res) => {
         isArchived: true,
         archivedAt: new Date(),
       },
-      { new: true }
+      { returnDocument: 'after' }
     );
 
     if (!post) return res.status(404).json({ error: 'Post not found' });
@@ -237,7 +237,7 @@ router.post('/:id/recover', auth, forumWriteLimiter, async (req, res) => {
         isArchived: false,
         archivedAt: null,
       },
-      { new: true }
+      { returnDocument: 'after' }
     );
 
     if (!post) return res.status(404).json({ error: 'Post not found' });

@@ -45,7 +45,7 @@ router.put('/:id', auth, async (req, res) => {
     const entry = await JournalEntry.findOneAndUpdate(
       { _id: req.params.id, userId: req.userId, isArchived: { $ne: true } },
       { title, content, tag },
-      { new: true }
+      { returnDocument: 'after' }
     );
     if (!entry) return res.status(404).json({ error: 'Entry not found' });
     res.json(entry);
@@ -68,7 +68,7 @@ router.delete('/:id', auth, async (req, res) => {
         archivedAt: new Date(),
       },
       {
-        new: true,
+        returnDocument: 'after',
       }
     );
     if (!entry) return res.status(404).json({ error: 'Entry not found' });
@@ -89,7 +89,7 @@ router.post('/:id/recover', auth, async (req, res) => {
       isArchived: false,
       archivedAt: null,
     }, {
-      new: true,
+      returnDocument: 'after',
     });
     if (!entry) return res.status(404).json({ error: 'Entry not found' });
     res.json({ success: true, entry });

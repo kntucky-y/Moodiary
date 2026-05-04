@@ -33,6 +33,7 @@ const geminiApiKey =
   normalizeGeminiKey(process.env.GEMINI_API_KEY) ||
   normalizeGeminiKey(process.env.GOOGLE_GENERATIVE_AI_API_KEY);
 const geminiClient = geminiApiKey ? new GoogleGenerativeAI(geminiApiKey) : null;
+let geminiModelUnavailableWarned = false;
 
 const isModelNotFoundError = (err) => {
   const message = (err && err.message ? err.message : '').toLowerCase();
@@ -58,9 +59,13 @@ const generateWithFallback = async (request) => {
     }
   }
   if (lastError) {
-    throw new Error(
-      'Gemini models not available. Check API key access and Generative Language API enablement.',
-    );
+    if (!geminiModelUnavailableWarned && isModelNotFoundError(lastError)) {
+      geminiModelUnavailableWarned = true;
+      console.warn(
+        'Gemini models not available. Check API key access and Generative Language API enablement.',
+      );
+    }
+    return null;
   }
   return null;
 };
@@ -418,7 +423,7 @@ router.get('/mood-insights', async (req, res) => {
         lastMoodDateKey,
         expiresAt: new Date(now.getTime() + CACHE_TTL_MS),
       },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: 'after' }
     );
 
     res.json(payload);
