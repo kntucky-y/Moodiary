@@ -38,6 +38,6 @@ services:
         value: REPLACE_ME
         type: SECRET
       - key: GEMINI_MODEL
-        value: gemini-1.5-flash-latest
+        value: gemini-1.0-pro
       - key: PASSWORD_RESET_URL
         value: REPLACE_ME
