@@ -47,7 +47,7 @@ app.get('/api/health', (req, res) => {
     groqKeyLoaded: !!groqKey,
     groqKeyPrefix: groqKey ? groqKey.slice(0, 8) + '...' : null,
     geminiKeyLoaded: !!geminiKey,
-    geminiModel: process.env.GEMINI_MODEL || 'gemini-1.5-flash',
+    geminiModel: process.env.GEMINI_MODEL || 'gemini-1.5-flash-latest',
   });
 });
 

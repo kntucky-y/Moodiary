@@ -12,15 +12,44 @@ const MAX_BOOSTERS = 3;
 const AI_TASK_COUNT = 3;
 const JOURNAL_LOOKBACK = 3;
 const JOURNAL_SNIPPET_MAX = 180;
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash-latest';
+const GEMINI_FALLBACK_MODELS = [
+  GEMINI_MODEL,
+  'gemini-1.5-flash-latest',
+  'gemini-1.5-flash-002',
+  'gemini-1.5-flash-001',
+  'gemini-1.5-pro-latest',
+];
 
 const geminiApiKey =
   process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-const gemini = geminiApiKey
-  ? new GoogleGenerativeAI(geminiApiKey).getGenerativeModel({
-      model: GEMINI_MODEL,
-    })
-  : null;
+const geminiClient = geminiApiKey ? new GoogleGenerativeAI(geminiApiKey) : null;
+
+const isModelNotFoundError = (err) => {
+  const message = (err && err.message ? err.message : '').toLowerCase();
+  return message.includes('not found') || message.includes('not supported');
+};
+
+const generateWithFallback = async (request) => {
+  if (!geminiClient) return null;
+  const tried = new Set();
+  let lastError;
+  for (const modelName of GEMINI_FALLBACK_MODELS) {
+    const name = (modelName || '').trim();
+    if (!name || tried.has(name)) continue;
+    tried.add(name);
+    const model = geminiClient.getGenerativeModel({ model: name });
+    try {
+      return await model.generateContent(request);
+    } catch (err) {
+      lastError = err;
+      if (!isModelNotFoundError(err)) {
+        throw err;
+      }
+    }
+  }
+  throw lastError;
+};
 
 const aiLimiter = createRateLimiter({
   windowMs: 15 * 60 * 1000,
@@ -249,9 +278,9 @@ const normalizeMessage = (text) => {
 };
 
 const getAiBundle = async (message) => {
-  if (!gemini) return null;
+  if (!geminiClient) return null;
   try {
-    const result = await gemini.generateContent({
+    const result = await generateWithFallback({
       contents: [
         {
           role: 'user',
@@ -265,7 +294,7 @@ const getAiBundle = async (message) => {
       },
     });
 
-    const reply = result.response.text() || '';
+    const reply = result && result.response ? result.response.text() || '' : '';
     const parsed = parseAiJson(reply);
     if (!parsed) return null;
     const tasks = normalizeTasks(parsed.tasks);

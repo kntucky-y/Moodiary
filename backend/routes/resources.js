@@ -8,14 +8,43 @@ const JournalEntry = require('../models/JournalEntry');
 const { createRateLimiter } = require('../middleware/rate_limit');
 const { getNearbyMentalHealthClinics } = require('../utils/clinic_search');
 
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash-latest';
+const GEMINI_FALLBACK_MODELS = [
+  GEMINI_MODEL,
+  'gemini-1.5-flash-latest',
+  'gemini-1.5-flash-002',
+  'gemini-1.5-flash-001',
+  'gemini-1.5-pro-latest',
+];
 const geminiApiKey =
   process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-const gemini = geminiApiKey
-  ? new GoogleGenerativeAI(geminiApiKey).getGenerativeModel({
-      model: GEMINI_MODEL,
-    })
-  : null;
+const geminiClient = geminiApiKey ? new GoogleGenerativeAI(geminiApiKey) : null;
+
+const isModelNotFoundError = (err) => {
+  const message = (err && err.message ? err.message : '').toLowerCase();
+  return message.includes('not found') || message.includes('not supported');
+};
+
+const generateWithFallback = async (request) => {
+  if (!geminiClient) return null;
+  const tried = new Set();
+  let lastError;
+  for (const modelName of GEMINI_FALLBACK_MODELS) {
+    const name = (modelName || '').trim();
+    if (!name || tried.has(name)) continue;
+    tried.add(name);
+    const model = geminiClient.getGenerativeModel({ model: name });
+    try {
+      return await model.generateContent(request);
+    } catch (err) {
+      lastError = err;
+      if (!isModelNotFoundError(err)) {
+        throw err;
+      }
+    }
+  }
+  throw lastError;
+};
 
 const resourceCatalog = [
   {
@@ -281,7 +310,7 @@ const fallbackPersonalize = (resources, context) => {
 };
 
 const getGeminiResourceOrder = async (context) => {
-  if (!gemini || !context) return null;
+  if (!geminiClient || !context) return null;
 
   const catalogForPrompt = resourceCatalog.map((resource) => ({
     id: resource.id,
@@ -300,7 +329,7 @@ const getGeminiResourceOrder = async (context) => {
   ].join('\n');
 
   try {
-    const result = await gemini.generateContent({
+    const result = await generateWithFallback({
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       generationConfig: {
         temperature: 0.35,
@@ -308,7 +337,9 @@ const getGeminiResourceOrder = async (context) => {
         responseMimeType: 'application/json',
       },
     });
-    const parsed = parseAiJson(result.response.text());
+    const parsed = parseAiJson(
+      result && result.response ? result.response.text() : '',
+    );
     const recs = Array.isArray(parsed?.recommendations)
       ? parsed.recommendations
       : [];
