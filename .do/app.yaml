@@ -1,0 +1,43 @@
+name: moodiary-backend
+services:
+  - name: backend
+    environment_slug: node-js
+    source_dir: backend
+    github:
+      repo: kntucky-y/Moodiary
+      branch: main
+      deploy_on_push: true
+    http_port: 8080
+    routes:
+      - path: /
+    build_command: npm install
+    run_command: npm start
+    instance_size_slug: basic-xxs
+    instance_count: 1
+    envs:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "8080"
+      - key: MONGO_URI
+        value: REPLACE_ME
+        type: SECRET
+      - key: JWT_SECRET
+        value: REPLACE_ME
+        type: SECRET
+      - key: GEMINI_API_KEY
+        value: REPLACE_ME
+        type: SECRET
+      - key: GOOGLE_GENERATIVE_AI_API_KEY
+        value: REPLACE_ME
+        type: SECRET
+      - key: GROQ_API_KEY
+        value: REPLACE_ME
+        type: SECRET
+      - key: FIREBASE_SERVICE_ACCOUNT_JSON
+        value: REPLACE_ME
+        type: SECRET
+      - key: GEMINI_MODEL
+        value: gemini-1.5-flash
+      - key: PASSWORD_RESET_URL
+        value: REPLACE_ME
