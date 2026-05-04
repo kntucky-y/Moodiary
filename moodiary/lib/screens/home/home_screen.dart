@@ -27,6 +27,89 @@ const _kPurple = Color(0xFFA076F9);
 const _moods = [
   _Mood('Terrible', 'assets/terrible.png'),
   _Mood('Bad', 'assets/bad.png'),
+  _Mood('Okay', 'assets/okay.png'),
+  _Mood('Good', 'assets/good.png'),
+  _Mood('Excellent', 'assets/excellent.png'),
+];
+
+// Must match calendar_screen.dart _moodLevelPoints
+const _homeMoodLevelPoints = [5, 10, 20, 35, 50];
+
+const _kAiInsightsCacheKey = 'home_ai_insights_cache';
+const _kAiInsightsCacheTsKey = 'home_ai_insights_cache_ts';
+const _kAiAnalysisCacheKey = 'home_ai_analysis_cache';
+const _kAiAnalysisCacheTsKey = 'home_ai_analysis_cache_ts';
+const _kJournalPreviewCacheKey = 'home_journal_preview_cache';
+const _kJournalPreviewCacheTsKey = 'home_journal_preview_cache_ts';
+const _kAiTasksCacheKey = 'tasks_ai_payload';
+const _kAiInsightsCacheTtl = Duration(hours: 24);
+const _kAiAnalysisCacheTtl = Duration(hours: 24);
+const _kJournalPreviewCacheTtl = Duration(hours: 6);
+
+class _MoodTask {
+  final String id;
+  final String title;
+  final String description;
+  final int points;
+  final String? asset;
+  final IconData? icon;
+  final Color iconColor;
+  final Color iconBackground;
+
+  const _MoodTask({
+    required this.id,
+    required this.title,
+    required this.description,
+    required this.points,
+    this.asset,
+    this.icon,
+    this.iconColor = _kPurple,
+    this.iconBackground = const Color(0xFFF3F0FB),
+  });
+}
+
+/// Fallback pool of universally helpful mood-lifting tasks.
+/// Used when the AI backend returns no tasks (new user, insufficient data, error).
+const _kFallbackTaskPool = [
+  _MoodTask(
+    id: 'fallback_walk',
+    title: 'Take a 10-Minute Walk',
+    description: 'A short walk can boost your mood and clear your mind.',
+    points: 10,
+    icon: Icons.directions_walk_rounded,
+    iconColor: Color(0xFF10B981),
+    iconBackground: Color(0xFFD1FAE5),
+  ),
+  _MoodTask(
+    id: 'fallback_water',
+    title: 'Drink a Glass of Water',
+    description: 'Stay hydrated — it helps your energy and focus.',
+    points: 5,
+    icon: Icons.water_drop_rounded,
+    iconColor: Color(0xFF3B82F6),
+    iconBackground: Color(0xFFDBEAFE),
+  ),
+  _MoodTask(
+    id: 'fallback_breathe',
+    title: 'Deep Breathing Exercise',
+    description: 'Take 5 slow, deep breaths to calm your nervous system.',
+    points: 10,
+    icon: Icons.air_rounded,
+    iconColor: Color(0xFF8B5CF6),
+    iconBackground: Color(0xFFEDE9FE),
+  ),
+  _MoodTask(
+    id: 'fallback_gratitude',
+    title: 'Write 3 Things You\'re Grateful For',
+    description: 'Gratitude journaling is proven to improve well-being.',
+    points: 10,
+    icon: Icons.favorite_rounded,
+    iconColor: Color(0xFFEC4899),
+    iconBackground: Color(0xFFFCE7F3),
+  ),
+  _MoodTask(
+    id: 'fallback_stretch',
+    title: 'Do a Quick Stretch',
     description:
         'Stretch for 5 minutes to relieve tension and improve circulation.',
     points: 10,
@@ -38,7 +121,7 @@ const _moods = [
     id: 'fallback_music',
     title: 'Listen to Your Favorite Song',
     description:
-        'Music can instantly lift your spirits \u2014 put on a feel-good track.',
+        'Music can instantly lift your spirits — put on a feel-good track.',
     points: 5,
     icon: Icons.music_note_rounded,
     iconColor: Color(0xFFE11D48),
@@ -2250,10 +2333,7 @@ class _AiInsightsCard extends StatelessWidget {
                       padding: const EdgeInsets.only(bottom: 6),
                       child: TextButton.icon(
                         onPressed: () => onOpenLink(link.url),
-                        icon: const Icon(
-                          Icons.open_in_new,
-                          size: 16,
-                        ),
+                        icon: const Icon(Icons.open_in_new, size: 16),
                         label: Text(
                           link.title,
                           style: const TextStyle(fontSize: 12),
