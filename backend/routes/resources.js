@@ -19,8 +19,14 @@ const GEMINI_FALLBACK_MODELS = [
   'gemini-1.0-pro-001',
   'gemini-pro',
 ];
+const normalizeGeminiKey = (value) => {
+  if (!value) return '';
+  return String(value).trim().replace(/^GEMINI_API_KEY\s*=\s*/i, '');
+};
+
 const geminiApiKey =
-  process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+  normalizeGeminiKey(process.env.GEMINI_API_KEY) ||
+  normalizeGeminiKey(process.env.GOOGLE_GENERATIVE_AI_API_KEY);
 const geminiClient = geminiApiKey ? new GoogleGenerativeAI(geminiApiKey) : null;
 
 const isModelNotFoundError = (err) => {
@@ -46,7 +52,12 @@ const generateWithFallback = async (request) => {
       }
     }
   }
-  throw lastError;
+  if (lastError) {
+    throw new Error(
+      'Gemini models not available. Check API key access and Generative Language API enablement.',
+    );
+  }
+  return null;
 };
 
 const resourceCatalog = [

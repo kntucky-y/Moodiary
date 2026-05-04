@@ -1,4 +1,8 @@
-const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
+const OVERPASS_URLS = [
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter',
+  'https://overpass.nchc.org.tw/api/interpreter',
+];
 const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
@@ -153,14 +157,21 @@ function dedupeClinics(clinics) {
   return unique;
 }
 
-async function fetchJson(url, { body, method = 'GET', headers = {}, timeoutMs = 15000 } = {}) {
+async function fetchJson(
+  url,
+  { body, method = 'GET', headers = {}, timeoutMs = 15000 } = {},
+) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const requestHeaders = {
+    'User-Agent': 'Moodiary/1.0 (clinic search)',
+    ...headers,
+  };
 
   try {
     const response = await fetch(url, {
       method,
-      headers,
+      headers: requestHeaders,
       body,
       signal: controller.signal,
     });
@@ -187,14 +198,27 @@ async function queryOverpassNearbyClinics(lat, lng, radius) {
     out center tags;
   `;
 
-  const payload = await fetchJson(OVERPASS_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: `data=${encodeURIComponent(query)}`,
-    timeoutMs: 20000,
-  });
+  let payload;
+  let lastError;
+  for (const url of OVERPASS_URLS) {
+    try {
+      payload = await fetchJson(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `data=${encodeURIComponent(query)}`,
+        timeoutMs: 20000,
+      });
+      break;
+    } catch (error) {
+      lastError = error;
+    }
+  }
 
-  const elements = Array.isArray(payload.elements) ? payload.elements : [];
+  if (!payload && lastError) {
+    throw lastError;
+  }
+
+  const elements = payload && Array.isArray(payload.elements) ? payload.elements : [];
   const clinics = elements
     .map((element) => normalizeOverpassElement(element, lat, lng))
     .filter(Boolean)
