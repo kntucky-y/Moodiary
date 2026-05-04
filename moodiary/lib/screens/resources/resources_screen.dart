@@ -1019,8 +1019,11 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
                     overflow: TextOverflow.ellipsis,
                   ),
                   if ((resource['recommendationReason'] as String? ?? '')
-                      .trim()
-                      .isNotEmpty) ...[
+                          .trim()
+                          .isNotEmpty &&
+                      (resource['recommendationReason'] as String? ?? '')
+                              .trim() !=
+                          'Suggested from your recent mood and journal patterns.') ...[
                     const SizedBox(height: 10),
                     _RecommendationReason(
                       text: resource['recommendationReason'] as String,
