@@ -22,7 +22,7 @@ MAIL_FROM="Moodiary <your-app-account@gmail.com>"
 # If you deploy with hash routing, keep this as /#/reset-password.
 PASSWORD_RESET_URL=https://your-app/#/reset-password
 
-# Optional fallback that avoids SMTP entirely (recommended on Railway if SMTP times out)
+# Optional fallback that avoids SMTP entirely (recommended on managed hosting if SMTP times out)
 # RESEND_API_KEY=re_xxxxxxxxxxxxxxxxxxxxx
 ```
 
@@ -33,6 +33,15 @@ The password reset endpoint hashes every token before persisting it. Emails are 
 The reset email opens the app directly on the reset screen and also includes the raw token so users can complete the reset inside the app if needed.
 
 ## Mobile configuration
+
+### Backend URL
+
+The mobile app reads the backend URL from `BACKEND_BASE_URL` at build time.
+For production builds, pass the new DigitalOcean domain:
+
+```
+flutter build apk --dart-define=BACKEND_BASE_URL=https://api.your-domain.com
+```
 
 The Resources tab map uses OpenStreetMap and does not require Google Maps API keys or billing setup.
 

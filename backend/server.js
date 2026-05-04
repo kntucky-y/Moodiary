@@ -37,7 +37,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/resources', resourceRoutes);
 app.use('/api/ai', aiRoutes);
 
-// Health-check — visit /api/health to confirm env vars are loaded on Railway
+// Health-check — visit /api/health to confirm env vars are loaded on the host
 app.get('/api/health', (req, res) => {
   const groqKey = process.env.GROQ_API_KEY;
   const geminiKey =

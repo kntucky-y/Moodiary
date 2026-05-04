@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 
 const String kBackendBaseUrl = String.fromEnvironment(
   'BACKEND_BASE_URL',
-  defaultValue: 'https://moodiary-3h7r.onrender.com',
+  defaultValue: 'https://moodiary-3meam.ondigitalocean.app',
 );
 
 class AuthException implements Exception {
@@ -705,7 +705,7 @@ class AuthService {
             )
             .timeout(_requestTimeout);
       } on TimeoutException {
-        // Retry once to handle backend cold starts (e.g., Railway wake-up).
+        // Retry once to handle backend cold starts on managed hosting.
         response = await _client
             .post(
               uri,
