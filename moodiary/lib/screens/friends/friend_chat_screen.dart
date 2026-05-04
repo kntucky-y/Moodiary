@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:socket_io_client/socket_io_client.dart' as io;
 import '../../services/auth_service.dart';
+import '../../services/realtime_notifications.dart';
 import '../forums/forums_screen.dart';
 import '../../utils/transitions.dart';
 import '../../theme/moodiary_colors.dart';
@@ -111,8 +112,12 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
     _socket = io.io(
       _kBaseUrl,
       io.OptionBuilder()
-          .setTransports(['websocket'])
+          .setTransports(['websocket', 'polling'])
           .setAuth({'token': _token})
+          .enableReconnection()
+          .setReconnectionAttempts(5)
+          .setReconnectionDelay(800)
+          .setReconnectionDelayMax(4000)
           .disableAutoConnect()
           .build(),
     );
@@ -147,6 +152,12 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
             } else {
               _messages.add(incoming);
             }
+          });
+          RealtimeNotifications.instance.emitLocal({
+            'type': 'friend_message',
+            'friendshipId': widget.friendshipId,
+            'text': incoming.text,
+            'createdAt': incoming.createdAt.toIso8601String(),
           });
           _scrollToBottom();
         }
@@ -235,6 +246,12 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
           }
         });
       }
+      RealtimeNotifications.instance.emitLocal({
+        'type': 'friend_message',
+        'friendshipId': widget.friendshipId,
+        'text': created.text,
+        'createdAt': created.createdAt.toIso8601String(),
+      });
     } catch (_) {
       if (!mounted) return;
       setState(() {

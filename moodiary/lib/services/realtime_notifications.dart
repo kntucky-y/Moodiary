@@ -55,6 +55,10 @@ class RealtimeNotifications {
         io.OptionBuilder()
             .setTransports(['websocket', 'polling'])
             .setAuth({'token': _token})
+            .enableReconnection()
+            .setReconnectionAttempts(5)
+            .setReconnectionDelay(800)
+            .setReconnectionDelayMax(4000)
             .disableAutoConnect()
             .build(),
       );
