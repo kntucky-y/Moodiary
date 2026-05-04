@@ -69,6 +69,8 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
   List<Map<String, dynamic>> _resources = const [];
   List<Map<String, dynamic>> _clinics = const [];
   Map<String, dynamic>? _selectedClinic;
+  List<Map<String, dynamic>> _moodLinks = const [];
+  String? _analysisScope;
 
   @override
   void initState() {
@@ -89,9 +91,13 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
         authToken: prefs.getString('token'),
       );
       final rawResources = payload['resources'] as List<dynamic>? ?? const [];
+      final rawMoodLinks = payload['moodLinks'] as List<dynamic>? ?? const [];
+      final analysisScope = payload['analysisScope']?.toString();
       if (!mounted) return;
       setState(() {
         _resources = rawResources.cast<Map<String, dynamic>>();
+        _moodLinks = rawMoodLinks.cast<Map<String, dynamic>>();
+        _analysisScope = analysisScope;
         _loadingResources = false;
       });
     } catch (error) {
@@ -99,6 +105,8 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
       setState(() {
         _resourcesError = error.toString();
         _resources = const [];
+        _moodLinks = const [];
+        _analysisScope = null;
         _loadingResources = false;
       });
     }
@@ -605,6 +613,70 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
         separatorBuilder: (context, index) => const SizedBox(width: 8),
         itemCount: _categories.length,
       ),
+    );
+  }
+
+  Widget _buildMoodLinksSection() {
+    if (_loadingResources) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 16),
+        child: _LoadingCard(),
+      );
+    }
+
+    if (_moodLinks.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: _EmptyStateCard(
+          icon: Icons.auto_awesome_outlined,
+          title: 'No mood links yet',
+          message:
+              'Analyze your day or week from the Home tab to see personalized links here.',
+        ),
+      );
+    }
+
+    return Column(
+      children: _moodLinks.map((link) {
+        final title = (link['title'] ?? '').toString();
+        final url = (link['url'] ?? '').toString();
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          child: GlassCard(
+            borderRadius: BorderRadius.circular(18),
+            backgroundColor: context.mdGlassSurface,
+            borderColor: context.mdGlassBorder,
+            onTap: () => _launchUrl(url),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.auto_awesome_rounded,
+                  color: context.mdAccentPurple,
+                  size: 20,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: context.mdPrimaryText,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Icon(
+                  Icons.open_in_new,
+                  size: 18,
+                  color: context.mdSecondaryText,
+                ),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 
@@ -1154,6 +1226,23 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
                             ),
                           ),
                         ),
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: EdgeInsets.fromLTRB(
+                              pagePadding,
+                              18,
+                              pagePadding,
+                              0,
+                            ),
+                            child: _SectionTitle(
+                              title: 'Suggested links based on your mood',
+                              subtitle: _analysisScope == 'week'
+                                  ? 'Based on your weekly mood patterns.'
+                                  : 'Based on how today is going.',
+                            ),
+                          ),
+                        ),
+                        SliverToBoxAdapter(child: _buildMoodLinksSection()),
                         SliverToBoxAdapter(child: _buildCategoryChips()),
                         SliverToBoxAdapter(
                           child: Padding(

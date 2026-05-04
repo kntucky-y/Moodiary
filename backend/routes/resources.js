@@ -1,69 +1,17 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const Groq = require('groq-sdk');
 const router = express.Router();
 
 const MoodLog = require('../models/Mood');
 const JournalEntry = require('../models/JournalEntry');
+const MoodInsight = require('../models/MoodInsight');
 const { createRateLimiter } = require('../middleware/rate_limit');
 const { getNearbyMentalHealthClinics } = require('../utils/clinic_search');
 
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash-latest';
-const GEMINI_FALLBACK_MODELS = [
-  GEMINI_MODEL,
-  'gemini-1.5-flash-latest',
-  'gemini-1.5-flash-002',
-  'gemini-1.5-flash-001',
-  'gemini-1.5-pro-latest',
-  'gemini-1.0-pro',
-  'gemini-1.0-pro-001',
-  'gemini-pro',
-];
-const normalizeGeminiKey = (value) => {
-  if (!value) return '';
-  return String(value).trim().replace(/^GEMINI_API_KEY\s*=\s*/i, '');
-};
-
-const geminiApiKey =
-  normalizeGeminiKey(process.env.GEMINI_API_KEY) ||
-  normalizeGeminiKey(process.env.GOOGLE_GENERATIVE_AI_API_KEY);
-const geminiClient = geminiApiKey ? new GoogleGenerativeAI(geminiApiKey) : null;
-let geminiModelUnavailableWarned = false;
-
-const isModelNotFoundError = (err) => {
-  const message = (err && err.message ? err.message : '').toLowerCase();
-  return message.includes('not found') || message.includes('not supported');
-};
-
-const generateWithFallback = async (request) => {
-  if (!geminiClient) return null;
-  const tried = new Set();
-  let lastError;
-  for (const modelName of GEMINI_FALLBACK_MODELS) {
-    const name = (modelName || '').trim();
-    if (!name || tried.has(name)) continue;
-    tried.add(name);
-    const model = geminiClient.getGenerativeModel({ model: name });
-    try {
-      return await model.generateContent(request);
-    } catch (err) {
-      lastError = err;
-      if (!isModelNotFoundError(err)) {
-        throw err;
-      }
-    }
-  }
-  if (lastError) {
-    if (!geminiModelUnavailableWarned && isModelNotFoundError(lastError)) {
-      geminiModelUnavailableWarned = true;
-      console.warn(
-        'Gemini models not available. Check API key access and Generative Language API enablement.',
-      );
-    }
-    return null;
-  }
-  return null;
-};
+const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
+const groqApiKey = (process.env.GROQ_API_KEY || '').trim();
+const groq = groqApiKey ? new Groq({ apiKey: groqApiKey }) : null;
 
 const resourceCatalog = [
   {
@@ -285,6 +233,25 @@ const parseAiJson = (raw) => {
   }
 };
 
+const groqJsonCompletion = async ({ prompt, maxTokens = 520, temperature = 0.35 }) => {
+  if (!groq) return null;
+  const completion = await groq.chat.completions.create({
+    model: GROQ_MODEL,
+    messages: [
+      {
+        role: 'system',
+        content:
+          'You are a JSON-only API. Respond with a single JSON object and no extra text.',
+      },
+      { role: 'user', content: prompt },
+    ],
+    max_tokens: maxTokens,
+    temperature,
+  });
+  const raw = completion?.choices?.[0]?.message?.content || '';
+  return parseAiJson(raw);
+};
+
 const scoreResource = (resource, context) => {
   if (!context) return 0;
   const haystack = [
@@ -328,8 +295,8 @@ const fallbackPersonalize = (resources, context) => {
     }));
 };
 
-const getGeminiResourceOrder = async (context) => {
-  if (!geminiClient || !context) return null;
+const getGroqResourceOrder = async (context) => {
+  if (!groq || !context) return null;
 
   const catalogForPrompt = resourceCatalog.map((resource) => ({
     id: resource.id,
@@ -348,17 +315,11 @@ const getGeminiResourceOrder = async (context) => {
   ].join('\n');
 
   try {
-    const result = await generateWithFallback({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature: 0.35,
-        maxOutputTokens: 520,
-        responseMimeType: 'application/json',
-      },
+    const parsed = await groqJsonCompletion({
+      prompt,
+      maxTokens: 520,
+      temperature: 0.35,
     });
-    const parsed = parseAiJson(
-      result && result.response ? result.response.text() : '',
-    );
     const recs = Array.isArray(parsed?.recommendations)
       ? parsed.recommendations
       : [];
@@ -370,7 +331,7 @@ const getGeminiResourceOrder = async (context) => {
       }))
       .filter((rec) => validIds.has(rec.id));
   } catch (err) {
-    console.error('Gemini resources error:', err.message);
+    console.error('Groq resources error:', err.message);
     return null;
   }
 };
@@ -414,12 +375,28 @@ router.get('/', personalizedResourcesLimiter, async (req, res) => {
   try {
     const userId = parseOptionalUserId(req);
     const context = await buildUserResourceContext(userId);
-    const recommendations = await getGeminiResourceOrder(context);
+    const recommendations = await getGroqResourceOrder(context);
     const personalized = applyRecommendations(
       resourceCatalog,
       recommendations,
       context
     );
+
+    let moodLinks = [];
+    let analysisScope = null;
+    if (userId) {
+      const insight = await MoodInsight.findOne({ userId }).lean();
+      const analysis = insight?.payload?.analysis;
+      if (analysis && Array.isArray(analysis.links)) {
+        moodLinks = analysis.links
+          .map((link) => ({
+            title: (link.title || '').toString().trim(),
+            url: (link.url || '').toString().trim(),
+          }))
+          .filter((link) => link.title && link.url);
+        analysisScope = analysis.scope || null;
+      }
+    }
 
     const { category } = req.query;
     const filtered = category
@@ -433,8 +410,10 @@ router.get('/', personalizedResourcesLimiter, async (req, res) => {
       resources: filtered.map(toPublicResource),
       total: filtered.length,
       personalized: Boolean(context),
-      aiProvider: recommendations?.length ? 'gemini' : 'fallback',
+      aiProvider: recommendations?.length ? 'groq' : 'fallback',
       generatedAt: new Date().toISOString(),
+      moodLinks,
+      analysisScope,
     });
   } catch (err) {
     console.error('Get resources error', err);

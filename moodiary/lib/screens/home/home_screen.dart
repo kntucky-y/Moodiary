@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../onboarding/onboarding_screen.dart';
 import '../companion/companion_screen.dart';
 import '../calendar/calendar_screen.dart';
@@ -26,86 +27,6 @@ const _kPurple = Color(0xFFA076F9);
 const _moods = [
   _Mood('Terrible', 'assets/terrible.png'),
   _Mood('Bad', 'assets/bad.png'),
-  _Mood('Okay', 'assets/okay.png'),
-  _Mood('Good', 'assets/good.png'),
-  _Mood('Excellent', 'assets/excellent.png'),
-];
-
-// Must match calendar_screen.dart _moodLevelPoints
-const _homeMoodLevelPoints = [5, 10, 20, 35, 50];
-
-const _kAiInsightsCacheKey = 'home_ai_insights_cache';
-const _kAiInsightsCacheTsKey = 'home_ai_insights_cache_ts';
-const _kJournalPreviewCacheKey = 'home_journal_preview_cache';
-const _kJournalPreviewCacheTsKey = 'home_journal_preview_cache_ts';
-const _kAiTasksCacheKey = 'tasks_ai_payload';
-const _kAiInsightsCacheTtl = Duration(hours: 24);
-const _kJournalPreviewCacheTtl = Duration(hours: 6);
-
-class _MoodTask {
-  final String id;
-  final String title;
-  final String description;
-  final int points;
-  final String? asset;
-  final IconData? icon;
-  final Color iconColor;
-  final Color iconBackground;
-
-  const _MoodTask({
-    required this.id,
-    required this.title,
-    required this.description,
-    required this.points,
-    this.asset,
-    this.icon,
-    this.iconColor = _kPurple,
-    this.iconBackground = const Color(0xFFF3F0FB),
-  });
-}
-
-/// Fallback pool of universally helpful mood-lifting tasks.
-/// Used when the AI backend returns no tasks (new user, insufficient data, error).
-const _kFallbackTaskPool = [
-  _MoodTask(
-    id: 'fallback_walk',
-    title: 'Take a 10-Minute Walk',
-    description: 'A short walk can boost your mood and clear your mind.',
-    points: 10,
-    icon: Icons.directions_walk_rounded,
-    iconColor: Color(0xFF10B981),
-    iconBackground: Color(0xFFD1FAE5),
-  ),
-  _MoodTask(
-    id: 'fallback_water',
-    title: 'Drink a Glass of Water',
-    description: 'Stay hydrated \u2014 it helps your energy and focus.',
-    points: 5,
-    icon: Icons.water_drop_rounded,
-    iconColor: Color(0xFF3B82F6),
-    iconBackground: Color(0xFFDBEAFE),
-  ),
-  _MoodTask(
-    id: 'fallback_breathe',
-    title: 'Deep Breathing Exercise',
-    description: 'Take 5 slow, deep breaths to calm your nervous system.',
-    points: 10,
-    icon: Icons.air_rounded,
-    iconColor: Color(0xFF8B5CF6),
-    iconBackground: Color(0xFFEDE9FE),
-  ),
-  _MoodTask(
-    id: 'fallback_gratitude',
-    title: 'Write 3 Things You\'re Grateful For',
-    description: 'Gratitude journaling is proven to improve well-being.',
-    points: 10,
-    icon: Icons.favorite_rounded,
-    iconColor: Color(0xFFEC4899),
-    iconBackground: Color(0xFFFCE7F3),
-  ),
-  _MoodTask(
-    id: 'fallback_stretch',
-    title: 'Do a Quick Stretch',
     description:
         'Stretch for 5 minutes to relieve tension and improve circulation.',
     points: 10,
@@ -232,6 +153,59 @@ class _MoodInsights {
   };
 }
 
+class _AnalysisLink {
+  final String title;
+  final String url;
+
+  const _AnalysisLink({required this.title, required this.url});
+
+  factory _AnalysisLink.fromJson(Map<String, dynamic> j) {
+    return _AnalysisLink(
+      title: (j['title'] ?? '').toString(),
+      url: (j['url'] ?? '').toString(),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {'title': title, 'url': url};
+}
+
+class _MoodAnalysis {
+  final String detectedMood;
+  final String scope;
+  final List<_AnalysisLink> links;
+  final DateTime? generatedAt;
+
+  const _MoodAnalysis({
+    required this.detectedMood,
+    required this.scope,
+    required this.links,
+    required this.generatedAt,
+  });
+
+  factory _MoodAnalysis.fromJson(Map<String, dynamic> j) {
+    final links = (j['links'] as List<dynamic>? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(_AnalysisLink.fromJson)
+        .toList();
+    final generated = j['generatedAt']?.toString();
+    return _MoodAnalysis(
+      detectedMood: (j['detectedMood'] ?? '').toString(),
+      scope: (j['scope'] ?? 'day').toString(),
+      links: links,
+      generatedAt: generated != null && generated.isNotEmpty
+          ? DateTime.tryParse(generated)
+          : null,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'detectedMood': detectedMood,
+    'scope': scope,
+    'links': links.map((link) => link.toJson()).toList(),
+    'generatedAt': generatedAt?.toIso8601String(),
+  };
+}
+
 class _JournalPreview {
   final String title;
   final String content;
@@ -309,6 +283,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   bool _insightsLoading = true;
   String? _insightsError;
 
+  _MoodAnalysis? _analysis;
+  bool _analysisLoading = false;
+  String? _analysisError;
+
   _JournalPreview? _journalPreview;
   bool _journalLoading = true;
   String? _journalError;
@@ -332,6 +310,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _loadProfileAvatar();
     _loadTodayTasks();
     _loadAiInsights();
+    _loadMoodAnalysis();
     _loadJournalPreview();
     _loadMiniCalendarFromCache();
   }
@@ -644,6 +623,152 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         _insightsLoading = false;
       });
     }
+  }
+
+  Future<void> _loadMoodAnalysis() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_kAiAnalysisCacheKey);
+    final ts = prefs.getInt(_kAiAnalysisCacheTsKey);
+    if (mounted) {
+      setState(() {
+        _analysisError = null;
+      });
+    }
+    if (raw != null) {
+      try {
+        final decoded = jsonDecode(raw) as Map<String, dynamic>;
+        if (mounted) {
+          setState(() {
+            _analysis = _MoodAnalysis.fromJson(decoded);
+            _analysisLoading = false;
+          });
+        }
+      } catch (_) {}
+    }
+
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    final isFresh =
+        ts != null && nowMs - ts < _kAiAnalysisCacheTtl.inMilliseconds;
+    if (!isFresh && mounted) {
+      setState(() {
+        _analysisLoading = false;
+      });
+    }
+  }
+
+  List<Map<String, dynamic>> _decodeMoodLogsCache(String? raw) {
+    if (raw == null) return [];
+    try {
+      final decoded = jsonDecode(raw) as List<dynamic>;
+      return decoded.whereType<Map<String, dynamic>>().toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  List<Map<String, dynamic>> _buildMoodHistory(
+    String scope,
+    List<Map<String, dynamic>> entries,
+  ) {
+    final now = DateTime.now();
+    final keys = <String>[];
+    final days = scope == 'day' ? 1 : 7;
+    for (int i = days - 1; i >= 0; i -= 1) {
+      keys.add(_toDateKey(now.subtract(Duration(days: i))));
+    }
+
+    final byKey = <String, Map<String, dynamic>>{};
+    for (final entry in entries) {
+      final key = entry['dateKey']?.toString();
+      if (key != null) byKey[key] = entry;
+    }
+
+    final history = <Map<String, dynamic>>[];
+    for (final key in keys) {
+      final entry = byKey[key];
+      if (entry == null) continue;
+      history.add({
+        'dateKey': key,
+        'moodLevel': entry['moodLevel'],
+        'activityScore': entry['activityScore'],
+        'moodScore': entry['moodScore'],
+        'taskScore': entry['taskScore'],
+        'score': entry['score'],
+        'activities': entry['activities'],
+      });
+    }
+    return history;
+  }
+
+  Future<void> _fetchMoodAnalysis(String scope) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+    if (token == null) {
+      if (mounted) {
+        setState(() {
+          _analysisError = 'Please log in to analyze your mood.';
+          _analysisLoading = false;
+        });
+      }
+      return;
+    }
+
+    if (mounted) {
+      setState(() {
+        _analysisLoading = true;
+        _analysisError = null;
+      });
+    }
+
+    try {
+      final cachedLogs = _decodeMoodLogsCache(
+        prefs.getString('mood_logs_cache'),
+      );
+      final moodHistory = _buildMoodHistory(scope, cachedLogs);
+      final payload = await AuthService.instance.analyzeMood(
+        authToken: token,
+        scope: scope,
+        moodHistory: moodHistory,
+      );
+      final analysis = _MoodAnalysis.fromJson(payload);
+      await prefs.setString(
+        _kAiAnalysisCacheKey,
+        jsonEncode(analysis.toJson()),
+      );
+      await prefs.setInt(
+        _kAiAnalysisCacheTsKey,
+        DateTime.now().millisecondsSinceEpoch,
+      );
+      if (!mounted) return;
+      setState(() {
+        _analysis = analysis;
+        _analysisLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _analysisError = e.toString();
+        _analysisLoading = false;
+      });
+    }
+  }
+
+  Uri? _normalizeUrl(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) return null;
+    final withScheme =
+        trimmed.startsWith('http://') || trimmed.startsWith('https://')
+        ? trimmed
+        : 'https://$trimmed';
+    return Uri.tryParse(withScheme);
+  }
+
+  Future<void> _launchUrl(String url) async {
+    final uri = _normalizeUrl(url);
+    if (uri == null) return;
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {}
   }
 
   Future<void> _loadJournalPreview() async {
@@ -1291,6 +1416,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           loading: _insightsLoading,
                           error: _insightsError,
                           onRetry: _fetchAiInsights,
+                          analysis: _analysis,
+                          analysisLoading: _analysisLoading,
+                          analysisError: _analysisError,
+                          onAnalyzeDay: () => _fetchMoodAnalysis('day'),
+                          onAnalyzeWeek: () => _fetchMoodAnalysis('week'),
+                          onOpenLink: _launchUrl,
                         ),
                         const SizedBox(height: 16),
                         Text(
@@ -1826,12 +1957,24 @@ class _AiInsightsCard extends StatelessWidget {
   final bool loading;
   final String? error;
   final VoidCallback onRetry;
+  final _MoodAnalysis? analysis;
+  final bool analysisLoading;
+  final String? analysisError;
+  final VoidCallback onAnalyzeDay;
+  final VoidCallback onAnalyzeWeek;
+  final ValueChanged<String> onOpenLink;
 
   const _AiInsightsCard({
     required this.insights,
     required this.loading,
     required this.error,
     required this.onRetry,
+    required this.analysis,
+    required this.analysisLoading,
+    required this.analysisError,
+    required this.onAnalyzeDay,
+    required this.onAnalyzeWeek,
+    required this.onOpenLink,
   });
 
   String _trendText(_MoodInsights? insights) {
@@ -1951,6 +2094,86 @@ class _AiInsightsCard extends StatelessWidget {
                       color: primaryText,
                     ),
                   ),
+                const SizedBox(height: 14),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    OutlinedButton(
+                      onPressed: analysisLoading ? null : onAnalyzeDay,
+                      child: const Text('Analyze my day (Today)'),
+                    ),
+                    OutlinedButton(
+                      onPressed: analysisLoading ? null : onAnalyzeWeek,
+                      child: const Text('Analyze my week'),
+                    ),
+                  ],
+                ),
+                if (analysisLoading)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 10),
+                    child: Row(
+                      children: [
+                        SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: _kPurple.withValues(alpha: 0.6),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Analyzing your mood...',
+                          style: TextStyle(fontSize: 12, color: subtleText),
+                        ),
+                      ],
+                    ),
+                  ),
+                if (!analysisLoading && analysisError != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 10),
+                    child: Text(
+                      analysisError!,
+                      style: TextStyle(fontSize: 11, color: subtleText),
+                    ),
+                  ),
+                if (!analysisLoading && analysis != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Detected mood: ${analysis!.detectedMood}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: primaryText,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        ...analysis!.links.map(
+                          (link) => Padding(
+                            padding: const EdgeInsets.only(bottom: 6),
+                            child: TextButton.icon(
+                              onPressed: () => onOpenLink(link.url),
+                              icon: const Icon(Icons.open_in_new, size: 16),
+                              label: Text(
+                                link.title,
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                              style: TextButton.styleFrom(
+                                foregroundColor: _kPurple,
+                                padding: EdgeInsets.zero,
+                                alignment: Alignment.centerLeft,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 const SizedBox(height: 12),
                 // Boosters/tasks are shown in the "Today's Tasks" section instead
                 if (error != null)
@@ -1962,6 +2185,89 @@ class _AiInsightsCard extends StatelessWidget {
                     ),
                   ),
               ],
+            ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              OutlinedButton(
+                onPressed: analysisLoading ? null : onAnalyzeDay,
+                child: const Text('Analyze my day (Today)'),
+              ),
+              OutlinedButton(
+                onPressed: analysisLoading ? null : onAnalyzeWeek,
+                child: const Text('Analyze my week'),
+              ),
+            ],
+          ),
+          if (analysisLoading)
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: _kPurple.withValues(alpha: 0.6),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Analyzing your mood...',
+                    style: TextStyle(fontSize: 12, color: subtleText),
+                  ),
+                ],
+              ),
+            ),
+          if (!analysisLoading && analysisError != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: Text(
+                analysisError!,
+                style: TextStyle(fontSize: 11, color: subtleText),
+              ),
+            ),
+          if (!analysisLoading && analysis != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Detected mood: ${analysis!.detectedMood}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: primaryText,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  ...analysis!.links.map(
+                    (link) => Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: TextButton.icon(
+                        onPressed: () => onOpenLink(link.url),
+                        icon: const Icon(
+                          Icons.open_in_new,
+                          size: 16,
+                        ),
+                        label: Text(
+                          link.title,
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        style: TextButton.styleFrom(
+                          foregroundColor: _kPurple,
+                          padding: EdgeInsets.zero,
+                          alignment: Alignment.centerLeft,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
         ],
       ),

@@ -1,5 +1,5 @@
 const express = require('express');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const Groq = require('groq-sdk');
 const router = express.Router();
 const auth = require('../middleware/auth');
 const { createRateLimiter } = require('../middleware/rate_limit');
@@ -12,63 +12,9 @@ const MAX_BOOSTERS = 3;
 const AI_TASK_COUNT = 3;
 const JOURNAL_LOOKBACK = 3;
 const JOURNAL_SNIPPET_MAX = 180;
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash-latest';
-const GEMINI_FALLBACK_MODELS = [
-  GEMINI_MODEL,
-  'gemini-1.5-flash-latest',
-  'gemini-1.5-flash-002',
-  'gemini-1.5-flash-001',
-  'gemini-1.5-pro-latest',
-  'gemini-1.0-pro',
-  'gemini-1.0-pro-001',
-  'gemini-pro',
-];
-
-const normalizeGeminiKey = (value) => {
-  if (!value) return '';
-  return String(value).trim().replace(/^GEMINI_API_KEY\s*=\s*/i, '');
-};
-
-const geminiApiKey =
-  normalizeGeminiKey(process.env.GEMINI_API_KEY) ||
-  normalizeGeminiKey(process.env.GOOGLE_GENERATIVE_AI_API_KEY);
-const geminiClient = geminiApiKey ? new GoogleGenerativeAI(geminiApiKey) : null;
-let geminiModelUnavailableWarned = false;
-
-const isModelNotFoundError = (err) => {
-  const message = (err && err.message ? err.message : '').toLowerCase();
-  return message.includes('not found') || message.includes('not supported');
-};
-
-const generateWithFallback = async (request) => {
-  if (!geminiClient) return null;
-  const tried = new Set();
-  let lastError;
-  for (const modelName of GEMINI_FALLBACK_MODELS) {
-    const name = (modelName || '').trim();
-    if (!name || tried.has(name)) continue;
-    tried.add(name);
-    const model = geminiClient.getGenerativeModel({ model: name });
-    try {
-      return await model.generateContent(request);
-    } catch (err) {
-      lastError = err;
-      if (!isModelNotFoundError(err)) {
-        throw err;
-      }
-    }
-  }
-  if (lastError) {
-    if (!geminiModelUnavailableWarned && isModelNotFoundError(lastError)) {
-      geminiModelUnavailableWarned = true;
-      console.warn(
-        'Gemini models not available. Check API key access and Generative Language API enablement.',
-      );
-    }
-    return null;
-  }
-  return null;
-};
+const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
+const groqApiKey = (process.env.GROQ_API_KEY || '').trim();
+const groq = groqApiKey ? new Groq({ apiKey: groqApiKey }) : null;
 
 const aiLimiter = createRateLimiter({
   windowMs: 15 * 60 * 1000,
@@ -268,6 +214,25 @@ const parseAiJson = (raw) => {
   }
 };
 
+const groqJsonCompletion = async ({ prompt, maxTokens = 420, temperature = 0.35 }) => {
+  if (!groq) return null;
+  const completion = await groq.chat.completions.create({
+    model: GROQ_MODEL,
+    messages: [
+      {
+        role: 'system',
+        content:
+          'You are a JSON-only API. Respond with a single JSON object and no extra text.',
+      },
+      { role: 'user', content: prompt },
+    ],
+    max_tokens: maxTokens,
+    temperature,
+  });
+  const raw = completion?.choices?.[0]?.message?.content || '';
+  return parseAiJson(raw);
+};
+
 const normalizeTasks = (tasks) => {
   if (!Array.isArray(tasks)) return [];
   const normalized = tasks
@@ -297,32 +262,56 @@ const normalizeMessage = (text) => {
 };
 
 const getAiBundle = async (message) => {
-  if (!geminiClient) return null;
+  if (!groq) return null;
   try {
-    const result = await generateWithFallback({
-      contents: [
-        {
-          role: 'user',
-          parts: [{ text: `${promptStyleGuide}\n\n${message}` }],
-        },
-      ],
-      generationConfig: {
-        temperature: 0.45,
-        maxOutputTokens: 420,
-        responseMimeType: 'application/json',
-      },
-    });
+    const prompt = [promptStyleGuide, message].join('\n');
 
-    const reply = result && result.response ? result.response.text() || '' : '';
-    const parsed = parseAiJson(reply);
+    const parsed = await groqJsonCompletion({
+      prompt,
+      maxTokens: 520,
+      temperature: 0.4,
+    });
     if (!parsed) return null;
     const tasks = normalizeTasks(parsed.tasks);
     if (!tasks.length) return null;
     return { aiMessage: normalizeMessage(parsed.aiMessage), tasks };
   } catch (err) {
-    console.error('Gemini AI insights error:', err.message);
+    console.error('Groq AI insights error:', err.message);
     return null;
   }
+};
+
+const normalizeAnalysisLinks = (links) => {
+  if (!Array.isArray(links)) return [];
+  const cleaned = links
+    .map((link) => {
+      if (!link || typeof link !== 'object') return null;
+      const title = (link.title || '').toString().trim();
+      const url = (link.url || '').toString().trim();
+      if (!title || !url) return null;
+      return { title, url };
+    })
+    .filter(Boolean);
+  const unique = [];
+  const seen = new Set();
+  for (const link of cleaned) {
+    const key = `${link.title}|${link.url}`.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push(link);
+  }
+  return unique.slice(0, 5);
+};
+
+const buildAnalysisPrompt = ({ scope, moodHistory }) => {
+  return [
+    'Analyze the provided mood history for a user in a wellness app.',
+    'Detect the overall mood and provide 3-5 relevant, reputable article links.',
+    'Return JSON only: {"detectedMood":"string","links":[{"title":"string","url":"string"}]}.',
+    'Do not include any extra keys, disclaimers, or markdown.',
+    `Scope: ${scope}.`,
+    `Mood history: ${JSON.stringify(moodHistory)}`,
+  ].join('\n');
 };
 
 router.get('/mood-insights', async (req, res) => {
@@ -413,7 +402,8 @@ router.get('/mood-insights', async (req, res) => {
       boosters,
       lastMoodDateKey,
       generatedAt: now.toISOString(),
-      aiProvider: aiBundle ? 'gemini' : 'fallback',
+      aiProvider: aiBundle ? 'groq' : 'fallback',
+      analysis: cached?.payload?.analysis || null,
     };
 
     await MoodInsight.findOneAndUpdate(
@@ -429,6 +419,68 @@ router.get('/mood-insights', async (req, res) => {
     res.json(payload);
   } catch (err) {
     res.status(500).json({ error: 'Unable to build AI insights right now.' });
+  }
+});
+
+router.post('/analyze-day', async (req, res) => {
+  try {
+    if (!groq) {
+      return res.status(503).json({ error: 'Groq is not configured.' });
+    }
+
+    const scope = (req.body?.scope || 'day').toString().toLowerCase();
+    if (!['day', 'week'].includes(scope)) {
+      return res.status(400).json({ error: 'Invalid scope.' });
+    }
+
+    let moodHistory = Array.isArray(req.body?.moodHistory)
+      ? req.body.moodHistory
+      : [];
+
+    if (!moodHistory.length) {
+      const keys = getRecentDateKeys(scope === 'day' ? 1 : 7);
+      const logs = await MoodLog.find({
+        userId: req.userId,
+        dateKey: { $in: keys },
+      }).lean();
+      moodHistory = logs;
+    }
+
+    const prompt = buildAnalysisPrompt({ scope, moodHistory });
+    const parsed = await groqJsonCompletion({
+      prompt,
+      maxTokens: 640,
+      temperature: 0.3,
+    });
+
+    const detectedMood = (parsed?.detectedMood || '').toString().trim();
+    const links = normalizeAnalysisLinks(parsed?.links);
+    if (!detectedMood || links.length < 3) {
+      return res.status(502).json({ error: 'Analysis response incomplete.' });
+    }
+
+    const analysis = {
+      scope,
+      detectedMood,
+      links,
+      generatedAt: new Date().toISOString(),
+    };
+
+    await MoodInsight.findOneAndUpdate(
+      { userId: req.userId },
+      {
+        $set: {
+          'payload.analysis': analysis,
+          expiresAt: new Date(Date.now() + CACHE_TTL_MS),
+        },
+      },
+      { upsert: true, returnDocument: 'after' }
+    );
+
+    return res.json(analysis);
+  } catch (err) {
+    console.error('Groq analysis error:', err.message);
+    return res.status(500).json({ error: 'Unable to analyze mood right now.' });
   }
 });
 

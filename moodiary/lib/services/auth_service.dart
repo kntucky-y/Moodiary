@@ -658,6 +658,37 @@ class AuthService {
     }
   }
 
+  Future<Map<String, dynamic>> analyzeMood({
+    required String authToken,
+    required String scope,
+    required List<Map<String, dynamic>> moodHistory,
+  }) async {
+    final uri = Uri.parse('$kBackendBaseUrl/api/ai/analyze-day');
+    try {
+      final response = await _client.post(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $authToken',
+        },
+        body: jsonEncode({'scope': scope, 'moodHistory': moodHistory}),
+      );
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+        return decoded;
+      }
+      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+      throw AuthException(
+        decoded['error']?.toString() ?? 'Failed to analyze mood',
+      );
+    } catch (error) {
+      if (error is AuthException) {
+        rethrow;
+      }
+      throw AuthException('Cannot reach the server. Please try again.');
+    }
+  }
+
   Future<List<Map<String, dynamic>>> getMyForumPosts({
     required String authToken,
     String? userName,

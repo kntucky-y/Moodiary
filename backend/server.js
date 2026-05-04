@@ -40,14 +40,11 @@ app.use('/api/ai', aiRoutes);
 // Health-check — visit /api/health to confirm env vars are loaded on the host
 app.get('/api/health', (req, res) => {
   const groqKey = process.env.GROQ_API_KEY;
-  const geminiKey =
-    process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
   res.json({
     status: 'ok',
     groqKeyLoaded: !!groqKey,
     groqKeyPrefix: groqKey ? groqKey.slice(0, 8) + '...' : null,
-    geminiKeyLoaded: !!geminiKey,
-    geminiModel: process.env.GEMINI_MODEL || 'gemini-1.5-flash-latest',
+    groqModel: process.env.GROQ_MODEL || 'llama-3.3-70b-versatile',
   });
 });
 
