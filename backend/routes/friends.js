@@ -64,6 +64,8 @@ const MOOD_ASSETS = [
   'assets/excellent.png',
 ];
 
+const MAX_MESSAGE_LENGTH = 1000;
+
 
 const formatCurrentMood = (log) => {
   if (!log) return null;
@@ -439,6 +441,11 @@ router.post('/:id/messages', auth, friendMessageLimiter, async (req, res) => {
   const text = (req.body.text || '').trim();
   if (!text) {
     return res.status(400).json({ error: 'Message text is required' });
+  }
+  if (text.length > MAX_MESSAGE_LENGTH) {
+    return res.status(413).json({
+      error: `Message is too long (max ${MAX_MESSAGE_LENGTH} characters)`,
+    });
   }
 
   try {

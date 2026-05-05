@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:socket_io_client/socket_io_client.dart' as io;
 import '../../services/auth_service.dart';
@@ -15,6 +17,7 @@ import '../../widgets/user_profile_popup.dart';
 const _kBaseUrl = kBackendBaseUrl;
 const _kPurple = Color(0xFFA076F9);
 const _kBubbleMine = Color(0xFF4338CA);
+const _kMaxMessageLength = 1000;
 
 enum _ChatMenuAction { search, clearChat }
 
@@ -59,10 +62,14 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
   io.Socket? _socket;
   bool _sending = false;
   String? _highlightedMessageId;
+  StreamSubscription<Map<String, dynamic>>? _notificationSub;
 
   @override
   void initState() {
     super.initState();
+    _notificationSub = RealtimeNotifications.instance.stream.listen(
+      _handleRealtimeNotification,
+    );
     _init();
   }
 
@@ -216,6 +223,16 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
   Future<void> _sendMessage() async {
     final text = _input.text.trim();
     if (text.isEmpty || _token == null) return;
+    if (text.length > _kMaxMessageLength) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Message is too long (max $_kMaxMessageLength characters).',
+          ),
+        ),
+      );
+      return;
+    }
     setState(() => _sending = true);
     _input.clear();
 
@@ -577,6 +594,16 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
     });
   }
 
+  void _handleRealtimeNotification(Map<String, dynamic> payload) {
+    if (!mounted) return;
+    final type = payload['type']?.toString();
+    if (type != 'friend_message') return;
+    final friendshipId = payload['friendshipId']?.toString();
+    if (friendshipId != widget.friendshipId) return;
+    if (_loading) return;
+    _loadHistory();
+  }
+
   String _formatTime(DateTime dt) {
     final h = dt.hour.toString().padLeft(2, '0');
     final m = dt.minute.toString().padLeft(2, '0');
@@ -585,6 +612,7 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
 
   @override
   void dispose() {
+    _notificationSub?.cancel();
     _socket?.emit('friends:leave', {'friendshipId': widget.friendshipId});
     _socket?.dispose();
     _input.dispose();
@@ -1007,12 +1035,15 @@ class _MessageComposer extends StatelessWidget {
                 controller: controller,
                 minLines: 1,
                 maxLines: 4,
+                maxLength: _kMaxMessageLength,
+                maxLengthEnforcement: MaxLengthEnforcement.enforced,
                 style: TextStyle(color: context.mdPrimaryText),
                 decoration: InputDecoration(
                   hintText: 'Send some support...',
                   hintStyle: TextStyle(color: context.mdSecondaryText),
                   filled: true,
                   fillColor: context.mdInputFill,
+                  counterText: '',
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(20),
                     borderSide: BorderSide.none,

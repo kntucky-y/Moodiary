@@ -12,6 +12,7 @@ let ioInstance;
 
 const roomName = (id) => `friendship:${id}`;
 const userRoom = (id) => `user:${id}`;
+const MAX_MESSAGE_LENGTH = 1000;
 
 const isMutedBy = (user, targetUserId) =>
   (user?.mutedUsers || []).some((id) => id.toString() === targetUserId.toString());
@@ -108,6 +109,13 @@ const initSocket = (server) => {
       const friendshipId = (payload.friendshipId || '').toString().trim();
       const text = (payload.text || '').trim();
       if (!friendshipId || !text) return;
+      if (text.length > MAX_MESSAGE_LENGTH) {
+        socket.emit('friends:error', {
+          friendshipId,
+          error: `Message is too long (max ${MAX_MESSAGE_LENGTH} characters)`,
+        });
+        return;
+      }
 
       try {
         const friendship = await ensureFriendshipAccess(
