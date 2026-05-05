@@ -15,6 +15,10 @@ const moodInsightSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    lastMoodUpdatedAt: {
+      type: Date,
+      default: null,
+    },
     expiresAt: {
       type: Date,
       required: true,

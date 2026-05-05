@@ -318,14 +318,25 @@ router.get('/mood-insights', async (req, res) => {
   try {
     const now = new Date();
     const latestLog = await MoodLog.findOne({ userId: req.userId })
-      .sort({ dateKey: -1 })
-      .select('dateKey')
+      .sort({ updatedAt: -1, dateKey: -1 })
+      .select('dateKey updatedAt')
       .lean();
     const lastMoodDateKey = latestLog?.dateKey || null;
+    const lastMoodUpdatedAt = latestLog?.updatedAt || null;
 
     const cached = await MoodInsight.findOne({ userId: req.userId }).lean();
     if (cached && cached.expiresAt && cached.expiresAt > now) {
-      if (cached.lastMoodDateKey === lastMoodDateKey && cached.payload) {
+      const cachedUpdatedAt = cached.lastMoodUpdatedAt
+        ? new Date(cached.lastMoodUpdatedAt).getTime()
+        : 0;
+      const latestUpdatedAt = lastMoodUpdatedAt
+        ? new Date(lastMoodUpdatedAt).getTime()
+        : 0;
+      if (
+        cached.lastMoodDateKey === lastMoodDateKey &&
+        cachedUpdatedAt === latestUpdatedAt &&
+        cached.payload
+      ) {
         return res.json({
           ...cached.payload,
           cachedAt: cached.createdAt,
@@ -401,6 +412,7 @@ router.get('/mood-insights', async (req, res) => {
       tasks: finalTasks,
       boosters,
       lastMoodDateKey,
+      lastMoodUpdatedAt,
       generatedAt: now.toISOString(),
       aiProvider: aiBundle ? 'groq' : 'fallback',
       analysis: cached?.payload?.analysis || null,
@@ -411,6 +423,7 @@ router.get('/mood-insights', async (req, res) => {
       {
         payload,
         lastMoodDateKey,
+        lastMoodUpdatedAt,
         expiresAt: new Date(now.getTime() + CACHE_TTL_MS),
       },
       { upsert: true, returnDocument: 'after' }
