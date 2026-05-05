@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:socket_io_client/socket_io_client.dart' as io;
@@ -15,6 +16,8 @@ import '../../widgets/user_profile_popup.dart';
 const _kBaseUrl = kBackendBaseUrl;
 const _kPurple = Color(0xFFA076F9);
 const _kBubbleMine = Color(0xFF4338CA);
+
+enum _ChatMenuAction { search, sendImage, clearChat }
 
 class FriendChatScreen extends StatefulWidget {
   final String friendshipId;
@@ -56,6 +59,8 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
   String _companionName = 'Companion';
   io.Socket? _socket;
   bool _sending = false;
+  bool _uploadingImage = false;
+  String? _highlightedMessageId;
 
   @override
   void initState() {
@@ -142,7 +147,8 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
             final pendingIndex = _messages.lastIndexWhere(
               (m) =>
                   m.pending &&
-                  m.text == incoming.text &&
+                  ((m.isImage && incoming.isImage) ||
+                      m.text == incoming.text) &&
                   (incoming.isMine || _userId == null) &&
                   (incoming.createdAt.difference(m.createdAt).abs() <
                       const Duration(seconds: 15)),
@@ -160,6 +166,20 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
             'createdAt': incoming.createdAt.toIso8601String(),
           });
           _scrollToBottom();
+        }
+      })
+      ..on('friends:message:update', (data) {
+        if (data is Map && data['friendshipId'] == widget.friendshipId) {
+          final updated = _FriendMessage.fromJson(
+            Map<String, dynamic>.from(data),
+            _userId,
+          );
+          setState(() {
+            final index = _messages.indexWhere((m) => m.id == updated.id);
+            if (index != -1) {
+              _messages[index] = updated;
+            }
+          });
         }
       })
       ..on('friends:removed', (data) {
@@ -205,6 +225,8 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
     final optimistic = _FriendMessage(
       id: 'local-${DateTime.now().millisecondsSinceEpoch}',
       text: text,
+      type: 'text',
+      imageUrl: '',
       createdAt: DateTime.now(),
       isMine: true,
       pending: true,
@@ -271,6 +293,374 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
     }
   }
 
+  Future<void> _sendImage() async {
+    if (_token == null || _uploadingImage) return;
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+      maxWidth: 1800,
+    );
+    if (picked == null) return;
+
+    final bytes = await picked.readAsBytes();
+    if (bytes.length > 2 * 1024 * 1024) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Image is too large (max 2MB).')),
+      );
+      return;
+    }
+
+    setState(() => _uploadingImage = true);
+
+    final optimistic = _FriendMessage(
+      id: 'local-image-${DateTime.now().millisecondsSinceEpoch}',
+      text: '',
+      type: 'image',
+      imageUrl: '',
+      createdAt: DateTime.now(),
+      isMine: true,
+      pending: true,
+    );
+
+    setState(() => _messages.add(optimistic));
+    _scrollToBottom();
+
+    try {
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse(
+          '$_kBaseUrl/api/friends/${widget.friendshipId}/messages/image',
+        ),
+      );
+      request.headers['Authorization'] = 'Bearer $_token';
+      request.files.add(
+        http.MultipartFile.fromBytes('image', bytes, filename: picked.name),
+      );
+
+      final streamed = await request.send();
+      final body = await streamed.stream.bytesToString();
+
+      if (streamed.statusCode != 201) {
+        throw Exception(body.isEmpty ? 'Upload failed' : body);
+      }
+
+      final created = _FriendMessage.fromJson(
+        jsonDecode(body) as Map<String, dynamic>,
+        _userId,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        final pendingIndex = _messages.lastIndexWhere(
+          (m) => m.id == optimistic.id,
+        );
+        if (pendingIndex != -1) {
+          _messages[pendingIndex] = created;
+        } else if (_messages.every((m) => m.id != created.id)) {
+          _messages.add(created);
+        }
+      });
+      RealtimeNotifications.instance.emitLocal({
+        'type': 'friend_message',
+        'friendshipId': widget.friendshipId,
+        'text': 'sent a photo',
+        'createdAt': created.createdAt.toIso8601String(),
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _messages.removeWhere((m) => m.id == optimistic.id);
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to send image. Please retry.')),
+      );
+    } finally {
+      if (mounted) setState(() => _uploadingImage = false);
+    }
+  }
+
+  Future<void> _deleteMessage(_FriendMessage message) async {
+    if (_token == null) return;
+    try {
+      final resp = await http.delete(
+        Uri.parse(
+          '$_kBaseUrl/api/friends/${widget.friendshipId}/messages/${message.id}',
+        ),
+        headers: {'Authorization': 'Bearer $_token'},
+      );
+      if (resp.statusCode == 200) {
+        if (!mounted) return;
+        setState(() {
+          _messages.removeWhere((m) => m.id == message.id);
+        });
+      } else {
+        throw Exception('Failed');
+      }
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not delete message.')),
+      );
+    }
+  }
+
+  Future<void> _unsendMessage(_FriendMessage message) async {
+    if (_token == null) return;
+    try {
+      final resp = await http.post(
+        Uri.parse(
+          '$_kBaseUrl/api/friends/${widget.friendshipId}/messages/${message.id}/unsend',
+        ),
+        headers: {'Authorization': 'Bearer $_token'},
+      );
+      if (resp.statusCode == 200) {
+        final data = jsonDecode(resp.body) as Map<String, dynamic>;
+        final payload = data['message'] as Map<String, dynamic>;
+        final updated = _FriendMessage.fromJson(payload, _userId);
+        if (!mounted) return;
+        setState(() {
+          final index = _messages.indexWhere((m) => m.id == updated.id);
+          if (index != -1) {
+            _messages[index] = updated;
+          }
+        });
+      } else {
+        throw Exception('Failed');
+      }
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not unsend message.')),
+      );
+    }
+  }
+
+  Future<void> _clearChat() async {
+    if (_token == null) return;
+    try {
+      final resp = await http.post(
+        Uri.parse(
+          '$_kBaseUrl/api/friends/${widget.friendshipId}/messages/clear',
+        ),
+        headers: {'Authorization': 'Bearer $_token'},
+      );
+      if (resp.statusCode == 200) {
+        if (!mounted) return;
+        setState(() {
+          _messages.clear();
+        });
+      } else {
+        throw Exception('Failed');
+      }
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Could not clear chat.')));
+    }
+  }
+
+  Future<void> _openSearch() async {
+    if (_token == null) return;
+    final controller = TextEditingController();
+    bool loading = false;
+    List<_FriendMessage> results = [];
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setModalState) {
+            Future<void> runSearch() async {
+              final q = controller.text.trim();
+              if (q.isEmpty) return;
+              setModalState(() => loading = true);
+              try {
+                final resp = await http.get(
+                  Uri.parse(
+                    '$_kBaseUrl/api/friends/${widget.friendshipId}/messages/search?q=${Uri.encodeComponent(q)}',
+                  ),
+                  headers: {'Authorization': 'Bearer $_token'},
+                );
+                if (resp.statusCode == 200) {
+                  final data = jsonDecode(resp.body) as Map<String, dynamic>;
+                  final raw = (data['results'] as List<dynamic>?) ?? [];
+                  results = raw
+                      .map(
+                        (j) => _FriendMessage.fromJson(
+                          j as Map<String, dynamic>,
+                          _userId,
+                        ),
+                      )
+                      .toList();
+                }
+              } catch (_) {
+                // ignore
+              } finally {
+                setModalState(() => loading = false);
+              }
+            }
+
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(ctx).viewInsets.bottom,
+              ),
+              child: GlassContainer(
+                blurSigma: context.mdGlassBlurMedium,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(24),
+                ),
+                backgroundColor: context.mdGlassSurfaceStrong,
+                borderColor: context.mdGlassBorder,
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: controller,
+                            textInputAction: TextInputAction.search,
+                            onSubmitted: (_) => runSearch(),
+                            style: TextStyle(color: context.mdPrimaryText),
+                            decoration: InputDecoration(
+                              hintText: 'Search messages',
+                              hintStyle: TextStyle(
+                                color: context.mdSecondaryText,
+                              ),
+                              filled: true,
+                              fillColor: context.mdInputFill,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                borderSide: BorderSide.none,
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 10,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          onPressed: runSearch,
+                          icon: const Icon(Icons.search),
+                          color: _kPurple,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    if (loading)
+                      const Padding(
+                        padding: EdgeInsets.all(12),
+                        child: CircularProgressIndicator(),
+                      )
+                    else if (results.isEmpty)
+                      Text(
+                        'No matches yet.',
+                        style: TextStyle(color: context.mdSecondaryText),
+                      )
+                    else
+                      SizedBox(
+                        height: 260,
+                        child: ListView.builder(
+                          itemCount: results.length,
+                          itemBuilder: (_, index) {
+                            final message = results[index];
+                            return ListTile(
+                              title: Text(
+                                message.isUnsent
+                                    ? 'Message unsent'
+                                    : (message.isImage
+                                          ? 'Photo'
+                                          : message.text),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              subtitle: Text(_formatTime(message.createdAt)),
+                              onTap: () {
+                                Navigator.of(ctx).pop();
+                                final indexInChat = _messages.indexWhere(
+                                  (m) => m.id == message.id,
+                                );
+                                if (indexInChat != -1) {
+                                  setState(() {
+                                    _highlightedMessageId = message.id;
+                                  });
+                                  _scrollToIndex(indexInChat);
+                                  Future.delayed(
+                                    const Duration(seconds: 3),
+                                    () {
+                                      if (!mounted) return;
+                                      if (_highlightedMessageId == message.id) {
+                                        setState(() {
+                                          _highlightedMessageId = null;
+                                        });
+                                      }
+                                    },
+                                  );
+                                }
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _scrollToIndex(int index) {
+    if (!_scrollController.hasClients) return;
+    final offset = index * 72.0;
+    _scrollController.animateTo(
+      offset.clamp(0, _scrollController.position.maxScrollExtent),
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+    );
+  }
+
+  void _showMessageActions(_FriendMessage message) {
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.delete_outline),
+                title: const Text('Delete for me'),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  _deleteMessage(message);
+                },
+              ),
+              if (message.isMine && !message.isUnsent && !message.pending)
+                ListTile(
+                  leading: const Icon(Icons.undo),
+                  title: const Text('Unsend'),
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    _unsendMessage(message);
+                  },
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_scrollController.hasClients) return;
@@ -280,6 +670,12 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
         curve: Curves.easeOut,
       );
     });
+  }
+
+  String _formatTime(DateTime dt) {
+    final h = dt.hour.toString().padLeft(2, '0');
+    final m = dt.minute.toString().padLeft(2, '0');
+    return '$h:$m';
   }
 
   @override
@@ -320,6 +716,40 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
               name: widget.friendName,
               email: widget.friendEmail,
               friendAvatarUrl: widget.friendAvatarUrl,
+              onMenuAction: (action) async {
+                switch (action) {
+                  case _ChatMenuAction.search:
+                    await _openSearch();
+                    break;
+                  case _ChatMenuAction.sendImage:
+                    await _sendImage();
+                    break;
+                  case _ChatMenuAction.clearChat:
+                    final confirmed = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('Clear chat?'),
+                        content: const Text(
+                          'This clears the chat only for you.',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(ctx).pop(false),
+                            child: const Text('Cancel'),
+                          ),
+                          ElevatedButton(
+                            onPressed: () => Navigator.of(ctx).pop(true),
+                            child: const Text('Clear'),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (confirmed == true) {
+                      await _clearChat();
+                    }
+                    break;
+                }
+              },
               onOpenForumPost: (postId) async {
                 if (!context.mounted) return;
                 Navigator.of(context).push(
@@ -356,6 +786,8 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
                           return _ChatBubble(
                             message: message,
                             friendAvatarUrl: widget.friendAvatarUrl,
+                            highlighted: message.id == _highlightedMessageId,
+                            onLongPress: () => _showMessageActions(message),
                           );
                         },
                       ),
@@ -376,17 +808,25 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
 class _FriendMessage {
   final String id;
   final String text;
+  final String type;
+  final String imageUrl;
   final DateTime createdAt;
   final bool isMine;
   final bool pending;
+  final bool isUnsent;
 
   _FriendMessage({
     required this.id,
     required this.text,
+    required this.type,
+    required this.imageUrl,
     required this.createdAt,
     required this.isMine,
     this.pending = false,
+    this.isUnsent = false,
   });
+
+  bool get isImage => type == 'image';
 
   factory _FriendMessage.fromJson(Map<String, dynamic> json, String? viewerId) {
     final createdRaw = json['createdAt'];
@@ -395,13 +835,23 @@ class _FriendMessage {
         : DateTime.fromMillisecondsSinceEpoch(createdRaw as int).toLocal();
     final sender = json['sender']?.toString();
     final rawId = json['id'] ?? json['_id'];
+    final type = (json['type'] ?? 'text').toString();
+    final imageUrl = (json['imageUrl'] ?? '').toString();
+    final unsentAt = json['unsentAt'];
+    final isUnsent = unsentAt is String
+        ? unsentAt.isNotEmpty
+        : unsentAt != null;
+    final text = (json['text'] ?? '').toString();
     return _FriendMessage(
       id: rawId != null
           ? rawId.toString()
           : 'remote-${DateTime.now().millisecondsSinceEpoch}',
-      text: json['text'] as String,
+      text: text,
+      type: type,
+      imageUrl: imageUrl,
       createdAt: createdAt,
       isMine: sender != null && sender == viewerId,
+      isUnsent: isUnsent,
     );
   }
 }
@@ -409,8 +859,15 @@ class _FriendMessage {
 class _ChatBubble extends StatelessWidget {
   final _FriendMessage message;
   final String? friendAvatarUrl;
+  final VoidCallback? onLongPress;
+  final bool highlighted;
 
-  const _ChatBubble({required this.message, this.friendAvatarUrl});
+  const _ChatBubble({
+    required this.message,
+    this.friendAvatarUrl,
+    this.onLongPress,
+    this.highlighted = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -425,60 +882,85 @@ class _ChatBubble extends StatelessWidget {
 
     return Align(
       alignment: alignment,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          if (!message.isMine)
-            Padding(
-              padding: const EdgeInsets.only(right: 8, bottom: 2),
-              child: CircleAvatar(
-                radius: 12,
-                backgroundImage: avatarImageProvider(friendAvatarUrl),
-                child: avatarImageProvider(friendAvatarUrl) == null
-                    ? const Icon(Icons.person, size: 12)
+      child: GestureDetector(
+        onLongPress: onLongPress,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            if (!message.isMine)
+              Padding(
+                padding: const EdgeInsets.only(right: 8, bottom: 2),
+                child: CircleAvatar(
+                  radius: 12,
+                  backgroundImage: avatarImageProvider(friendAvatarUrl),
+                  child: avatarImageProvider(friendAvatarUrl) == null
+                      ? const Icon(Icons.person, size: 12)
+                      : null,
+                ),
+              ),
+            Container(
+              margin: const EdgeInsets.symmetric(vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: bubbleColor,
+                borderRadius: BorderRadius.circular(18).copyWith(
+                  bottomRight: message.isMine ? const Radius.circular(4) : null,
+                  bottomLeft: message.isMine ? null : const Radius.circular(4),
+                ),
+                border: highlighted
+                    ? Border.all(color: _kPurple.withValues(alpha: 0.6))
                     : null,
               ),
-            ),
-          Container(
-            margin: const EdgeInsets.symmetric(vertical: 4),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: bubbleColor,
-              borderRadius: BorderRadius.circular(18).copyWith(
-                bottomRight: message.isMine ? const Radius.circular(4) : null,
-                bottomLeft: message.isMine ? null : const Radius.circular(4),
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: message.isMine
-                  ? CrossAxisAlignment.end
-                  : CrossAxisAlignment.start,
-              children: [
-                Text(
-                  message.text,
-                  style: TextStyle(color: textColor, fontSize: 14, height: 1.4),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  _formatTime(message.createdAt),
-                  style: TextStyle(
-                    color: textColor.withValues(alpha: 0.7),
-                    fontSize: 10,
-                  ),
-                ),
-                if (message.pending)
+              child: Column(
+                crossAxisAlignment: message.isMine
+                    ? CrossAxisAlignment.end
+                    : CrossAxisAlignment.start,
+                children: [
+                  if (message.isUnsent)
+                    Text(
+                      'Message unsent',
+                      style: TextStyle(
+                        color: textColor.withValues(alpha: 0.75),
+                        fontSize: 14,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    )
+                  else if (message.isImage)
+                    _ImageBubble(
+                      imageUrl: message.imageUrl,
+                      pending: message.pending,
+                    )
+                  else
+                    Text(
+                      message.text,
+                      style: TextStyle(
+                        color: textColor,
+                        fontSize: 14,
+                        height: 1.4,
+                      ),
+                    ),
+                  const SizedBox(height: 4),
                   Text(
-                    'sending...',
+                    _formatTime(message.createdAt),
                     style: TextStyle(
-                      color: message.isMine ? Colors.white70 : secondaryText,
+                      color: textColor.withValues(alpha: 0.7),
                       fontSize: 10,
                     ),
                   ),
-              ],
+                  if (message.pending)
+                    Text(
+                      'sending...',
+                      style: TextStyle(
+                        color: message.isMine ? Colors.white70 : secondaryText,
+                        fontSize: 10,
+                      ),
+                    ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -490,12 +972,54 @@ class _ChatBubble extends StatelessWidget {
   }
 }
 
+class _ImageBubble extends StatelessWidget {
+  final String imageUrl;
+  final bool pending;
+
+  const _ImageBubble({required this.imageUrl, required this.pending});
+
+  @override
+  Widget build(BuildContext context) {
+    final borderRadius = BorderRadius.circular(12);
+    if (pending || imageUrl.isEmpty) {
+      return Container(
+        width: 180,
+        height: 180,
+        decoration: BoxDecoration(
+          color: Colors.white12,
+          borderRadius: borderRadius,
+        ),
+        child: const Center(
+          child: Icon(Icons.image_outlined, color: Colors.white70),
+        ),
+      );
+    }
+
+    return ClipRRect(
+      borderRadius: borderRadius,
+      child: Image.network(
+        imageUrl,
+        width: 180,
+        height: 180,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => Container(
+          width: 180,
+          height: 180,
+          color: Colors.white12,
+          child: const Center(child: Icon(Icons.broken_image_outlined)),
+        ),
+      ),
+    );
+  }
+}
+
 class _ChatHeader extends StatelessWidget {
   final String friendUserId;
   final String name;
   final String email;
   final String? friendAvatarUrl;
   final Future<void> Function(String postId)? onOpenForumPost;
+  final Future<void> Function(_ChatMenuAction action)? onMenuAction;
 
   const _ChatHeader({
     required this.friendUserId,
@@ -503,6 +1027,7 @@ class _ChatHeader extends StatelessWidget {
     required this.email,
     this.friendAvatarUrl,
     this.onOpenForumPost,
+    this.onMenuAction,
   });
 
   @override
@@ -562,6 +1087,30 @@ class _ChatHeader extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+          const Spacer(),
+          PopupMenuButton<_ChatMenuAction>(
+            onSelected: (action) async {
+              final handler = onMenuAction;
+              if (handler != null) {
+                await handler(action);
+              }
+            },
+            itemBuilder: (ctx) => const [
+              PopupMenuItem(
+                value: _ChatMenuAction.search,
+                child: Text('Search messages'),
+              ),
+              PopupMenuItem(
+                value: _ChatMenuAction.sendImage,
+                child: Text('Send image'),
+              ),
+              PopupMenuItem(
+                value: _ChatMenuAction.clearChat,
+                child: Text('Clear chat'),
+              ),
+            ],
+            icon: Icon(Icons.more_vert, color: secondaryText),
           ),
         ],
       ),

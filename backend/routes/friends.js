@@ -1,11 +1,14 @@
 const express = require('express');
 const mongoose = require('mongoose');
+const multer = require('multer');
+const admin = require('firebase-admin');
 const auth = require('../middleware/auth');
 const { createRateLimiter } = require('../middleware/rate_limit');
 const User = require('../models/User');
 const FriendRequest = require('../models/FriendRequest');
 const Friendship = require('../models/Friendship');
 const FriendMessage = require('../models/FriendMessage');
+const FriendChatState = require('../models/FriendChatState');
 const MoodLog = require('../models/Mood');
 const {
   buildPairKey,
@@ -62,6 +65,62 @@ const MOOD_ASSETS = [
   'assets/good.png',
   'assets/excellent.png',
 ];
+
+const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
+const IMAGE_FIELD_NAME = 'image';
+
+const imageUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_IMAGE_BYTES },
+  fileFilter: (_req, file, cb) => {
+    if (!file?.mimetype?.startsWith('image/')) {
+      cb(new Error('Only image uploads are allowed'));
+      return;
+    }
+    cb(null, true);
+  },
+});
+
+const parseServiceAccount = () => {
+  const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+  if (!raw) return null;
+  try {
+    if (raw.trim().startsWith('{')) {
+      return JSON.parse(raw);
+    }
+    const decoded = Buffer.from(raw, 'base64').toString('utf8');
+    return JSON.parse(decoded);
+  } catch (err) {
+    console.warn('Invalid FIREBASE_SERVICE_ACCOUNT_JSON:', err.message);
+    return null;
+  }
+};
+
+const getStorageBucket = () => {
+  if (!admin.apps.length) {
+    const serviceAccount = parseServiceAccount();
+    if (!serviceAccount) {
+      throw new Error('Firebase service account not configured');
+    }
+    const storageBucket = process.env.FIREBASE_STORAGE_BUCKET || undefined;
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+      storageBucket,
+    });
+  }
+
+  const fallbackProjectId = admin.app().options.projectId;
+  const bucketName =
+    process.env.FIREBASE_STORAGE_BUCKET ||
+    admin.app().options.storageBucket ||
+    (fallbackProjectId ? `${fallbackProjectId}.appspot.com` : null);
+
+  if (!bucketName) {
+    throw new Error('Firebase storage bucket is not configured');
+  }
+
+  return admin.storage().bucket(bucketName);
+};
 
 const formatCurrentMood = (log) => {
   if (!log) return null;
@@ -121,15 +180,23 @@ const formatRequest = (doc, type) => {
   };
 };
 
-const formatMessage = (doc) => ({
-  id: doc._id.toString(),
-  text: doc.text,
-  sender: doc.sender.toString(),
-  createdAt:
-    doc.createdAt && typeof doc.createdAt.toISOString === 'function'
-      ? doc.createdAt.toISOString()
-      : new Date().toISOString(),
-});
+const formatMessage = (doc) => {
+  const isUnsent = !!doc.unsentAt;
+  return {
+    id: doc._id.toString(),
+    text: isUnsent ? '' : doc.text || '',
+    type: doc.type || 'text',
+    imageUrl: isUnsent ? '' : doc.imageUrl || '',
+    imageMeta: doc.imageMeta || null,
+    unsentAt: doc.unsentAt ? doc.unsentAt.toISOString() : null,
+    unsentBy: doc.unsentBy ? doc.unsentBy.toString() : null,
+    sender: doc.sender.toString(),
+    createdAt:
+      doc.createdAt && typeof doc.createdAt.toISOString === 'function'
+        ? doc.createdAt.toISOString()
+        : new Date().toISOString(),
+  };
+};
 
 const isMutedBy = (user, targetUserId) =>
   (user?.mutedUsers || []).some((id) => id.toString() === targetUserId.toString());
@@ -161,6 +228,27 @@ const isChatMutedBetween = async (userAId, userBId) => {
     User.findById(userBId, 'mutedUsers').lean(),
   ]);
   return isMutedBy(userA, userBId) || isMutedBy(userB, userAId);
+};
+
+const getChatState = async (friendshipId, userId) => {
+  const state = await FriendChatState.findOne({
+    friendship: friendshipId,
+    user: userId,
+  }).lean();
+  return state?.clearedAt || null;
+};
+
+const buildVisibilityFilter = ({ friendshipId, userId, clearedAt }) => {
+  const filter = {
+    friendship: friendshipId,
+    deletedFor: { $ne: new mongoose.Types.ObjectId(userId) },
+  };
+
+  if (clearedAt) {
+    filter.createdAt = { $gt: clearedAt };
+  }
+
+  return filter;
 };
 
 const toObjectId = (value) => new mongoose.Types.ObjectId(value);
@@ -392,7 +480,13 @@ router.post('/:id/reject', auth, friendActionLimiter, async (req, res) => {
 router.get('/:id/messages', auth, async (req, res) => {
   try {
     await ensureFriendshipAccess(req.params.id, req.userId);
-    const messages = await FriendMessage.find({ friendship: req.params.id })
+    const clearedAt = await getChatState(req.params.id, req.userId);
+    const filter = buildVisibilityFilter({
+      friendshipId: req.params.id,
+      userId: req.userId,
+      clearedAt,
+    });
+    const messages = await FriendMessage.find(filter)
       .sort({ createdAt: 1 })
       .lean();
     res.json(messages.map(formatMessage));
@@ -430,6 +524,7 @@ router.post('/:id/messages', auth, friendMessageLimiter, async (req, res) => {
       friendship: new mongoose.Types.ObjectId(req.params.id),
       sender: req.userId,
       text,
+      type: 'text',
     });
 
     await Friendship.findByIdAndUpdate(req.params.id, {
@@ -473,6 +568,265 @@ router.post('/:id/messages', auth, friendMessageLimiter, async (req, res) => {
     }
 
     res.status(201).json(payload);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+const imageExtensionFor = (mimeType = '') => {
+  if (mimeType === 'image/png') return 'png';
+  if (mimeType === 'image/webp') return 'webp';
+  if (mimeType === 'image/gif') return 'gif';
+  return 'jpg';
+};
+
+router.post(
+  '/:id/messages/image',
+  auth,
+  friendMessageLimiter,
+  imageUpload.single(IMAGE_FIELD_NAME),
+  async (req, res) => {
+    try {
+      const file = req.file;
+      if (!file) {
+        return res.status(400).json({ error: 'Image file is required' });
+      }
+
+      const friendship = await ensureFriendshipAccess(req.params.id, req.userId);
+
+      const recipientIds = friendship.members
+        .map((member) => member.toString())
+        .filter((memberId) => memberId !== req.userId.toString());
+
+      if (recipientIds.length) {
+        const muted = await isChatMutedBetween(req.userId, recipientIds[0]);
+        if (muted) {
+          return res.status(403).json({
+            error: 'Chat is muted between you and this user',
+          });
+        }
+      }
+
+      const bucket = getStorageBucket();
+      const extension = imageExtensionFor(file.mimetype);
+      const objectName = `friend-messages/${req.params.id}/${Date.now()}-${req.userId}.${extension}`;
+      const object = bucket.file(objectName);
+
+      await object.save(file.buffer, {
+        contentType: file.mimetype,
+        resumable: false,
+        metadata: {
+          cacheControl: 'public,max-age=31536000',
+        },
+      });
+
+      const [signedUrl] = await object.getSignedUrl({
+        action: 'read',
+        expires: '03-01-2500',
+      });
+
+      const message = await FriendMessage.create({
+        friendship: new mongoose.Types.ObjectId(req.params.id),
+        sender: req.userId,
+        text: '',
+        type: 'image',
+        imageUrl: signedUrl,
+        imageMeta: {
+          size: file.size,
+          mimeType: file.mimetype,
+        },
+      });
+
+      await Friendship.findByIdAndUpdate(req.params.id, {
+        lastMessage: {
+          text: 'Photo',
+          sender: req.userId,
+          createdAt: message.createdAt,
+        },
+      });
+
+      const payload = {
+        ...formatMessage(message),
+        friendshipId: req.params.id,
+      };
+
+      try {
+        getIO()
+          .to(`friendship:${req.params.id}`)
+          .emit('friends:message', payload);
+      } catch (_) {
+        // Socket layer not initialized; skip emit.
+      }
+
+      if (recipientIds.length) {
+        const recipients = await canDeliverFromSender(req.userId, recipientIds);
+        if (recipients.length) {
+          const sender = await User.findById(req.userId, 'name').lean();
+          emitNotification(recipients, {
+            type: 'friend_message',
+            friendshipId: req.params.id,
+            messageId: payload.id,
+            text: 'sent a photo',
+            from: {
+              id: req.userId.toString(),
+              name: sender?.name ?? 'Friend',
+            },
+            createdAt: payload.createdAt,
+          });
+        }
+      }
+
+      res.status(201).json(payload);
+    } catch (err) {
+      if (err?.code === 'LIMIT_FILE_SIZE') {
+        return res.status(413).json({ error: 'Image is too large' });
+      }
+      res.status(err.status || 500).json({ error: err.message });
+    }
+  }
+);
+
+router.delete('/:id/messages/:messageId', auth, async (req, res) => {
+  try {
+    await ensureFriendshipAccess(req.params.id, req.userId);
+    const message = await FriendMessage.findOneAndUpdate(
+      {
+        _id: req.params.messageId,
+        friendship: req.params.id,
+      },
+      { $addToSet: { deletedFor: new mongoose.Types.ObjectId(req.userId) } },
+      { returnDocument: 'after' }
+    ).lean();
+
+    if (!message) {
+      return res.status(404).json({ error: 'Message not found' });
+    }
+
+    res.json({ status: 'deleted_for_me' });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+router.post('/:id/messages/:messageId/unsend', auth, async (req, res) => {
+  try {
+    await ensureFriendshipAccess(req.params.id, req.userId);
+
+    const existing = await FriendMessage.findOne({
+      _id: req.params.messageId,
+      friendship: req.params.id,
+    });
+
+    if (!existing) {
+      return res.status(404).json({ error: 'Message not found' });
+    }
+
+    if (existing.sender.toString() !== req.userId.toString()) {
+      return res.status(403).json({ error: 'You can only unsend your messages' });
+    }
+
+    if (existing.unsentAt) {
+      return res.json({
+        status: 'already_unsent',
+        message: formatMessage(existing),
+      });
+    }
+
+    const updated = await FriendMessage.findOneAndUpdate(
+      { _id: existing._id },
+      {
+        $set: {
+          text: '',
+          imageUrl: '',
+          imageMeta: null,
+          type: 'text',
+          unsentAt: new Date(),
+          unsentBy: new mongoose.Types.ObjectId(req.userId),
+        },
+      },
+      { returnDocument: 'after' }
+    );
+
+    const friendship = await Friendship.findById(req.params.id);
+    if (friendship?.lastMessage?.createdAt && updated?.createdAt) {
+      const sameTimestamp =
+        friendship.lastMessage.createdAt.getTime() ===
+        updated.createdAt.getTime();
+      const sameSender =
+        friendship.lastMessage.sender?.toString() ===
+        updated.sender?.toString();
+      if (sameTimestamp && sameSender) {
+        friendship.lastMessage.text = 'Message unsent';
+        await friendship.save();
+      }
+    }
+
+    const payload = {
+      ...formatMessage(updated),
+      friendshipId: req.params.id,
+    };
+
+    try {
+      getIO()
+        .to(`friendship:${req.params.id}`)
+        .emit('friends:message:update', payload);
+    } catch (_) {
+      // Socket layer not initialized; skip emit.
+    }
+
+    res.json({ status: 'unsent', message: payload });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+router.post('/:id/messages/clear', auth, async (req, res) => {
+  try {
+    await ensureFriendshipAccess(req.params.id, req.userId);
+    await FriendChatState.findOneAndUpdate(
+      { friendship: req.params.id, user: req.userId },
+      { clearedAt: new Date() },
+      { upsert: true, returnDocument: 'after' }
+    );
+    res.json({ status: 'cleared' });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+router.get('/:id/messages/search', auth, async (req, res) => {
+  const query = String(req.query.q || '').trim();
+  if (!query) {
+    return res.status(400).json({ error: 'Query is required' });
+  }
+
+  try {
+    await ensureFriendshipAccess(req.params.id, req.userId);
+    const limitRaw = Number(req.query.limit || 20);
+    const limit = Math.min(Math.max(limitRaw, 1), 50);
+    const clearedAt = await getChatState(req.params.id, req.userId);
+    const filter = buildVisibilityFilter({
+      friendshipId: req.params.id,
+      userId: req.userId,
+      clearedAt,
+    });
+
+    const messages = await FriendMessage.find({
+      ...filter,
+      type: 'text',
+      unsentAt: null,
+      $text: { $search: query },
+    }, {
+      score: { $meta: 'textScore' },
+    })
+      .sort({ score: { $meta: 'textScore' }, createdAt: -1 })
+      .limit(limit)
+      .lean();
+
+    res.json({
+      query,
+      results: messages.map(formatMessage),
+    });
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });
   }
