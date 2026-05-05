@@ -659,6 +659,11 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
   }
 
   String _formatDateHeader(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+    if (_isSameDay(date, today)) return 'Today';
+    if (_isSameDay(date, yesterday)) return 'Yesterday';
     const months = [
       'Jan',
       'Feb',

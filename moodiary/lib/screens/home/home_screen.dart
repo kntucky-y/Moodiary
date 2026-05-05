@@ -1504,7 +1504,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           analysisError: _analysisError,
                           onAnalyzeDay: () => _fetchMoodAnalysis('day'),
                           onAnalyzeWeek: () => _fetchMoodAnalysis('week'),
-                          onOpenLink: _launchUrl,
+                          onOpenResources: () =>
+                              _openShellTab(MoodiaryTab.resources),
                         ),
                         const SizedBox(height: 16),
                         Text(
@@ -2045,7 +2046,7 @@ class _AiInsightsCard extends StatelessWidget {
   final String? analysisError;
   final VoidCallback onAnalyzeDay;
   final VoidCallback onAnalyzeWeek;
-  final ValueChanged<String> onOpenLink;
+  final VoidCallback onOpenResources;
 
   const _AiInsightsCard({
     required this.insights,
@@ -2057,7 +2058,7 @@ class _AiInsightsCard extends StatelessWidget {
     required this.analysisError,
     required this.onAnalyzeDay,
     required this.onAnalyzeWeek,
-    required this.onOpenLink,
+    required this.onOpenResources,
   });
 
   String _trendText(_MoodInsights? insights) {
@@ -2071,6 +2072,15 @@ class _AiInsightsCard extends StatelessWidget {
     }
     final label = direction == 'improving' ? 'improving' : 'declining';
     return 'Your mood is $label $percent% this week.';
+  }
+
+  String _analysisReflection(_MoodAnalysis analysis) {
+    final mood = analysis.detectedMood.trim();
+    final scope = analysis.scope == 'week' ? 'this week' : 'today';
+    if (mood.isEmpty) {
+      return 'Your mood patterns for $scope are ready. Tap resources to explore support.';
+    }
+    return 'For $scope, your mood reads as $mood. You can explore resources tailored to that tone.';
   }
 
   @override
@@ -2228,31 +2238,17 @@ class _AiInsightsCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Detected mood: ${analysis!.detectedMood}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: primaryText,
-                          ),
+                          _analysisReflection(analysis!),
+                          style: TextStyle(fontSize: 12, color: primaryText),
                         ),
                         const SizedBox(height: 8),
-                        ...analysis!.links.map(
-                          (link) => Padding(
-                            padding: const EdgeInsets.only(bottom: 6),
-                            child: TextButton.icon(
-                              onPressed: () => onOpenLink(link.url),
-                              icon: const Icon(Icons.open_in_new, size: 16),
-                              label: Text(
-                                link.title,
-                                style: const TextStyle(fontSize: 12),
-                              ),
-                              style: TextButton.styleFrom(
-                                foregroundColor: _kPurple,
-                                padding: EdgeInsets.zero,
-                                alignment: Alignment.centerLeft,
-                              ),
-                            ),
+                        OutlinedButton.icon(
+                          onPressed: onOpenResources,
+                          icon: const Icon(
+                            Icons.folder_open_outlined,
+                            size: 16,
                           ),
+                          label: const Text('Open resources'),
                         ),
                       ],
                     ),
