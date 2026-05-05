@@ -1140,6 +1140,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       });
     }
     await prefs.setString('mood_logs_cache', jsonEncode(cacheData));
+    await prefs.remove(_kAiInsightsCacheKey);
+    await prefs.remove(_kAiInsightsCacheTsKey);
+    await prefs.remove(_kAiAnalysisCacheKey);
+    await prefs.remove(_kAiAnalysisCacheTsKey);
     await _refreshStreak(showFeedback: true);
     // Sync to DB — server auto-computes moodLevelScore and merges with existing data
     final token = prefs.getString('token');
@@ -2078,9 +2082,9 @@ class _AiInsightsCard extends StatelessWidget {
     final mood = analysis.detectedMood.trim();
     final scope = analysis.scope == 'week' ? 'this week' : 'today';
     if (mood.isEmpty) {
-      return 'Your mood patterns for $scope are ready. Tap resources to explore support.';
+      return 'Clinical summary for $scope is available. Review resources for evidence-based support.';
     }
-    return 'For $scope, your mood reads as $mood. You can explore resources tailored to that tone.';
+    return 'Clinical summary for $scope: mood state is $mood. Review resources for evidence-based support.';
   }
 
   @override
