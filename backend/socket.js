@@ -47,9 +47,6 @@ const formatMessage = (doc, friendshipId) => {
   return {
     id: doc._id.toString(),
     text: isUnsent ? '' : doc.text || '',
-    type: doc.type || 'text',
-    imageUrl: isUnsent ? '' : doc.imageUrl || '',
-    imageMeta: doc.imageMeta || null,
     unsentAt: doc.unsentAt ? doc.unsentAt.toISOString() : null,
     unsentBy: doc.unsentBy ? doc.unsentBy.toString() : null,
     sender: doc.sender.toString(),
@@ -137,7 +134,6 @@ const initSocket = (server) => {
           friendship: new mongoose.Types.ObjectId(friendshipId),
           sender: socket.userId,
           text,
-          type: 'text',
         });
 
         await Friendship.findByIdAndUpdate(friendshipId, {

@@ -17,23 +17,6 @@ const friendMessageSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
-    type: {
-      type: String,
-      enum: ['text', 'image'],
-      default: 'text',
-      index: true,
-    },
-    imageUrl: {
-      type: String,
-      default: '',
-      trim: true,
-    },
-    imageMeta: {
-      width: Number,
-      height: Number,
-      size: Number,
-      mimeType: String,
-    },
     unsentAt: {
       type: Date,
       default: null,

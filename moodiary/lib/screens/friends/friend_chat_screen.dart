@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:socket_io_client/socket_io_client.dart' as io;
@@ -17,7 +16,7 @@ const _kBaseUrl = kBackendBaseUrl;
 const _kPurple = Color(0xFFA076F9);
 const _kBubbleMine = Color(0xFF4338CA);
 
-enum _ChatMenuAction { search, sendImage, clearChat }
+enum _ChatMenuAction { search, clearChat }
 
 class FriendChatScreen extends StatefulWidget {
   final String friendshipId;
@@ -59,7 +58,6 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
   String _companionName = 'Companion';
   io.Socket? _socket;
   bool _sending = false;
-  bool _uploadingImage = false;
   String? _highlightedMessageId;
 
   @override
@@ -147,8 +145,7 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
             final pendingIndex = _messages.lastIndexWhere(
               (m) =>
                   m.pending &&
-                  ((m.isImage && incoming.isImage) ||
-                      m.text == incoming.text) &&
+                  m.text == incoming.text &&
                   (incoming.isMine || _userId == null) &&
                   (incoming.createdAt.difference(m.createdAt).abs() <
                       const Duration(seconds: 15)),
@@ -225,8 +222,6 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
     final optimistic = _FriendMessage(
       id: 'local-${DateTime.now().millisecondsSinceEpoch}',
       text: text,
-      type: 'text',
-      imageUrl: '',
       createdAt: DateTime.now(),
       isMine: true,
       pending: true,
@@ -290,94 +285,6 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
     } finally {
       if (mounted) setState(() => _sending = false);
       _scrollToBottom();
-    }
-  }
-
-  Future<void> _sendImage() async {
-    if (_token == null || _uploadingImage) return;
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 85,
-      maxWidth: 1800,
-    );
-    if (picked == null) return;
-
-    final bytes = await picked.readAsBytes();
-    if (bytes.length > 2 * 1024 * 1024) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Image is too large (max 2MB).')),
-      );
-      return;
-    }
-
-    setState(() => _uploadingImage = true);
-
-    final optimistic = _FriendMessage(
-      id: 'local-image-${DateTime.now().millisecondsSinceEpoch}',
-      text: '',
-      type: 'image',
-      imageUrl: '',
-      createdAt: DateTime.now(),
-      isMine: true,
-      pending: true,
-    );
-
-    setState(() => _messages.add(optimistic));
-    _scrollToBottom();
-
-    try {
-      final request = http.MultipartRequest(
-        'POST',
-        Uri.parse(
-          '$_kBaseUrl/api/friends/${widget.friendshipId}/messages/image',
-        ),
-      );
-      request.headers['Authorization'] = 'Bearer $_token';
-      request.files.add(
-        http.MultipartFile.fromBytes('image', bytes, filename: picked.name),
-      );
-
-      final streamed = await request.send();
-      final body = await streamed.stream.bytesToString();
-
-      if (streamed.statusCode != 201) {
-        throw Exception(body.isEmpty ? 'Upload failed' : body);
-      }
-
-      final created = _FriendMessage.fromJson(
-        jsonDecode(body) as Map<String, dynamic>,
-        _userId,
-      );
-
-      if (!mounted) return;
-      setState(() {
-        final pendingIndex = _messages.lastIndexWhere(
-          (m) => m.id == optimistic.id,
-        );
-        if (pendingIndex != -1) {
-          _messages[pendingIndex] = created;
-        } else if (_messages.every((m) => m.id != created.id)) {
-          _messages.add(created);
-        }
-      });
-      RealtimeNotifications.instance.emitLocal({
-        'type': 'friend_message',
-        'friendshipId': widget.friendshipId,
-        'text': 'sent a photo',
-        'createdAt': created.createdAt.toIso8601String(),
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _messages.removeWhere((m) => m.id == optimistic.id);
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to send image. Please retry.')),
-      );
-    } finally {
-      if (mounted) setState(() => _uploadingImage = false);
     }
   }
 
@@ -575,9 +482,7 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
                               title: Text(
                                 message.isUnsent
                                     ? 'Message unsent'
-                                    : (message.isImage
-                                          ? 'Photo'
-                                          : message.text),
+                                    : message.text,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -721,9 +626,6 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
                   case _ChatMenuAction.search:
                     await _openSearch();
                     break;
-                  case _ChatMenuAction.sendImage:
-                    await _sendImage();
-                    break;
                   case _ChatMenuAction.clearChat:
                     final confirmed = await showDialog<bool>(
                       context: context,
@@ -808,8 +710,6 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
 class _FriendMessage {
   final String id;
   final String text;
-  final String type;
-  final String imageUrl;
   final DateTime createdAt;
   final bool isMine;
   final bool pending;
@@ -818,15 +718,11 @@ class _FriendMessage {
   _FriendMessage({
     required this.id,
     required this.text,
-    required this.type,
-    required this.imageUrl,
     required this.createdAt,
     required this.isMine,
     this.pending = false,
     this.isUnsent = false,
   });
-
-  bool get isImage => type == 'image';
 
   factory _FriendMessage.fromJson(Map<String, dynamic> json, String? viewerId) {
     final createdRaw = json['createdAt'];
@@ -835,8 +731,6 @@ class _FriendMessage {
         : DateTime.fromMillisecondsSinceEpoch(createdRaw as int).toLocal();
     final sender = json['sender']?.toString();
     final rawId = json['id'] ?? json['_id'];
-    final type = (json['type'] ?? 'text').toString();
-    final imageUrl = (json['imageUrl'] ?? '').toString();
     final unsentAt = json['unsentAt'];
     final isUnsent = unsentAt is String
         ? unsentAt.isNotEmpty
@@ -847,8 +741,6 @@ class _FriendMessage {
           ? rawId.toString()
           : 'remote-${DateTime.now().millisecondsSinceEpoch}',
       text: text,
-      type: type,
-      imageUrl: imageUrl,
       createdAt: createdAt,
       isMine: sender != null && sender == viewerId,
       isUnsent: isUnsent,
@@ -899,64 +791,78 @@ class _ChatBubble extends StatelessWidget {
                       : null,
                 ),
               ),
-            Container(
-              margin: const EdgeInsets.symmetric(vertical: 4),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: bubbleColor,
-                borderRadius: BorderRadius.circular(18).copyWith(
-                  bottomRight: message.isMine ? const Radius.circular(4) : null,
-                  bottomLeft: message.isMine ? null : const Radius.circular(4),
+            Flexible(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: MediaQuery.of(context).size.width * 0.72,
                 ),
-                border: highlighted
-                    ? Border.all(color: _kPurple.withValues(alpha: 0.6))
-                    : null,
-              ),
-              child: Column(
-                crossAxisAlignment: message.isMine
-                    ? CrossAxisAlignment.end
-                    : CrossAxisAlignment.start,
-                children: [
-                  if (message.isUnsent)
-                    Text(
-                      'Message unsent',
-                      style: TextStyle(
-                        color: textColor.withValues(alpha: 0.75),
-                        fontSize: 14,
-                        fontStyle: FontStyle.italic,
-                      ),
-                    )
-                  else if (message.isImage)
-                    _ImageBubble(
-                      imageUrl: message.imageUrl,
-                      pending: message.pending,
-                    )
-                  else
-                    Text(
-                      message.text,
-                      style: TextStyle(
-                        color: textColor,
-                        fontSize: 14,
-                        height: 1.4,
-                      ),
-                    ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _formatTime(message.createdAt),
-                    style: TextStyle(
-                      color: textColor.withValues(alpha: 0.7),
-                      fontSize: 10,
-                    ),
+                child: Container(
+                  margin: const EdgeInsets.symmetric(vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
                   ),
-                  if (message.pending)
-                    Text(
-                      'sending...',
-                      style: TextStyle(
-                        color: message.isMine ? Colors.white70 : secondaryText,
-                        fontSize: 10,
-                      ),
+                  decoration: BoxDecoration(
+                    color: bubbleColor,
+                    borderRadius: BorderRadius.circular(18).copyWith(
+                      bottomRight: message.isMine
+                          ? const Radius.circular(4)
+                          : null,
+                      bottomLeft: message.isMine
+                          ? null
+                          : const Radius.circular(4),
                     ),
-                ],
+                    border: highlighted
+                        ? Border.all(color: _kPurple.withValues(alpha: 0.6))
+                        : null,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: message.isMine
+                        ? CrossAxisAlignment.end
+                        : CrossAxisAlignment.start,
+                    children: [
+                      if (message.isUnsent)
+                        Text(
+                          'Message unsent',
+                          style: TextStyle(
+                            color: textColor.withValues(alpha: 0.75),
+                            fontSize: 14,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        )
+                      else
+                        Text(
+                          message.text,
+                          softWrap: true,
+                          overflow: TextOverflow.visible,
+                          textWidthBasis: TextWidthBasis.parent,
+                          style: TextStyle(
+                            color: textColor,
+                            fontSize: 14,
+                            height: 1.4,
+                          ),
+                        ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _formatTime(message.createdAt),
+                        style: TextStyle(
+                          color: textColor.withValues(alpha: 0.7),
+                          fontSize: 10,
+                        ),
+                      ),
+                      if (message.pending)
+                        Text(
+                          'sending...',
+                          style: TextStyle(
+                            color: message.isMine
+                                ? Colors.white70
+                                : secondaryText,
+                            fontSize: 10,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ],
@@ -969,47 +875,6 @@ class _ChatBubble extends StatelessWidget {
     final h = dt.hour.toString().padLeft(2, '0');
     final m = dt.minute.toString().padLeft(2, '0');
     return '$h:$m';
-  }
-}
-
-class _ImageBubble extends StatelessWidget {
-  final String imageUrl;
-  final bool pending;
-
-  const _ImageBubble({required this.imageUrl, required this.pending});
-
-  @override
-  Widget build(BuildContext context) {
-    final borderRadius = BorderRadius.circular(12);
-    if (pending || imageUrl.isEmpty) {
-      return Container(
-        width: 180,
-        height: 180,
-        decoration: BoxDecoration(
-          color: Colors.white12,
-          borderRadius: borderRadius,
-        ),
-        child: const Center(
-          child: Icon(Icons.image_outlined, color: Colors.white70),
-        ),
-      );
-    }
-
-    return ClipRRect(
-      borderRadius: borderRadius,
-      child: Image.network(
-        imageUrl,
-        width: 180,
-        height: 180,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => Container(
-          width: 180,
-          height: 180,
-          color: Colors.white12,
-          child: const Center(child: Icon(Icons.broken_image_outlined)),
-        ),
-      ),
-    );
   }
 }
 
@@ -1100,10 +965,6 @@ class _ChatHeader extends StatelessWidget {
               PopupMenuItem(
                 value: _ChatMenuAction.search,
                 child: Text('Search messages'),
-              ),
-              PopupMenuItem(
-                value: _ChatMenuAction.sendImage,
-                child: Text('Send image'),
               ),
               PopupMenuItem(
                 value: _ChatMenuAction.clearChat,
