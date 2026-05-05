@@ -536,7 +536,10 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
                                   setState(() {
                                     _highlightedMessageId = message.id;
                                   });
-                                  _scrollToIndex(indexInChat);
+                                  final listIndex = _listIndexForMessageId(
+                                    message.id,
+                                  );
+                                  _scrollToIndex(listIndex);
                                   Future.delayed(
                                     const Duration(seconds: 3),
                                     () {
@@ -572,6 +575,12 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeOut,
     );
+  }
+
+  int _listIndexForMessageId(String messageId) {
+    final items = _buildChatItems();
+    final index = items.indexWhere((item) => item.message?.id == messageId);
+    return index == -1 ? 0 : index;
   }
 
   void _showMessageActions(_FriendMessage message) {
@@ -627,6 +636,46 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
     _loadHistory();
   }
 
+  List<_ChatListItem> _buildChatItems() {
+    final items = <_ChatListItem>[];
+    DateTime? lastDate;
+    for (final message in _messages) {
+      final date = DateTime(
+        message.createdAt.year,
+        message.createdAt.month,
+        message.createdAt.day,
+      );
+      if (lastDate == null || !_isSameDay(lastDate, date)) {
+        items.add(_ChatListItem.date(date));
+        lastDate = date;
+      }
+      items.add(_ChatListItem.message(message));
+    }
+    return items;
+  }
+
+  bool _isSameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  String _formatDateHeader(DateTime date) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return '${months[date.month - 1]} ${date.day}, ${date.year}';
+  }
+
   void _handleInputChanged(String value) {
     if (_token == null) return;
     if (value.trim().isEmpty) {
@@ -672,9 +721,10 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
   }
 
   String _formatTime(DateTime dt) {
-    final h = dt.hour.toString().padLeft(2, '0');
+    final hour = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
     final m = dt.minute.toString().padLeft(2, '0');
-    return '$h:$m';
+    final suffix = dt.hour >= 12 ? 'PM' : 'AM';
+    return '$hour:$m $suffix';
   }
 
   @override
@@ -710,6 +760,7 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
   @override
   Widget build(BuildContext context) {
     final friendAvatarImage = _cachedAvatarImage(widget.friendAvatarUrl);
+    final chatItems = _buildChatItems();
     return Scaffold(
       backgroundColor: context.mdScaffold,
       body: SafeArea(
@@ -781,15 +832,20 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
                     : ListView.builder(
                         controller: _scrollController,
                         padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
-                        itemCount: _messages.length + (_friendTyping ? 1 : 0),
+                        itemCount: chatItems.length + (_friendTyping ? 1 : 0),
                         itemBuilder: (context, index) {
-                          if (_friendTyping && index == _messages.length) {
+                          if (_friendTyping && index == chatItems.length) {
                             return _TypingIndicator(
                               friendAvatarImage: friendAvatarImage,
-                              friendName: widget.friendName,
                             );
                           }
-                          final message = _messages[index];
+                          final item = chatItems[index];
+                          if (item.isDate) {
+                            return _DateSeparator(
+                              label: _formatDateHeader(item.date!),
+                            );
+                          }
+                          final message = item.message!;
                           return _ChatBubble(
                             message: message,
                             friendAvatarImage: friendAvatarImage,
@@ -852,6 +908,23 @@ class _FriendMessage {
       isUnsent: isUnsent,
     );
   }
+}
+
+class _ChatListItem {
+  final _FriendMessage? message;
+  final DateTime? date;
+
+  const _ChatListItem._({this.message, this.date});
+
+  factory _ChatListItem.message(_FriendMessage message) {
+    return _ChatListItem._(message: message);
+  }
+
+  factory _ChatListItem.date(DateTime date) {
+    return _ChatListItem._(date: date);
+  }
+
+  bool get isDate => date != null;
 }
 
 class _ChatBubble extends StatelessWidget {
@@ -978,25 +1051,45 @@ class _ChatBubble extends StatelessWidget {
   }
 
   String _formatTime(DateTime dt) {
-    final h = dt.hour.toString().padLeft(2, '0');
+    final hour = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
     final m = dt.minute.toString().padLeft(2, '0');
-    return '$h:$m';
+    final suffix = dt.hour >= 12 ? 'PM' : 'AM';
+    return '$hour:$m $suffix';
   }
 }
 
-class _TypingIndicator extends StatelessWidget {
+class _TypingIndicator extends StatefulWidget {
   final ImageProvider<Object>? friendAvatarImage;
-  final String friendName;
 
-  const _TypingIndicator({
-    required this.friendAvatarImage,
-    required this.friendName,
-  });
+  const _TypingIndicator({required this.friendAvatarImage});
+
+  @override
+  State<_TypingIndicator> createState() => _TypingIndicatorState();
+}
+
+class _TypingIndicatorState extends State<_TypingIndicator>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final friendBubble = context.mdSecondarySurface;
-    final friendText = context.mdSecondaryText;
+    final dotColor = context.mdSecondaryText;
     return Align(
       alignment: Alignment.centerLeft,
       child: Row(
@@ -1007,8 +1100,8 @@ class _TypingIndicator extends StatelessWidget {
             padding: const EdgeInsets.only(right: 8, bottom: 2),
             child: CircleAvatar(
               radius: 12,
-              backgroundImage: friendAvatarImage,
-              child: friendAvatarImage == null
+              backgroundImage: widget.friendAvatarImage,
+              child: widget.friendAvatarImage == null
                   ? const Icon(Icons.person, size: 12)
                   : null,
             ),
@@ -1022,16 +1115,63 @@ class _TypingIndicator extends StatelessWidget {
                 18,
               ).copyWith(bottomLeft: const Radius.circular(4)),
             ),
-            child: Text(
-              '$friendName is typing...',
-              style: TextStyle(
-                color: friendText,
-                fontSize: 12,
-                fontStyle: FontStyle.italic,
-              ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: List.generate(3, (i) {
+                return AnimatedBuilder(
+                  animation: _ctrl,
+                  builder: (_, _) {
+                    final offset = ((_ctrl.value - i * 0.2) % 1.0);
+                    final dy = offset < 0.5
+                        ? -3.5 * (offset / 0.5)
+                        : -3.5 * (1 - (offset - 0.5) / 0.5);
+                    return Transform.translate(
+                      offset: Offset(0, dy),
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 2),
+                        width: 6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: dotColor,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    );
+                  },
+                );
+              }),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _DateSeparator extends StatelessWidget {
+  final String label;
+
+  const _DateSeparator({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Center(
+        child: GlassContainer(
+          blurSigma: context.mdGlassBlurSmall,
+          borderRadius: BorderRadius.circular(999),
+          backgroundColor: context.mdGlassSurfaceStrong,
+          borderColor: context.mdGlassBorder,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          child: Text(
+            label,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: context.mdSecondaryText,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
       ),
     );
   }

@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
@@ -578,6 +580,15 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
         .toList();
   }
 
+  List<Map<String, dynamic>> get _dailyRandomResources {
+    if (_resources.isEmpty) return const [];
+    final now = DateTime.now();
+    final seed = now.year * 10000 + now.month * 100 + now.day;
+    final shuffled = List<Map<String, dynamic>>.from(_resources)
+      ..shuffle(Random(seed));
+    return shuffled.take(3).toList();
+  }
+
   Future<void> _setCategory(String category) async {
     setState(() => _selectedCategory = category);
   }
@@ -641,7 +652,7 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
         final title = (link['title'] ?? '').toString();
         final url = (link['url'] ?? '').toString();
         return Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
           child: GlassCard(
             borderRadius: BorderRadius.circular(18),
             backgroundColor: context.mdGlassSurface,
@@ -701,6 +712,105 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
         },
       ),
     );
+  }
+
+  List<Widget> _buildDailyRandomCards() {
+    if (_resourcesError != null) {
+      return [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: _ErrorStateCard(
+            icon: Icons.auto_stories_outlined,
+            title: 'Resources could not load',
+            message: _resourcesError!,
+            actionLabel: 'Retry',
+            onAction: _loadResources,
+          ),
+        ),
+      ];
+    }
+
+    if (_loadingResources) {
+      return const [
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16),
+          child: _LoadingCard(),
+        ),
+      ];
+    }
+
+    final picks = _dailyRandomResources;
+    if (picks.isEmpty) {
+      return [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: _EmptyStateCard(
+            icon: Icons.auto_stories_outlined,
+            title: 'No resources yet',
+            message: 'Check back after your next mood check-in.',
+          ),
+        ),
+      ];
+    }
+
+    return picks
+        .map(
+          (resource) => Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+            child: GlassCard(
+              borderRadius: BorderRadius.circular(20),
+              backgroundColor: context.mdGlassSurface,
+              borderColor: context.mdGlassBorder,
+              onTap: () => _launchUrl(resource['url'] as String? ?? ''),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              resource['title'] as String? ?? '',
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    color: context.mdPrimaryText,
+                                  ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              resource['category'] as String? ?? '',
+                              style: Theme.of(context).textTheme.labelSmall
+                                  ?.copyWith(color: context.mdSecondaryText),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Icon(
+                        Icons.open_in_new,
+                        size: 20,
+                        color: context.mdSecondaryText,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    resource['description'] as String? ?? '',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: context.mdSecondaryText,
+                      height: 1.35,
+                    ),
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        )
+        .toList();
   }
 
   Widget _buildNearbyClinicsSection() {
@@ -960,7 +1070,7 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
     return resources
         .map(
           (resource) => Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
             child: GlassCard(
               borderRadius: BorderRadius.circular(20),
               backgroundColor: context.mdGlassSurface,
@@ -992,7 +1102,7 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
                                     color: context.mdPrimaryText,
                                   ),
                             ),
-                            const SizedBox(height: 4),
+                            const SizedBox(height: 2),
                             Text(
                               resource['category'] as String? ?? '',
                               style: Theme.of(context).textTheme.labelSmall
@@ -1008,7 +1118,7 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
                   Text(
                     resource['description'] as String? ?? '',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -1231,9 +1341,15 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
                         ),
                         SliverToBoxAdapter(
                           child: Padding(
+                            padding: const EdgeInsets.only(top: 12),
+                            child: _buildCategoryChips(),
+                          ),
+                        ),
+                        SliverToBoxAdapter(
+                          child: Padding(
                             padding: EdgeInsets.fromLTRB(
                               pagePadding,
-                              18,
+                              16,
                               pagePadding,
                               0,
                             ),
@@ -1246,12 +1362,22 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
                           ),
                         ),
                         SliverToBoxAdapter(child: _buildMoodLinksSection()),
-                        SliverToBoxAdapter(child: _buildCategoryChips()),
                         SliverToBoxAdapter(
                           child: Padding(
                             padding: EdgeInsets.fromLTRB(
                               pagePadding,
-                              18,
+                              22,
+                              pagePadding,
+                              0,
+                            ),
+                            child: _buildNearbyClinicsSection(),
+                          ),
+                        ),
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: EdgeInsets.fromLTRB(
+                              pagePadding,
+                              22,
                               pagePadding,
                               0,
                             ),
@@ -1269,30 +1395,17 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
                           child: Padding(
                             padding: EdgeInsets.fromLTRB(
                               pagePadding,
-                              24,
+                              22,
                               pagePadding,
                               0,
                             ),
-                            child: _buildNearbyClinicsSection(),
-                          ),
-                        ),
-                        SliverToBoxAdapter(
-                          child: Padding(
-                            padding: EdgeInsets.fromLTRB(
-                              pagePadding,
-                              24,
-                              pagePadding,
-                              8,
-                            ),
                             child: _SectionTitle(
-                              title: 'All resources',
-                              subtitle: _selectedCategory == 'All'
-                                  ? 'More vetted support links for today.'
-                                  : 'Filtered to $_selectedCategory.',
+                              title: "Today's random picks",
+                              subtitle: 'Three fresh resources each day.',
                             ),
                           ),
                         ),
-                        ..._buildResourceCards().map(
+                        ..._buildDailyRandomCards().map(
                           (child) => SliverToBoxAdapter(child: child),
                         ),
                         const SliverToBoxAdapter(child: SizedBox(height: 24)),
@@ -1369,12 +1482,12 @@ class _SectionTitle extends StatelessWidget {
             color: context.mdPrimaryText,
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 2),
         Text(
           subtitle,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
             color: context.mdSecondaryText,
-            height: 1.35,
+            height: 1.3,
           ),
         ),
       ],
@@ -1498,7 +1611,7 @@ class _GuideCard extends StatelessWidget {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Text(
               resource['description'] as String? ?? '',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
