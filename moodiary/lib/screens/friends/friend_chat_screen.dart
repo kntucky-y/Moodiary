@@ -53,6 +53,7 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
   final List<_FriendMessage> _messages = [];
   final TextEditingController _input = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final Map<String, ImageProvider<Object>> _avatarImageCache = {};
   bool _loading = true;
   String? _token;
   String? _userId;
@@ -62,6 +63,10 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
   io.Socket? _socket;
   bool _sending = false;
   String? _highlightedMessageId;
+  bool _isTyping = false;
+  bool _friendTyping = false;
+  Timer? _typingTimer;
+  Timer? _friendTypingTimer;
   StreamSubscription<Map<String, dynamic>>? _notificationSub;
 
   @override
@@ -186,6 +191,23 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
           });
         }
       })
+      ..on('friends:typing', (data) {
+        if (data is! Map || data['friendshipId'] != widget.friendshipId) {
+          return;
+        }
+        final senderId = data['userId']?.toString();
+        if (senderId == null || senderId == _userId) return;
+        final isTyping = data['isTyping'] == true;
+        _friendTypingTimer?.cancel();
+        if (isTyping) {
+          _friendTypingTimer = Timer(const Duration(seconds: 3), () {
+            if (!mounted) return;
+            setState(() => _friendTyping = false);
+          });
+        }
+        if (!mounted) return;
+        setState(() => _friendTyping = isTyping);
+      })
       ..on('friends:removed', (data) {
         if (data is Map && data['friendshipId'] == widget.friendshipId) {
           if (!mounted) return;
@@ -233,6 +255,7 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
       );
       return;
     }
+    _stopTyping();
     setState(() => _sending = true);
     _input.clear();
 
@@ -604,6 +627,50 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
     _loadHistory();
   }
 
+  void _handleInputChanged(String value) {
+    if (_token == null) return;
+    if (value.trim().isEmpty) {
+      _stopTyping();
+      return;
+    }
+    if (!_isTyping) {
+      _isTyping = true;
+      _emitTyping(true);
+    }
+    _typingTimer?.cancel();
+    _typingTimer = Timer(const Duration(milliseconds: 1600), _stopTyping);
+  }
+
+  void _emitTyping(bool isTyping) {
+    _socket?.emit('friends:typing', {
+      'friendshipId': widget.friendshipId,
+      'isTyping': isTyping,
+    });
+  }
+
+  void _stopTyping() {
+    if (!_isTyping) return;
+    _isTyping = false;
+    _typingTimer?.cancel();
+    _emitTyping(false);
+  }
+
+  ImageProvider<Object>? _cachedAvatarImage(String? source) {
+    final trimmed = source?.trim();
+    if (trimmed == null || trimmed.isEmpty) {
+      return null;
+    }
+    final cached = _avatarImageCache[trimmed];
+    if (cached != null) {
+      return cached;
+    }
+    final created = avatarImageProvider(trimmed);
+    if (created != null) {
+      _avatarImageCache[trimmed] = created;
+    }
+    return created;
+  }
+
   String _formatTime(DateTime dt) {
     final h = dt.hour.toString().padLeft(2, '0');
     final m = dt.minute.toString().padLeft(2, '0');
@@ -613,6 +680,9 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
   @override
   void dispose() {
     _notificationSub?.cancel();
+    _typingTimer?.cancel();
+    _friendTypingTimer?.cancel();
+    _stopTyping();
     _socket?.emit('friends:leave', {'friendshipId': widget.friendshipId});
     _socket?.dispose();
     _input.dispose();
@@ -639,6 +709,7 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final friendAvatarImage = _cachedAvatarImage(widget.friendAvatarUrl);
     return Scaffold(
       backgroundColor: context.mdScaffold,
       body: SafeArea(
@@ -648,7 +719,7 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
               friendUserId: widget.friendUserId,
               name: widget.friendName,
               email: widget.friendEmail,
-              friendAvatarUrl: widget.friendAvatarUrl,
+              friendAvatarImage: friendAvatarImage,
               onMenuAction: (action) async {
                 switch (action) {
                   case _ChatMenuAction.search:
@@ -710,12 +781,18 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
                     : ListView.builder(
                         controller: _scrollController,
                         padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
-                        itemCount: _messages.length,
+                        itemCount: _messages.length + (_friendTyping ? 1 : 0),
                         itemBuilder: (context, index) {
+                          if (_friendTyping && index == _messages.length) {
+                            return _TypingIndicator(
+                              friendAvatarImage: friendAvatarImage,
+                              friendName: widget.friendName,
+                            );
+                          }
                           final message = _messages[index];
                           return _ChatBubble(
                             message: message,
-                            friendAvatarUrl: widget.friendAvatarUrl,
+                            friendAvatarImage: friendAvatarImage,
                             highlighted: message.id == _highlightedMessageId,
                             onLongPress: () => _showMessageActions(message),
                           );
@@ -726,6 +803,7 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
             _MessageComposer(
               controller: _input,
               onSend: _sendMessage,
+              onChanged: _handleInputChanged,
               sending: _sending,
             ),
           ],
@@ -778,13 +856,13 @@ class _FriendMessage {
 
 class _ChatBubble extends StatelessWidget {
   final _FriendMessage message;
-  final String? friendAvatarUrl;
+  final ImageProvider<Object>? friendAvatarImage;
   final VoidCallback? onLongPress;
   final bool highlighted;
 
   const _ChatBubble({
     required this.message,
-    this.friendAvatarUrl,
+    this.friendAvatarImage,
     this.onLongPress,
     this.highlighted = false,
   });
@@ -813,8 +891,8 @@ class _ChatBubble extends StatelessWidget {
                 padding: const EdgeInsets.only(right: 8, bottom: 2),
                 child: CircleAvatar(
                   radius: 12,
-                  backgroundImage: avatarImageProvider(friendAvatarUrl),
-                  child: avatarImageProvider(friendAvatarUrl) == null
+                  backgroundImage: friendAvatarImage,
+                  child: friendAvatarImage == null
                       ? const Icon(Icons.person, size: 12)
                       : null,
                 ),
@@ -906,11 +984,64 @@ class _ChatBubble extends StatelessWidget {
   }
 }
 
+class _TypingIndicator extends StatelessWidget {
+  final ImageProvider<Object>? friendAvatarImage;
+  final String friendName;
+
+  const _TypingIndicator({
+    required this.friendAvatarImage,
+    required this.friendName,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final friendBubble = context.mdSecondarySurface;
+    final friendText = context.mdSecondaryText;
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8, bottom: 2),
+            child: CircleAvatar(
+              radius: 12,
+              backgroundImage: friendAvatarImage,
+              child: friendAvatarImage == null
+                  ? const Icon(Icons.person, size: 12)
+                  : null,
+            ),
+          ),
+          Container(
+            margin: const EdgeInsets.symmetric(vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: friendBubble,
+              borderRadius: BorderRadius.circular(
+                18,
+              ).copyWith(bottomLeft: const Radius.circular(4)),
+            ),
+            child: Text(
+              '$friendName is typing...',
+              style: TextStyle(
+                color: friendText,
+                fontSize: 12,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ChatHeader extends StatelessWidget {
   final String friendUserId;
   final String name;
   final String email;
-  final String? friendAvatarUrl;
+  final ImageProvider<Object>? friendAvatarImage;
   final Future<void> Function(String postId)? onOpenForumPost;
   final Future<void> Function(_ChatMenuAction action)? onMenuAction;
 
@@ -918,7 +1049,7 @@ class _ChatHeader extends StatelessWidget {
     required this.friendUserId,
     required this.name,
     required this.email,
-    this.friendAvatarUrl,
+    this.friendAvatarImage,
     this.onOpenForumPost,
     this.onMenuAction,
   });
@@ -955,8 +1086,8 @@ class _ChatHeader extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 18,
-                  backgroundImage: avatarImageProvider(friendAvatarUrl),
-                  child: avatarImageProvider(friendAvatarUrl) == null
+                  backgroundImage: friendAvatarImage,
+                  child: friendAvatarImage == null
                       ? const Icon(Icons.person, size: 18)
                       : null,
                 ),
@@ -1010,11 +1141,13 @@ class _ChatHeader extends StatelessWidget {
 class _MessageComposer extends StatelessWidget {
   final TextEditingController controller;
   final VoidCallback onSend;
+  final ValueChanged<String>? onChanged;
   final bool sending;
 
   const _MessageComposer({
     required this.controller,
     required this.onSend,
+    this.onChanged,
     required this.sending,
   });
 
@@ -1033,6 +1166,7 @@ class _MessageComposer extends StatelessWidget {
             Expanded(
               child: TextField(
                 controller: controller,
+                onChanged: onChanged,
                 minLines: 1,
                 maxLines: 4,
                 maxLength: _kMaxMessageLength,

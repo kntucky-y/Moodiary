@@ -105,6 +105,25 @@ const initSocket = (server) => {
       socket.leave(roomName(friendshipId));
     });
 
+    socket.on('friends:typing', async (payload = {}) => {
+      const friendshipId = (payload.friendshipId || '').toString().trim();
+      if (!friendshipId) return;
+      const isTyping = !!payload.isTyping;
+      try {
+        await ensureFriendshipAccess(friendshipId, socket.userId);
+        socket.to(roomName(friendshipId)).emit('friends:typing', {
+          friendshipId,
+          userId: socket.userId.toString(),
+          isTyping,
+        });
+      } catch (err) {
+        socket.emit('friends:error', {
+          friendshipId,
+          error: err.message,
+        });
+      }
+    });
+
     socket.on('friends:message', async (payload = {}) => {
       const friendshipId = (payload.friendshipId || '').toString().trim();
       const text = (payload.text || '').trim();
