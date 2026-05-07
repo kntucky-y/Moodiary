@@ -8,6 +8,7 @@ import '../../theme/moodiary_colors.dart';
 import '../../utils/transitions.dart';
 import '../../widgets/glass.dart';
 import '../app_shell.dart';
+import '../companion/companion_screen.dart';
 
 class MbtiTestScreen extends StatefulWidget {
   final String userName;
@@ -48,6 +49,25 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
     'Neutral',
     'Agree',
     'Strongly agree',
+  ];
+
+  static const _mbtiTypes = [
+    'ISTJ',
+    'ISFJ',
+    'INFJ',
+    'INTJ',
+    'ISTP',
+    'ISFP',
+    'INFP',
+    'INTP',
+    'ESTP',
+    'ESFP',
+    'ENFP',
+    'ENTP',
+    'ESTJ',
+    'ESFJ',
+    'ENFJ',
+    'ENTJ',
   ];
 
   final List<int> _answers = List<int>.filled(_questions.length, 0);
@@ -149,6 +169,107 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
         setState(() => _submitting = false);
       }
     }
+  }
+
+  Future<void> _setKnownMbti(String type) async {
+    if (_submitting) return;
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userId =
+          prefs.getString('user_id') ?? prefs.getString('userId') ?? '';
+      final token = prefs.getString('token') ?? '';
+      if (userId.isEmpty || token.isEmpty) {
+        throw AuthException(
+          'You need to sign in again before setting your MBTI type.',
+        );
+      }
+
+      await AuthService.instance.updateUserProfile(
+        userId: userId,
+        authToken: token,
+        mbtiLatestType: type,
+      );
+      await prefs.setString('mbti_latest_type', type);
+
+      if (!mounted) return;
+      if (widget.requireCompanionSelection) {
+        Navigator.of(context).pushAndRemoveUntil(
+          FadeSlideRoute(page: CompanionScreen(userName: widget.userName)),
+          (_) => false,
+        );
+        return;
+      }
+
+      _finishWithoutSelection();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString();
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _submitting = false);
+      }
+    }
+  }
+
+  void _showMbtiPicker() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) {
+        final cs = Theme.of(ctx).colorScheme;
+        return GlassContainer(
+          blurSigma: context.mdGlassBlurMedium,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          backgroundColor: context.mdGlassSurfaceStrong,
+          borderColor: context.mdGlassBorder,
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          child: SafeArea(
+            top: false,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Select your MBTI type',
+                  style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'We will use this to tailor your companion match.',
+                  style: Theme.of(
+                    ctx,
+                  ).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: _mbtiTypes.map((type) {
+                    return OutlinedButton(
+                      onPressed: () {
+                        Navigator.of(ctx).pop();
+                        _setKnownMbti(type);
+                      },
+                      child: Text(type),
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _chooseCompanion(Map<String, dynamic> companion) async {
@@ -345,17 +466,30 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
           isWide ? 24 : 20,
           MediaQuery.of(context).padding.bottom > 0 ? 14 : 18,
         ),
-        child: SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: () => setState(() => _started = true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: cs.primary,
-              foregroundColor: cs.onPrimary,
-              padding: const EdgeInsets.symmetric(vertical: 14),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => setState(() => _started = true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: cs.primary,
+                  foregroundColor: cs.onPrimary,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                child: const Text('Start MBTI Test'),
+              ),
             ),
-            child: const Text('Start MBTI Test'),
-          ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: _submitting ? null : _showMbtiPicker,
+                child: const Text('I already know my MBTI'),
+              ),
+            ),
+          ],
         ),
       ),
     );

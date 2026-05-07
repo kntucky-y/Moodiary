@@ -589,7 +589,9 @@ class AuthService {
         );
 
     try {
-      final response = await _client.get(uri).timeout(_requestTimeout);
+      final response = await _client
+          .get(uri)
+          .timeout(const Duration(seconds: 12));
       final decoded = jsonDecode(response.body) as Map<String, dynamic>;
 
       if (response.statusCode >= 200 && response.statusCode < 300) {

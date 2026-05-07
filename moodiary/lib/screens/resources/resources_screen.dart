@@ -183,7 +183,9 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
     }
 
     final position = await Geolocator.getCurrentPosition(
-      locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.medium,
+      ),
     );
     return LatLng(position.latitude, position.longitude);
   }
@@ -222,7 +224,7 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
         latitude: queryCenter.latitude,
         longitude: queryCenter.longitude,
         radiusMeters: _radiusMeters,
-        limit: 30,
+        limit: 15,
       );
 
       if (!mounted) return;

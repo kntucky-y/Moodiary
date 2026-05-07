@@ -71,6 +71,9 @@ class _FriendChatScreenState extends State<FriendChatScreen>
   Timer? _friendTypingTimer;
   StreamSubscription<Map<String, dynamic>>? _notificationSub;
   DateTime? _lastSocketSyncAt;
+  Timer? _pollTimer;
+  DateTime? _lastPollAt;
+  AppLifecycleState _lifecycleState = AppLifecycleState.resumed;
 
   @override
   void initState() {
@@ -79,11 +82,13 @@ class _FriendChatScreenState extends State<FriendChatScreen>
     _notificationSub = RealtimeNotifications.instance.stream.listen(
       _handleRealtimeNotification,
     );
+    _startPolling();
     _init();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    _lifecycleState = state;
     if (state == AppLifecycleState.resumed) {
       _socket?.connect();
       _joinSocketRoom();
@@ -268,6 +273,24 @@ class _FriendChatScreenState extends State<FriendChatScreen>
     final last = _lastSocketSyncAt;
     if (last != null && now.difference(last).inSeconds < 3) return;
     _lastSocketSyncAt = now;
+    _loadHistory();
+  }
+
+  void _startPolling() {
+    _pollTimer?.cancel();
+    _pollTimer = Timer.periodic(const Duration(seconds: 12), (_) {
+      _pollIfNeeded();
+    });
+  }
+
+  void _pollIfNeeded() {
+    if (!mounted || _loading || _token == null) return;
+    if (_lifecycleState != AppLifecycleState.resumed) return;
+    if (_socket?.connected == true) return;
+    final now = DateTime.now();
+    final last = _lastPollAt;
+    if (last != null && now.difference(last).inSeconds < 10) return;
+    _lastPollAt = now;
     _loadHistory();
   }
 
@@ -781,6 +804,7 @@ class _FriendChatScreenState extends State<FriendChatScreen>
     _typingTimer?.cancel();
     _typingPingTimer?.cancel();
     _friendTypingTimer?.cancel();
+    _pollTimer?.cancel();
     _stopTyping();
     _socket?.emit('friends:leave', {'friendshipId': widget.friendshipId});
     _socket?.dispose();

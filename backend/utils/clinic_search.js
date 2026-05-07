@@ -5,6 +5,8 @@ const OVERPASS_URLS = [
 ];
 const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
 const CACHE_TTL_MS = 5 * 60 * 1000;
+const OVERPASS_TIMEOUT_MS = 8000;
+const NOMINATIM_TIMEOUT_MS = 6000;
 
 const cache = new Map();
 
@@ -199,23 +201,20 @@ async function queryOverpassNearbyClinics(lat, lng, radius) {
   `;
 
   let payload;
-  let lastError;
-  for (const url of OVERPASS_URLS) {
-    try {
-      payload = await fetchJson(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: `data=${encodeURIComponent(query)}`,
-        timeoutMs: 20000,
-      });
-      break;
-    } catch (error) {
-      lastError = error;
-    }
-  }
-
-  if (!payload && lastError) {
-    throw lastError;
+  try {
+    payload = await Promise.any(
+      OVERPASS_URLS.map((url) =>
+        fetchJson(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: `data=${encodeURIComponent(query)}`,
+          timeoutMs: OVERPASS_TIMEOUT_MS,
+        }),
+      ),
+    );
+  } catch (error) {
+    const firstError = error?.errors?.[0] || error;
+    throw firstError;
   }
 
   const elements = payload && Array.isArray(payload.elements) ? payload.elements : [];
@@ -236,20 +235,14 @@ async function queryNominatimFallback(lat, lng, radius, limit) {
     lat - radius / 111000,
   ].join(',');
 
-  const queries = [
-    'mental health clinic',
-    'psychiatrist',
-    'psychologist',
-    'therapy center',
-    'counselling center',
-  ];
+  const queries = ['mental health clinic', 'psychiatrist', 'psychologist'];
 
   const results = [];
   for (const query of queries) {
     const url = new URL(NOMINATIM_URL);
     url.searchParams.set('format', 'jsonv2');
     url.searchParams.set('addressdetails', '1');
-    url.searchParams.set('limit', String(limit));
+    url.searchParams.set('limit', String(Math.min(limit, 10)));
     url.searchParams.set('bounded', '1');
     url.searchParams.set('viewbox', viewbox);
     url.searchParams.set('q', query);
@@ -258,7 +251,7 @@ async function queryNominatimFallback(lat, lng, radius, limit) {
       headers: {
         'User-Agent': 'Moodiary/1.0 (mental health resource map)',
       },
-      timeoutMs: 15000,
+      timeoutMs: NOMINATIM_TIMEOUT_MS,
     });
 
     if (!Array.isArray(payload)) continue;
@@ -284,6 +277,10 @@ async function queryNominatimFallback(lat, lng, radius, limit) {
         tags: { query },
         relevance: 'fallback',
       });
+    }
+
+    if (results.length >= limit) {
+      break;
     }
   }
 
