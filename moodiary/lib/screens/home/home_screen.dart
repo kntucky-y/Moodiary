@@ -3337,7 +3337,6 @@ class _CompanionChatState extends State<_CompanionChat> {
             ),
           ],
         ),
-        ),
       ),
     );
   }
