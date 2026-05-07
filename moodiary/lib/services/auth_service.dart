@@ -606,6 +606,11 @@ class AuthService {
       if (error is AuthException) {
         rethrow;
       }
+      if (error is TimeoutException) {
+        throw AuthException(
+          'Nearby clinics are taking too long to load. Please try again.',
+        );
+      }
       throw AuthException('Cannot reach the server. Please try again.');
     }
   }

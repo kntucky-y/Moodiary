@@ -5,10 +5,12 @@ const OVERPASS_URLS = [
 ];
 const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
 const CACHE_TTL_MS = 5 * 60 * 1000;
-const OVERPASS_TIMEOUT_MS = 12000;
-const NOMINATIM_TIMEOUT_MS = 6000;
+const OVERPASS_TIMEOUT_MS = 9000;
+const NOMINATIM_TIMEOUT_MS = 4500;
 const NOMINATIM_EMAIL = (process.env.NOMINATIM_EMAIL || '').trim();
-const OVERPASS_QUERY_TIMEOUT_S = 15;
+const OVERPASS_QUERY_TIMEOUT_S = 10;
+const RESPONSE_BUDGET_MS = 10000;
+const SECONDARY_MIN_BUDGET_MS = 1200;
 
 const cache = new Map();
 let overpassFailureCount = 0;
@@ -332,6 +334,9 @@ async function getNearbyMentalHealthClinics({ lat, lng, radius = 5000, limit = 2
     return cached.data;
   }
 
+  const deadline = Date.now() + RESPONSE_BUDGET_MS;
+  const remainingBudgetMs = () => Math.max(0, deadline - Date.now());
+
   let clinics = [];
   let overpassError = null;
   let nominatimError = null;
@@ -353,23 +358,51 @@ async function getNearbyMentalHealthClinics({ lat, lng, radius = 5000, limit = 2
     .then((data) => ({ source: 'nominatim', data }))
     .catch((error) => ({ source: 'nominatim', data: [], error }));
 
-  const first = await Promise.race([overpassPromise, nominatimPromise]);
-  clinics = first.data || [];
-  if (first.source === 'overpass') {
-    overpassError = first.error || null;
-  } else {
-    nominatimError = first.error || null;
+  const firstRace = await Promise.race([
+    Promise.race([overpassPromise, nominatimPromise]),
+    new Promise((resolve) =>
+      setTimeout(() => resolve({ source: 'budget', data: [], error: null }), remainingBudgetMs()),
+    ),
+  ]);
+
+  if (firstRace.source === 'budget') {
+    console.warn('Nearby clinics request exceeded response budget (first race).');
+    return {
+      clinics: [],
+      center: { lat: normalizedLat, lng: normalizedLng },
+      radiusMeters: safeRadius,
+      total: 0,
+      source: 'none',
+    };
   }
 
-  if (!clinics.length) {
-    const second = await (first.source === 'overpass'
+  clinics = firstRace.data || [];
+  if (firstRace.source === 'overpass') {
+    overpassError = firstRace.error || null;
+  } else {
+    nominatimError = firstRace.error || null;
+  }
+
+  if (!clinics.length && remainingBudgetMs() >= SECONDARY_MIN_BUDGET_MS) {
+    const secondPromise = firstRace.source === 'overpass'
       ? nominatimPromise
-      : overpassPromise);
-    clinics = second.data || [];
-    if (second.source === 'overpass') {
-      overpassError = second.error || overpassError;
+      : overpassPromise;
+    const secondRace = await Promise.race([
+      secondPromise,
+      new Promise((resolve) =>
+        setTimeout(() => resolve({ source: 'budget', data: [], error: null }), remainingBudgetMs()),
+      ),
+    ]);
+
+    if (secondRace.source === 'budget') {
+      console.warn('Nearby clinics request exceeded response budget (second race).');
     } else {
-      nominatimError = second.error || nominatimError;
+      clinics = secondRace.data || [];
+      if (secondRace.source === 'overpass') {
+        overpassError = secondRace.error || overpassError;
+      } else {
+        nominatimError = secondRace.error || nominatimError;
+      }
     }
   }
 
