@@ -3162,182 +3162,182 @@ class _CompanionChatState extends State<_CompanionChat> {
         padding: EdgeInsets.zero,
         child: Column(
           children: [
-              // ── Handle bar
-              const SizedBox(height: 8),
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: handleColor,
-                  borderRadius: BorderRadius.circular(2),
-                ),
+            // ── Handle bar
+            const SizedBox(height: 8),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: handleColor,
+                borderRadius: BorderRadius.circular(2),
               ),
-              // ── Header
-              Padding(
+            ),
+            // ── Header
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 12,
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: secondarySurface,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Center(
+                      child: Image.asset(
+                        widget.companionAsset,
+                        width: 32,
+                        height: 32,
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) => Icon(
+                          Icons.sentiment_satisfied_alt,
+                          color: subtleText,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    widget.companionName,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: primaryText,
+                    ),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    icon: Icon(Icons.close, color: subtleText),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
+              ),
+            ),
+            Divider(height: 1, color: dividerColor),
+
+            // ── Messages
+            Expanded(
+              child: ListView.builder(
+                controller: _scroll,
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
+                  horizontal: 16,
                   vertical: 12,
                 ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 42,
-                      height: 42,
+                itemCount: _messages.length + (_loading ? 1 : 0),
+                itemBuilder: (_, i) {
+                  if (i == _messages.length) {
+                    return _TypingBubble(
+                      companionAsset: widget.companionAsset,
+                    );
+                  }
+                  final m = _messages[i];
+                  return _ChatBubble(message: m);
+                },
+              ),
+            ),
+
+            // ── Quick prompts (only before first user message)
+            if (showPrompts)
+              Container(
+                height: 36,
+                margin: const EdgeInsets.only(bottom: 8),
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: _prompts.length,
+                  separatorBuilder: (_, _) => const SizedBox(width: 8),
+                  itemBuilder: (_, i) => TapScale(
+                    onTap: () => _send(_prompts[i]),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
-                        color: secondarySurface,
-                        shape: BoxShape.circle,
+                        color: promptBg,
+                        borderRadius: BorderRadius.circular(50),
                       ),
-                      child: Center(
-                        child: Image.asset(
-                          widget.companionAsset,
-                          width: 32,
-                          height: 32,
-                          fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) => Icon(
-                            Icons.sentiment_satisfied_alt,
-                            color: subtleText,
-                          ),
-                        ),
+                      child: Text(
+                        _prompts[i],
+                        style: TextStyle(color: promptText, fontSize: 12),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Text(
-                      widget.companionName,
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: primaryText,
-                      ),
-                    ),
-                    const Spacer(),
-                    IconButton(
-                      icon: Icon(Icons.close, color: subtleText),
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
-                  ],
-                ),
-              ),
-              Divider(height: 1, color: dividerColor),
-
-              // ── Messages
-              Expanded(
-                child: ListView.builder(
-                  controller: _scroll,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
                   ),
-                  itemCount: _messages.length + (_loading ? 1 : 0),
-                  itemBuilder: (_, i) {
-                    if (i == _messages.length) {
-                      return _TypingBubble(
-                        companionAsset: widget.companionAsset,
-                      );
-                    }
-                    final m = _messages[i];
-                    return _ChatBubble(message: m);
-                  },
                 ),
               ),
 
-              // ── Quick prompts (only before first user message)
-              if (showPrompts)
-                Container(
-                  height: 36,
-                  margin: const EdgeInsets.only(bottom: 8),
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: _prompts.length,
-                    separatorBuilder: (_, _) => const SizedBox(width: 8),
-                    itemBuilder: (_, i) => TapScale(
-                      onTap: () => _send(_prompts[i]),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 6,
+            // ── Input row
+            Divider(height: 1, color: dividerColor),
+            AnimatedPadding(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOut,
+              padding: EdgeInsets.fromLTRB(16, 8, 16, bottomInset),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _input,
+                      textCapitalization: TextCapitalization.sentences,
+                      onSubmitted: _send,
+                      style: TextStyle(color: primaryText),
+                      decoration: InputDecoration(
+                        hintText: 'Say something…',
+                        hintStyle: TextStyle(color: subtleText),
+                        filled: true,
+                        fillColor: inputFill,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
                         ),
-                        decoration: BoxDecoration(
-                          color: promptBg,
+                        border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(50),
+                          borderSide: BorderSide(color: inputBorder),
                         ),
-                        child: Text(
-                          _prompts[i],
-                          style: TextStyle(color: promptText, fontSize: 12),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(50),
+                          borderSide: BorderSide(color: inputBorder),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(50),
+                          borderSide: const BorderSide(
+                            color: _kPurple,
+                            width: 1.5,
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-
-              // ── Input row
-              Divider(height: 1, color: dividerColor),
-              AnimatedPadding(
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeOut,
-                padding: EdgeInsets.fromLTRB(16, 8, 16, bottomInset),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _input,
-                        textCapitalization: TextCapitalization.sentences,
-                        onSubmitted: _send,
-                        style: TextStyle(color: primaryText),
-                        decoration: InputDecoration(
-                          hintText: 'Say something…',
-                          hintStyle: TextStyle(color: subtleText),
-                          filled: true,
-                          fillColor: inputFill,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 10,
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(50),
-                            borderSide: BorderSide(color: inputBorder),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(50),
-                            borderSide: BorderSide(color: inputBorder),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(50),
-                            borderSide: const BorderSide(
-                              color: _kPurple,
-                              width: 1.5,
-                            ),
+                  const SizedBox(width: 8),
+                  TapScale(
+                    onTap: () => _send(_input.text),
+                    child: SizedBox(
+                      width: 46,
+                      height: 46,
+                      child: GlassContainer(
+                        blurSigma: context.mdGlassBlurSmall,
+                        borderRadius: BorderRadius.circular(23),
+                        backgroundColor: _kPurple.withValues(alpha: 0.58),
+                        borderColor: context.mdGlassBorder,
+                        padding: EdgeInsets.zero,
+                        child: const Center(
+                          child: Icon(
+                            Icons.send_rounded,
+                            color: Colors.white,
+                            size: 20,
                           ),
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    TapScale(
-                      onTap: () => _send(_input.text),
-                      child: SizedBox(
-                        width: 46,
-                        height: 46,
-                        child: GlassContainer(
-                          blurSigma: context.mdGlassBlurSmall,
-                          borderRadius: BorderRadius.circular(23),
-                          backgroundColor: _kPurple.withValues(alpha: 0.58),
-                          borderColor: context.mdGlassBorder,
-                          padding: EdgeInsets.zero,
-                          child: const Center(
-                            child: Icon(
-                              Icons.send_rounded,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
+        ),
         ),
       ),
     );
