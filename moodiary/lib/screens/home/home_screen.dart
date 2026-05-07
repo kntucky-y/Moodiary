@@ -1758,13 +1758,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ],
       ),
       bottomNavigationBar: widget.showBottomNav
-          ? _sidebarOpen
+          ? (_sidebarOpen
                 ? null
                 : _BottomNav(
                     userName: widget.userName,
                     companionId: widget.companionId,
                     companionName: widget.companionName,
-                  )
+                  ))
           : null,
     );
   }
@@ -1947,6 +1947,7 @@ class _Header extends StatelessWidget {
               ],
             ),
           ),
+        ),
       ),
     );
   }
@@ -3173,10 +3174,7 @@ class _CompanionChatState extends State<_CompanionChat> {
             ),
             // ── Header
             Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 12,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               child: Row(
                 children: [
                   Container(
@@ -3229,9 +3227,7 @@ class _CompanionChatState extends State<_CompanionChat> {
                 itemCount: _messages.length + (_loading ? 1 : 0),
                 itemBuilder: (_, i) {
                   if (i == _messages.length) {
-                    return _TypingBubble(
-                      companionAsset: widget.companionAsset,
-                    );
+                    return _TypingBubble(companionAsset: widget.companionAsset);
                   }
                   final m = _messages[i];
                   return _ChatBubble(message: m);

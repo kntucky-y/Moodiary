@@ -5,8 +5,10 @@ const OVERPASS_URLS = [
 ];
 const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
 const CACHE_TTL_MS = 5 * 60 * 1000;
-const OVERPASS_TIMEOUT_MS = 8000;
+const OVERPASS_TIMEOUT_MS = 12000;
 const NOMINATIM_TIMEOUT_MS = 6000;
+const NOMINATIM_EMAIL = (process.env.NOMINATIM_EMAIL || '').trim();
+const OVERPASS_QUERY_TIMEOUT_S = 15;
 
 const cache = new Map();
 
@@ -166,7 +168,9 @@ async function fetchJson(
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   const requestHeaders = {
-    'User-Agent': 'Moodiary/1.0 (clinic search)',
+    'User-Agent': NOMINATIM_EMAIL
+      ? `Moodiary/1.0 (clinic search; ${NOMINATIM_EMAIL})`
+      : 'Moodiary/1.0 (clinic search)',
     ...headers,
   };
 
@@ -188,7 +192,7 @@ async function fetchJson(
 
 async function queryOverpassNearbyClinics(lat, lng, radius) {
   const query = `
-    [out:json][timeout:20];
+    [out:json][timeout:${OVERPASS_QUERY_TIMEOUT_S}];
     (
       node(around:${radius},${lat},${lng})["healthcare"];
       way(around:${radius},${lat},${lng})["healthcare"];
@@ -246,10 +250,15 @@ async function queryNominatimFallback(lat, lng, radius, limit) {
     url.searchParams.set('bounded', '1');
     url.searchParams.set('viewbox', viewbox);
     url.searchParams.set('q', query);
+    if (NOMINATIM_EMAIL) {
+      url.searchParams.set('email', NOMINATIM_EMAIL);
+    }
 
     const payload = await fetchJson(url.toString(), {
       headers: {
-        'User-Agent': 'Moodiary/1.0 (mental health resource map)',
+        'User-Agent': NOMINATIM_EMAIL
+          ? `Moodiary/1.0 (mental health resource map; ${NOMINATIM_EMAIL})`
+          : 'Moodiary/1.0 (mental health resource map)',
       },
       timeoutMs: NOMINATIM_TIMEOUT_MS,
     });
@@ -308,27 +317,52 @@ async function getNearbyMentalHealthClinics({ lat, lng, radius = 5000, limit = 2
 
   let clinics = [];
   let overpassError = null;
-  try {
-    clinics = await queryOverpassNearbyClinics(normalizedLat, normalizedLng, safeRadius);
-  } catch (error) {
-    overpassError = error;
+  let nominatimError = null;
+
+  const overpassPromise = queryOverpassNearbyClinics(
+    normalizedLat,
+    normalizedLng,
+    safeRadius,
+  )
+    .then((data) => ({ source: 'overpass', data }))
+    .catch((error) => ({ source: 'overpass', data: [], error }));
+
+  const nominatimPromise = queryNominatimFallback(
+    normalizedLat,
+    normalizedLng,
+    safeRadius,
+    safeLimit,
+  )
+    .then((data) => ({ source: 'nominatim', data }))
+    .catch((error) => ({ source: 'nominatim', data: [], error }));
+
+  const first = await Promise.race([overpassPromise, nominatimPromise]);
+  clinics = first.data || [];
+  if (first.source === 'overpass') {
+    overpassError = first.error || null;
+  } else {
+    nominatimError = first.error || null;
   }
 
   if (!clinics.length) {
-    try {
-      clinics = await queryNominatimFallback(
-        normalizedLat,
-        normalizedLng,
-        safeRadius,
-        safeLimit,
-      );
-    } catch (error) {
-      console.warn('Nominatim clinic fallback failed:', error.message);
+    const second = await (first.source === 'overpass'
+      ? nominatimPromise
+      : overpassPromise);
+    clinics = second.data || [];
+    if (second.source === 'overpass') {
+      overpassError = second.error || overpassError;
+    } else {
+      nominatimError = second.error || nominatimError;
     }
   }
 
-  if (!clinics.length && overpassError) {
-    console.warn('Overpass clinic lookup failed:', overpassError.message);
+  if (!clinics.length) {
+    if (overpassError) {
+      console.warn('Overpass clinic lookup failed:', overpassError.message);
+    }
+    if (nominatimError) {
+      console.warn('Nominatim clinic fallback failed:', nominatimError.message);
+    }
   }
 
   const data = {
