@@ -49,7 +49,8 @@ class FriendChatScreen extends StatefulWidget {
   State<FriendChatScreen> createState() => _FriendChatScreenState();
 }
 
-class _FriendChatScreenState extends State<FriendChatScreen> {
+class _FriendChatScreenState extends State<FriendChatScreen>
+    with WidgetsBindingObserver {
   final List<_FriendMessage> _messages = [];
   final TextEditingController _input = TextEditingController();
   final ScrollController _scrollController = ScrollController();
@@ -66,16 +67,30 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
   bool _isTyping = false;
   bool _friendTyping = false;
   Timer? _typingTimer;
+  Timer? _typingPingTimer;
   Timer? _friendTypingTimer;
   StreamSubscription<Map<String, dynamic>>? _notificationSub;
+  DateTime? _lastSocketSyncAt;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _notificationSub = RealtimeNotifications.instance.stream.listen(
       _handleRealtimeNotification,
     );
     _init();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _socket?.connect();
+      _joinSocketRoom();
+      _syncAfterReconnect();
+    } else if (state == AppLifecycleState.paused) {
+      _stopTyping();
+    }
   }
 
   Future<void> _init() async {
@@ -140,7 +155,8 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
     _socket!
       ..connect()
       ..onConnect((_) {
-        _socket?.emit('friends:join', {'friendshipId': widget.friendshipId});
+        _joinSocketRoom();
+        _syncAfterReconnect();
       })
       ..on('friends:message', (data) {
         if (data is Map && data['friendshipId'] == widget.friendshipId) {
@@ -200,7 +216,7 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
         final isTyping = data['isTyping'] == true;
         _friendTypingTimer?.cancel();
         if (isTyping) {
-          _friendTypingTimer = Timer(const Duration(seconds: 3), () {
+          _friendTypingTimer = Timer(const Duration(seconds: 5), () {
             if (!mounted) return;
             setState(() => _friendTyping = false);
           });
@@ -240,6 +256,19 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
       ..onDisconnect((_) {
         // no-op
       });
+  }
+
+  void _joinSocketRoom() {
+    _socket?.emit('friends:join', {'friendshipId': widget.friendshipId});
+  }
+
+  void _syncAfterReconnect() {
+    if (_loading) return;
+    final now = DateTime.now();
+    final last = _lastSocketSyncAt;
+    if (last != null && now.difference(last).inSeconds < 3) return;
+    _lastSocketSyncAt = now;
+    _loadHistory();
   }
 
   Future<void> _sendMessage() async {
@@ -691,8 +720,20 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
       _isTyping = true;
       _emitTyping(true);
     }
+    _startTypingKeepalive();
     _typingTimer?.cancel();
     _typingTimer = Timer(const Duration(milliseconds: 1600), _stopTyping);
+  }
+
+  void _startTypingKeepalive() {
+    _typingPingTimer?.cancel();
+    _typingPingTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
+      if (!_isTyping) {
+        timer.cancel();
+        return;
+      }
+      _emitTyping(true);
+    });
   }
 
   void _emitTyping(bool isTyping) {
@@ -706,6 +747,7 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
     if (!_isTyping) return;
     _isTyping = false;
     _typingTimer?.cancel();
+    _typingPingTimer?.cancel();
     _emitTyping(false);
   }
 
@@ -734,8 +776,10 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _notificationSub?.cancel();
     _typingTimer?.cancel();
+    _typingPingTimer?.cancel();
     _friendTypingTimer?.cancel();
     _stopTyping();
     _socket?.emit('friends:leave', {'friendshipId': widget.friendshipId});
@@ -832,7 +876,7 @@ class _FriendChatScreenState extends State<FriendChatScreen> {
                 padding: EdgeInsets.zero,
                 child: _loading
                     ? const Center(child: CircularProgressIndicator())
-                    : _messages.isEmpty
+                    : _messages.isEmpty && !_friendTyping
                     ? _EmptyChat(friendName: widget.friendName)
                     : ListView.builder(
                         controller: _scrollController,

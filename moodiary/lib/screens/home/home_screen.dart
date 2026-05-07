@@ -3146,26 +3146,22 @@ class _CompanionChatState extends State<_CompanionChat> {
         : const Color(0xFFDDDDDD);
     final viewInsets = MediaQuery.of(context).viewInsets.bottom;
     final safeBottom = MediaQuery.of(context).padding.bottom;
-    final bottomInset = viewInsets > 0 ? viewInsets + 8 : safeBottom + 8;
+    final bottomInset = (viewInsets > 0 ? viewInsets : safeBottom) + 8;
 
     final width = MediaQuery.of(context).size.width;
     final horizontalInset = width >= 700 ? 20.0 : 12.0;
 
-    return AnimatedPadding(
-      duration: const Duration(milliseconds: 200),
-      curve: Curves.easeOut,
-      padding: EdgeInsets.only(bottom: viewInsets),
-      child: SizedBox(
-        height: MediaQuery.of(context).size.height * 0.72,
-        child: GlassContainer(
-          blurSigma: context.mdGlassBlurMedium,
-          margin: EdgeInsets.fromLTRB(horizontalInset, 0, horizontalInset, 8),
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-          backgroundColor: context.mdGlassSurfaceStrong,
-          borderColor: context.mdGlassBorder,
-          padding: EdgeInsets.zero,
-          child: Column(
-            children: [
+    return SizedBox(
+      height: MediaQuery.of(context).size.height * 0.72,
+      child: GlassContainer(
+        blurSigma: context.mdGlassBlurMedium,
+        margin: EdgeInsets.fromLTRB(horizontalInset, 0, horizontalInset, 8),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        backgroundColor: context.mdGlassSurfaceStrong,
+        borderColor: context.mdGlassBorder,
+        padding: EdgeInsets.zero,
+        child: Column(
+          children: [
               // ── Handle bar
               const SizedBox(height: 8),
               Container(
@@ -3276,7 +3272,9 @@ class _CompanionChatState extends State<_CompanionChat> {
 
               // ── Input row
               Divider(height: 1, color: dividerColor),
-              Padding(
+              AnimatedPadding(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOut,
                 padding: EdgeInsets.fromLTRB(16, 8, 16, bottomInset),
                 child: Row(
                   children: [
