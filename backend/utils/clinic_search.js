@@ -11,6 +11,10 @@ const NOMINATIM_EMAIL = (process.env.NOMINATIM_EMAIL || '').trim();
 const OVERPASS_QUERY_TIMEOUT_S = 15;
 
 const cache = new Map();
+let overpassFailureCount = 0;
+let overpassDisabledUntil = 0;
+const OVERPASS_BACKOFF_BASE_MS = 2 * 60 * 1000;
+const OVERPASS_BACKOFF_MAX_MS = 10 * 60 * 1000;
 
 function toNumber(value) {
   const num = Number(value);
@@ -191,6 +195,11 @@ async function fetchJson(
 }
 
 async function queryOverpassNearbyClinics(lat, lng, radius) {
+  if (Date.now() < overpassDisabledUntil) {
+    const error = new Error('Overpass temporarily disabled due to failures');
+    error.code = 'OVERPASS_BACKOFF';
+    throw error;
+  }
   const query = `
     [out:json][timeout:${OVERPASS_QUERY_TIMEOUT_S}];
     (
@@ -218,6 +227,12 @@ async function queryOverpassNearbyClinics(lat, lng, radius) {
     );
   } catch (error) {
     const firstError = error?.errors?.[0] || error;
+    overpassFailureCount += 1;
+    const backoffMs = Math.min(
+      OVERPASS_BACKOFF_MAX_MS,
+      OVERPASS_BACKOFF_BASE_MS * overpassFailureCount,
+    );
+    overpassDisabledUntil = Date.now() + backoffMs;
     throw firstError;
   }
 
@@ -228,6 +243,8 @@ async function queryOverpassNearbyClinics(lat, lng, radius) {
     .filter((clinic) => clinic.relevance === 'high')
     .sort((a, b) => a.distanceMeters - b.distanceMeters);
 
+  overpassFailureCount = 0;
+  overpassDisabledUntil = 0;
   return dedupeClinics(clinics);
 }
 
