@@ -207,7 +207,7 @@ async function queryOverpassNearbyClinics(lat, lng, radius) {
   const elements = payload && Array.isArray(payload.elements) ? payload.elements : [];
   const clinics = elements
     .map((element) => normalizeOverpassElement(element, lat, lng))
-    .filter(Boolean)
+    .filter((clinic) => clinic && clinic.distanceMeters <= radius)
     .sort((a, b) => a.distanceMeters - b.distanceMeters);
 
   overpassFailureCount = 0;
@@ -216,11 +216,14 @@ async function queryOverpassNearbyClinics(lat, lng, radius) {
 }
 
 async function queryNominatimFallback(lat, lng, radius, limit) {
+  const latAdjust = radius / 111000;
+  const cosLat = Math.cos((lat * Math.PI) / 180);
+  const lngAdjust = cosLat > 0.01 ? radius / (111000 * cosLat) : latAdjust;
   const viewbox = [
-    lng - radius / 111000,
-    lat + radius / 111000,
-    lng + radius / 111000,
-    lat - radius / 111000,
+    lng - lngAdjust,
+    lat + latAdjust,
+    lng + lngAdjust,
+    lat - latAdjust,
   ].join(',');
 
   const queries = ['mental health clinic', 'psychiatrist', 'psychologist'];
@@ -255,6 +258,7 @@ async function queryNominatimFallback(lat, lng, radius, limit) {
       if (itemLat == null || itemLng == null) continue;
 
       const distanceMeters = haversineMeters(lat, lng, itemLat, itemLng);
+      if (distanceMeters > radius * 1.05) continue;
       results.push({
         id: `nominatim:${item.place_id}`,
         name: item.display_name?.split(',')?.[0]?.trim() || item.name || query,

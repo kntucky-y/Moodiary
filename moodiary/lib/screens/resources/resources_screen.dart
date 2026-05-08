@@ -845,16 +845,23 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
           width: 44,
           height: 44,
           child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
             onTap: () {
               setState(() => _selectedClinic = clinic);
               _showClinicDetails(clinic);
             },
-            child: Icon(
-              Icons.location_pin,
-              color: _selectedClinic == clinic
-                  ? context.mdAccentPurple
-                  : context.mdSecondaryText,
-              size: 34,
+            child: SizedBox(
+              width: 44,
+              height: 44,
+              child: Center(
+                child: Icon(
+                  Icons.location_pin,
+                  color: _selectedClinic == clinic
+                      ? context.mdAccentPurple
+                      : context.mdSecondaryText,
+                  size: 34,
+                ),
+              ),
             ),
           ),
         ),
