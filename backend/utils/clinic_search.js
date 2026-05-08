@@ -75,40 +75,6 @@ function getAddress(tags) {
   return pieces.join(', ');
 }
 
-function isRelevantClinic(tags) {
-  const haystack = [
-    tags.name,
-    tags.brand,
-    tags.operator,
-    tags.amenity,
-    tags.healthcare,
-    tags['healthcare:speciality'],
-    tags.description,
-    tags.note,
-    tags.website,
-  ]
-    .map(normalizeText)
-    .join(' ');
-
-  const keywords = [
-    'mental health',
-    'psychi',
-    'psycholog',
-    'psychother',
-    'counsel',
-    'therapy',
-    'behavioral health',
-    'behavioural health',
-    'wellness center',
-    'wellness centre',
-    'behavioral medicine',
-    'addiction',
-    'therapy clinic',
-  ];
-
-  return keywords.some((keyword) => haystack.includes(keyword));
-}
-
 function normalizeOverpassElement(element, lat, lng) {
   const tags = element.tags || {};
   const center = getCenter(element);
@@ -143,7 +109,7 @@ function normalizeOverpassElement(element, lat, lng) {
       operator: tags.operator || '',
       wheelchair: tags.wheelchair || '',
     },
-    relevance: isRelevantClinic(tags) ? 'high' : 'medium',
+    relevance: 'unfiltered',
   };
 }
 
@@ -242,7 +208,6 @@ async function queryOverpassNearbyClinics(lat, lng, radius) {
   const clinics = elements
     .map((element) => normalizeOverpassElement(element, lat, lng))
     .filter(Boolean)
-    .filter((clinic) => clinic.relevance === 'high')
     .sort((a, b) => a.distanceMeters - b.distanceMeters);
 
   overpassFailureCount = 0;
