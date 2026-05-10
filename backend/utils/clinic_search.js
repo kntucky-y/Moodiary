@@ -1,3 +1,5 @@
+const http = require('http');
+const https = require('https');
 const OVERPASS_URLS = [
   'https://overpass-api.de/api/interpreter',
   'https://overpass.kumi.systems/api/interpreter',
@@ -136,8 +138,6 @@ async function fetchJson(
   url,
   { body, method = 'GET', headers = {}, timeoutMs = 15000 } = {},
 ) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
   const requestHeaders = {
     'User-Agent': NOMINATIM_EMAIL
       ? `Moodiary/1.0 (clinic search; ${NOMINATIM_EMAIL})`
@@ -145,20 +145,83 @@ async function fetchJson(
     ...headers,
   };
 
-  try {
-    const response = await fetch(url, {
-      method,
-      headers: requestHeaders,
-      body,
-      signal: controller.signal,
-    });
-    if (!response.ok) {
-      throw new Error(`Request failed with ${response.status}`);
+  if (typeof fetch === 'function') {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch(url, {
+        method,
+        headers: requestHeaders,
+        body,
+        signal: controller.signal,
+      });
+      if (!response.ok) {
+        throw new Error(`Request failed with ${response.status}`);
+      }
+      return response.json();
+    } finally {
+      clearTimeout(timer);
     }
-    return response.json();
-  } finally {
-    clearTimeout(timer);
   }
+
+  return new Promise((resolve, reject) => {
+    let parsedUrl;
+    try {
+      parsedUrl = new URL(url);
+    } catch (_) {
+      reject(new Error('Invalid request URL'));
+      return;
+    }
+
+    const transport = parsedUrl.protocol === 'https:' ? https : http;
+    const req = transport.request(
+      parsedUrl,
+      {
+        method,
+        headers: requestHeaders,
+      },
+      (res) => {
+        let raw = '';
+        res.setEncoding('utf8');
+        res.on('data', (chunk) => {
+          raw += chunk;
+        });
+        res.on('end', () => {
+          if (!res.statusCode || res.statusCode < 200 || res.statusCode >= 300) {
+            reject(new Error(`Request failed with ${res.statusCode || 0}`));
+            return;
+          }
+          try {
+            resolve(raw ? JSON.parse(raw) : {});
+          } catch (_) {
+            reject(new Error('Invalid JSON response'));
+          }
+        });
+      },
+    );
+
+    req.on('error', reject);
+    req.setTimeout(timeoutMs, () => {
+      req.destroy(new Error('Request timed out'));
+    });
+
+    if (body) {
+      req.write(body);
+    }
+    req.end();
+  });
+}
+
+async function firstSuccessfulJson(urls, requestFactory) {
+  const errors = [];
+  for (const url of urls) {
+    try {
+      return await requestFactory(url);
+    } catch (error) {
+      errors.push(error);
+    }
+  }
+  throw errors[0] || new Error('All providers failed');
 }
 
 async function queryOverpassNearbyClinics(lat, lng, radius) {
@@ -182,18 +245,16 @@ async function queryOverpassNearbyClinics(lat, lng, radius) {
 
   let payload;
   try {
-    payload = await Promise.any(
-      OVERPASS_URLS.map((url) =>
-        fetchJson(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: `data=${encodeURIComponent(query)}`,
-          timeoutMs: OVERPASS_TIMEOUT_MS,
-        }),
-      ),
+    payload = await firstSuccessfulJson(OVERPASS_URLS, (url) =>
+      fetchJson(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `data=${encodeURIComponent(query)}`,
+        timeoutMs: OVERPASS_TIMEOUT_MS,
+      }),
     );
   } catch (error) {
-    const firstError = error?.errors?.[0] || error;
+    const firstError = error;
     overpassFailureCount += 1;
     const backoffMs = Math.min(
       OVERPASS_BACKOFF_MAX_MS,
