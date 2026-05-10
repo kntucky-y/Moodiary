@@ -121,11 +121,54 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
   Uri? _normalizeUrl(String raw) {
     final trimmed = raw.trim();
     if (trimmed.isEmpty) return null;
-    final withScheme =
-        trimmed.startsWith('http://') || trimmed.startsWith('https://')
-        ? trimmed
-        : 'https://$trimmed';
-    return Uri.tryParse(withScheme);
+
+    final withoutMarkdown =
+        trimmed
+            .replaceAll(RegExp(r'^<|>$'), '')
+            .replaceFirst(RegExp(r'^\[([^\]]+)\]\(([^)]+)\)$'), r'$2')
+            .trim();
+    final withoutTrailing = withoutMarkdown.replaceFirst(
+      RegExp(r'[\)\],.;!?]+$'),
+      '',
+    );
+
+    String withScheme =
+        withoutTrailing.startsWith('http://') ||
+            withoutTrailing.startsWith('https://')
+        ? withoutTrailing
+        : 'https://$withoutTrailing';
+
+    for (var i = 0; i < 3; i++) {
+      final parsed = Uri.tryParse(withScheme);
+      if (parsed == null) return null;
+      final redirectParam =
+          parsed.queryParameters['url'] ??
+          parsed.queryParameters['u'] ??
+          parsed.queryParameters['q'] ??
+          parsed.queryParameters['target'] ??
+          parsed.queryParameters['dest'] ??
+          parsed.queryParameters['destination'] ??
+          parsed.queryParameters['redirect'];
+      if (redirectParam == null) {
+        return (parsed.scheme == 'http' || parsed.scheme == 'https')
+            ? parsed
+            : null;
+      }
+
+      final decoded = Uri.decodeFull(redirectParam).trim();
+      if (!(decoded.startsWith('http://') || decoded.startsWith('https://'))) {
+        return (parsed.scheme == 'http' || parsed.scheme == 'https')
+            ? parsed
+            : null;
+      }
+      withScheme = decoded;
+    }
+
+    final parsed = Uri.tryParse(withScheme);
+    if (parsed == null) return null;
+    return (parsed.scheme == 'http' || parsed.scheme == 'https')
+        ? parsed
+        : null;
   }
 
   void _showLaunchError() {

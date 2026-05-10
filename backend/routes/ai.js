@@ -6,6 +6,7 @@ const { createRateLimiter } = require('../middleware/rate_limit');
 const MoodLog = require('../models/Mood');
 const MoodInsight = require('../models/MoodInsight');
 const JournalEntry = require('../models/JournalEntry');
+const { sanitizeExternalUrl } = require('../utils/link_utils');
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const MAX_BOOSTERS = 3;
@@ -287,7 +288,7 @@ const normalizeAnalysisLinks = (links) => {
     .map((link) => {
       if (!link || typeof link !== 'object') return null;
       const title = (link.title || '').toString().trim();
-      const url = (link.url || '').toString().trim();
+      const url = sanitizeExternalUrl(link.url);
       if (!title || !url) return null;
       return { title, url };
     })

@@ -8,6 +8,7 @@ const JournalEntry = require('../models/JournalEntry');
 const MoodInsight = require('../models/MoodInsight');
 const { createRateLimiter } = require('../middleware/rate_limit');
 const { getNearbyMentalHealthClinics } = require('../utils/clinic_search');
+const { sanitizeExternalUrl } = require('../utils/link_utils');
 
 const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
 const groqApiKey = (process.env.GROQ_API_KEY || '').trim();
@@ -391,7 +392,7 @@ router.get('/', personalizedResourcesLimiter, async (req, res) => {
         moodLinks = analysis.links
           .map((link) => ({
             title: (link.title || '').toString().trim(),
-            url: (link.url || '').toString().trim(),
+            url: sanitizeExternalUrl(link.url),
           }))
           .filter((link) => link.title && link.url);
         analysisScope = analysis.scope || null;
