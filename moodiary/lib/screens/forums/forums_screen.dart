@@ -1260,7 +1260,7 @@ class _ForumListView extends StatelessWidget {
         ),
         if (onCreatePost != null)
           Positioned(
-            bottom: MediaQuery.of(context).padding.bottom + 88,
+            bottom: 16,
             right: 16,
             child: SizedBox(
               width: 54,
