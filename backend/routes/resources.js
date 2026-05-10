@@ -8,7 +8,7 @@ const JournalEntry = require('../models/JournalEntry');
 const MoodInsight = require('../models/MoodInsight');
 const { createRateLimiter } = require('../middleware/rate_limit');
 const { getNearbyMentalHealthClinics } = require('../utils/clinic_search');
-const { sanitizeExternalUrl } = require('../utils/link_utils');
+const { sanitizeExternalUrl, isLikelyReachableUrl } = require('../utils/link_utils');
 
 const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
 const groqApiKey = (process.env.GROQ_API_KEY || '').trim();
@@ -371,6 +371,14 @@ const toPublicResource = (resource) => {
   return publicResource;
 };
 
+const filterReachableLinks = async (links) => {
+  const reachable = [];
+  for (const link of links) {
+    if (await isLikelyReachableUrl(link.url)) reachable.push(link);
+  }
+  return reachable;
+};
+
 // GET /api/resources - Get AI-personalized, vetted mental health resources
 router.get('/', personalizedResourcesLimiter, async (req, res) => {
   try {
@@ -389,12 +397,19 @@ router.get('/', personalizedResourcesLimiter, async (req, res) => {
       const insight = await MoodInsight.findOne({ userId }).lean();
       const analysis = insight?.payload?.analysis;
       if (analysis && Array.isArray(analysis.links)) {
-        moodLinks = analysis.links
+        const normalizedMoodLinks = analysis.links
           .map((link) => ({
             title: (link.title || '').toString().trim(),
             url: sanitizeExternalUrl(link.url),
           }))
           .filter((link) => link.title && link.url);
+        const reachableMoodLinks = await filterReachableLinks(normalizedMoodLinks);
+        moodLinks = reachableMoodLinks.length
+          ? reachableMoodLinks
+          : resourceCatalog.slice(0, 5).map((resource) => ({
+              title: resource.title,
+              url: resource.url,
+            }));
         analysisScope = analysis.scope || null;
       }
     }

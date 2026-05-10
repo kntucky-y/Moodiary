@@ -57,4 +57,33 @@ const sanitizeExternalUrl = (rawValue) => {
 
 module.exports = {
   sanitizeExternalUrl,
+  isLikelyReachableUrl: async (rawUrl) => {
+    const normalized = sanitizeExternalUrl(rawUrl);
+    if (!normalized) return false;
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 7000);
+    try {
+      let response = await fetch(normalized, {
+        method: 'HEAD',
+        redirect: 'follow',
+        signal: controller.signal,
+      });
+
+      if (response.status === 405 || response.status === 403) {
+        response = await fetch(normalized, {
+          method: 'GET',
+          redirect: 'follow',
+          signal: controller.signal,
+          headers: { Range: 'bytes=0-1024' },
+        });
+      }
+
+      return response.ok;
+    } catch (_) {
+      return false;
+    } finally {
+      clearTimeout(timeout);
+    }
+  },
 };

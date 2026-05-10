@@ -6,7 +6,10 @@ const { createRateLimiter } = require('../middleware/rate_limit');
 const MoodLog = require('../models/Mood');
 const MoodInsight = require('../models/MoodInsight');
 const JournalEntry = require('../models/JournalEntry');
-const { sanitizeExternalUrl } = require('../utils/link_utils');
+const {
+  sanitizeExternalUrl,
+  isLikelyReachableUrl,
+} = require('../utils/link_utils');
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const MAX_BOOSTERS = 3;
@@ -304,6 +307,55 @@ const normalizeAnalysisLinks = (links) => {
   return unique.slice(0, 5);
 };
 
+const ANALYSIS_FALLBACK_LINKS = [
+  { title: 'Coping with Stress', url: 'https://www.cdc.gov/mental-health/living-with/index.html' },
+  { title: 'Anxiety Disorders Overview', url: 'https://www.nimh.nih.gov/health/topics/anxiety-disorders' },
+  { title: 'Depression Basics', url: 'https://www.nimh.nih.gov/health/topics/depression' },
+  { title: 'Grounding Techniques', url: 'https://www.healthline.com/health/grounding-techniques' },
+  { title: 'Sleep Hygiene', url: 'https://www.sleepfoundation.org/sleep-hygiene' },
+  { title: 'Mindfulness Exercises', url: 'https://www.mindful.org/mindfulness-how-to-do-it/' },
+  { title: 'Self-Compassion Break', url: 'https://ggia.berkeley.edu/practice/self_compassion_break' },
+];
+
+const pickFallbackLinks = (detectedMood = '') => {
+  const moodText = detectedMood.toLowerCase();
+  const preferred = [];
+
+  const maybeAdd = (title) => {
+    const item = ANALYSIS_FALLBACK_LINKS.find((link) => link.title === title);
+    if (item && !preferred.some((x) => x.url === item.url)) preferred.push(item);
+  };
+
+  if (/(anx|worry|panic|stress)/i.test(moodText)) {
+    maybeAdd('Anxiety Disorders Overview');
+    maybeAdd('Grounding Techniques');
+    maybeAdd('Coping with Stress');
+  } else if (/(sad|depress|low|empty)/i.test(moodText)) {
+    maybeAdd('Depression Basics');
+    maybeAdd('Self-Compassion Break');
+    maybeAdd('Coping with Stress');
+  } else {
+    maybeAdd('Mindfulness Exercises');
+    maybeAdd('Sleep Hygiene');
+    maybeAdd('Coping with Stress');
+  }
+
+  for (const link of ANALYSIS_FALLBACK_LINKS) {
+    if (preferred.length >= 5) break;
+    if (!preferred.some((x) => x.url === link.url)) preferred.push(link);
+  }
+
+  return preferred.slice(0, 5);
+};
+
+const filterReachableLinks = async (links) => {
+  const reachable = [];
+  for (const link of links) {
+    if (await isLikelyReachableUrl(link.url)) reachable.push(link);
+  }
+  return reachable;
+};
+
 const buildAnalysisPrompt = ({ scope, moodHistory }) => {
   return [
     'Analyze the provided mood history for a user in a wellness app.',
@@ -468,7 +520,13 @@ router.post('/analyze-day', async (req, res) => {
     });
 
     const detectedMood = (parsed?.detectedMood || '').toString().trim();
-    const links = normalizeAnalysisLinks(parsed?.links);
+    const normalizedLinks = normalizeAnalysisLinks(parsed?.links);
+    const reachableLinks = await filterReachableLinks(normalizedLinks);
+    const links =
+      reachableLinks.length >= 3
+        ? reachableLinks.slice(0, 5)
+        : pickFallbackLinks(detectedMood);
+
     if (!detectedMood || links.length < 3) {
       return res.status(502).json({ error: 'Analysis response incomplete.' });
     }
