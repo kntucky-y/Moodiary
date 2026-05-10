@@ -1,23 +1,14 @@
 const http = require('http');
 const https = require('https');
-const OVERPASS_URLS = [
-  'https://overpass-api.de/api/interpreter',
-  'https://overpass.kumi.systems/api/interpreter',
-  'https://overpass.nchc.org.tw/api/interpreter',
-];
+const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
 const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
 const CACHE_TTL_MS = 5 * 60 * 1000;
-const OVERPASS_TIMEOUT_MS = 9000;
-const NOMINATIM_TIMEOUT_MS = 4500;
+const OVERPASS_TIMEOUT_MS = 20000;
+const NOMINATIM_TIMEOUT_MS = 15000;
 const NOMINATIM_EMAIL = (process.env.NOMINATIM_EMAIL || '').trim();
-const OVERPASS_QUERY_TIMEOUT_S = 10;
-const RESPONSE_BUDGET_MS = 10000;
+const OVERPASS_QUERY_TIMEOUT_S = 20;
 
 const cache = new Map();
-let overpassFailureCount = 0;
-let overpassDisabledUntil = 0;
-const OVERPASS_BACKOFF_BASE_MS = 2 * 60 * 1000;
-const OVERPASS_BACKOFF_MAX_MS = 10 * 60 * 1000;
 
 function toNumber(value) {
   const num = Number(value);
@@ -76,6 +67,40 @@ function getAddress(tags) {
   return pieces.join(', ');
 }
 
+function isRelevantClinic(tags) {
+  const haystack = [
+    tags.name,
+    tags.brand,
+    tags.operator,
+    tags.amenity,
+    tags.healthcare,
+    tags['healthcare:speciality'],
+    tags.description,
+    tags.note,
+    tags.website,
+  ]
+    .map(normalizeText)
+    .join(' ');
+
+  const keywords = [
+    'mental health',
+    'psychi',
+    'psycholog',
+    'psychother',
+    'counsel',
+    'therapy',
+    'behavioral health',
+    'behavioural health',
+    'wellness center',
+    'wellness centre',
+    'behavioral medicine',
+    'addiction',
+    'therapy clinic',
+  ];
+
+  return keywords.some((keyword) => haystack.includes(keyword));
+}
+
 function normalizeOverpassElement(element, lat, lng) {
   const tags = element.tags || {};
   const center = getCenter(element);
@@ -110,7 +135,7 @@ function normalizeOverpassElement(element, lat, lng) {
       operator: tags.operator || '',
       wheelchair: tags.wheelchair || '',
     },
-    relevance: 'unfiltered',
+    relevance: isRelevantClinic(tags) ? 'high' : 'medium',
   };
 }
 
@@ -212,24 +237,7 @@ async function fetchJson(
   });
 }
 
-async function firstSuccessfulJson(urls, requestFactory) {
-  const errors = [];
-  for (const url of urls) {
-    try {
-      return await requestFactory(url);
-    } catch (error) {
-      errors.push(error);
-    }
-  }
-  throw errors[0] || new Error('All providers failed');
-}
-
 async function queryOverpassNearbyClinics(lat, lng, radius) {
-  if (Date.now() < overpassDisabledUntil) {
-    const error = new Error('Overpass temporarily disabled due to failures');
-    error.code = 'OVERPASS_BACKOFF';
-    throw error;
-  }
   const query = `
     [out:json][timeout:${OVERPASS_QUERY_TIMEOUT_S}];
     (
@@ -243,57 +251,44 @@ async function queryOverpassNearbyClinics(lat, lng, radius) {
     out center tags;
   `;
 
-  let payload;
-  try {
-    payload = await firstSuccessfulJson(OVERPASS_URLS, (url) =>
-      fetchJson(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: `data=${encodeURIComponent(query)}`,
-        timeoutMs: OVERPASS_TIMEOUT_MS,
-      }),
-    );
-  } catch (error) {
-    const firstError = error;
-    overpassFailureCount += 1;
-    const backoffMs = Math.min(
-      OVERPASS_BACKOFF_MAX_MS,
-      OVERPASS_BACKOFF_BASE_MS * overpassFailureCount,
-    );
-    overpassDisabledUntil = Date.now() + backoffMs;
-    throw firstError;
-  }
+  const payload = await fetchJson(OVERPASS_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `data=${encodeURIComponent(query)}`,
+    timeoutMs: OVERPASS_TIMEOUT_MS,
+  });
 
   const elements = payload && Array.isArray(payload.elements) ? payload.elements : [];
   const clinics = elements
     .map((element) => normalizeOverpassElement(element, lat, lng))
-    .filter((clinic) => clinic && clinic.distanceMeters <= radius)
+    .filter((clinic) => clinic && clinic.relevance === 'high')
     .sort((a, b) => a.distanceMeters - b.distanceMeters);
 
-  overpassFailureCount = 0;
-  overpassDisabledUntil = 0;
   return dedupeClinics(clinics);
 }
 
 async function queryNominatimFallback(lat, lng, radius, limit) {
-  const latAdjust = radius / 111000;
-  const cosLat = Math.cos((lat * Math.PI) / 180);
-  const lngAdjust = cosLat > 0.01 ? radius / (111000 * cosLat) : latAdjust;
   const viewbox = [
-    lng - lngAdjust,
-    lat + latAdjust,
-    lng + lngAdjust,
-    lat - latAdjust,
+    lng - radius / 111000,
+    lat + radius / 111000,
+    lng + radius / 111000,
+    lat - radius / 111000,
   ].join(',');
 
-  const queries = ['mental health clinic', 'psychiatrist', 'psychologist'];
+  const queries = [
+    'mental health clinic',
+    'psychiatrist',
+    'psychologist',
+    'therapy center',
+    'counselling center',
+  ];
 
   const results = [];
   for (const query of queries) {
     const url = new URL(NOMINATIM_URL);
     url.searchParams.set('format', 'jsonv2');
     url.searchParams.set('addressdetails', '1');
-    url.searchParams.set('limit', String(Math.min(limit, 10)));
+    url.searchParams.set('limit', String(limit));
     url.searchParams.set('bounded', '1');
     url.searchParams.set('viewbox', viewbox);
     url.searchParams.set('q', query);
@@ -318,7 +313,6 @@ async function queryNominatimFallback(lat, lng, radius, limit) {
       if (itemLat == null || itemLng == null) continue;
 
       const distanceMeters = haversineMeters(lat, lng, itemLat, itemLng);
-      if (distanceMeters > radius * 1.05) continue;
       results.push({
         id: `nominatim:${item.place_id}`,
         name: item.display_name?.split(',')?.[0]?.trim() || item.name || query,
@@ -336,9 +330,6 @@ async function queryNominatimFallback(lat, lng, radius, limit) {
       });
     }
 
-    if (results.length >= limit) {
-      break;
-    }
   }
 
   return dedupeClinics(results)
@@ -363,68 +354,23 @@ async function getNearbyMentalHealthClinics({ lat, lng, radius = 5000, limit = 2
     return cached.data;
   }
 
-  const deadline = Date.now() + RESPONSE_BUDGET_MS;
-  const remainingBudgetMs = () => Math.max(0, deadline - Date.now());
-
   let clinics = [];
-  let overpassError = null;
-  let nominatimError = null;
-
-  const overpassPromise = queryOverpassNearbyClinics(
-    normalizedLat,
-    normalizedLng,
-    safeRadius,
-  )
-    .then((data) => ({ source: 'overpass', data }))
-    .catch((error) => ({ source: 'overpass', data: [], error }));
-
-  const nominatimPromise = queryNominatimFallback(
-    normalizedLat,
-    normalizedLng,
-    safeRadius,
-    safeLimit,
-  )
-    .then((data) => ({ source: 'nominatim', data }))
-    .catch((error) => ({ source: 'nominatim', data: [], error }));
-
-  const settled = await Promise.race([
-    Promise.allSettled([overpassPromise, nominatimPromise]),
-    new Promise((resolve) =>
-      setTimeout(() => resolve('budget'), remainingBudgetMs()),
-    ),
-  ]);
-
-  if (settled === 'budget') {
-    console.warn('Nearby clinics request exceeded response budget (first race).');
-    return {
-      clinics: [],
-      center: { lat: normalizedLat, lng: normalizedLng },
-      radiusMeters: safeRadius,
-      total: 0,
-      source: 'none',
-    };
+  try {
+    clinics = await queryOverpassNearbyClinics(normalizedLat, normalizedLng, safeRadius);
+  } catch (error) {
+    console.warn('Overpass clinic lookup failed:', error.message);
   }
 
-  const [overpassSettled, nominatimSettled] = settled;
-  const overpassResult = overpassSettled.status === 'fulfilled'
-    ? overpassSettled.value
-    : { source: 'overpass', data: [], error: overpassSettled.reason };
-  const nominatimResult = nominatimSettled.status === 'fulfilled'
-    ? nominatimSettled.value
-    : { source: 'nominatim', data: [], error: nominatimSettled.reason };
-
-  clinics = overpassResult.data?.length
-    ? overpassResult.data
-    : (nominatimResult.data || []);
-  overpassError = overpassResult.error || null;
-  nominatimError = nominatimResult.error || null;
-
   if (!clinics.length) {
-    if (overpassError) {
-      console.warn('Overpass clinic lookup failed:', overpassError.message);
-    }
-    if (nominatimError) {
-      console.warn('Nominatim clinic fallback failed:', nominatimError.message);
+    try {
+      clinics = await queryNominatimFallback(
+        normalizedLat,
+        normalizedLng,
+        safeRadius,
+        safeLimit,
+      );
+    } catch (error) {
+      console.warn('Nominatim clinic fallback failed:', error.message);
     }
   }
 
