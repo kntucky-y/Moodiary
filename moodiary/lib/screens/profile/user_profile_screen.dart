@@ -48,6 +48,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   bool _sidebarOpen = false;
   bool _headerCollapsed = false;
   bool _isEditing = false;
+  bool _isProfilePublic = false;
   String _currentUserName = 'Friend';
   int _companionId = 1;
   String _companionName = 'Companion';
@@ -152,7 +153,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     final prefs = await SharedPreferences.getInstance();
     final userName = prefs.getString('user_name');
     final results = await Future.wait<dynamic>([
-      AuthService.instance.getUserProfile(userId: _userId),
+      AuthService.instance.getUserProfile(userId: _userId, authToken: _authToken),
       AuthService.instance.getMyForumPosts(
         authToken: _authToken,
         userName: userName,
@@ -224,6 +225,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         email: _emailController.text,
         bio: _bioController.text,
         avatarUrl: _selectedAvatarDataUrl,
+        isProfilePublic: _isProfilePublic,
       );
 
       final updatedUser = updated['user'] as Map<String, dynamic>?;
@@ -251,6 +253,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         user['name'] = _nameController.text.trim();
         user['email'] = _emailController.text.trim();
         user['bio'] = _bioController.text.trim();
+        user['isProfilePublic'] = _isProfilePublic;
         if (updatedAvatarUrl != null && updatedAvatarUrl.isNotEmpty) {
           user['avatarUrl'] = updatedAvatarUrl;
         } else if (_selectedAvatarDataUrl != null &&
@@ -549,6 +552,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                             )
                             .take(3)
                             .toList();
+                    _isProfilePublic =
+                        (userData['isProfilePublic'] as bool?) ?? false;
                     final mbtiHistory =
                         (bundle?['mbtiHistory']
                                     as List<Map<String, dynamic>>? ??
@@ -1145,6 +1150,39 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                       ),
                                     ),
                                   ),
+                                const SizedBox(height: 20),
+                                Text(
+                                  'Profile Visibility',
+                                  style: Theme.of(context).textTheme.titleSmall,
+                                ),
+                                const SizedBox(height: 8),
+                                GlassContainer(
+                                  blurSigma: context.mdGlassBlurMedium,
+                                  borderRadius: BorderRadius.circular(14),
+                                  backgroundColor: context.mdGlassSurface,
+                                  borderColor: context.mdGlassBorder,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
+                                  child: SwitchListTile.adaptive(
+                                    contentPadding: EdgeInsets.zero,
+                                    title: const Text('Public profile'),
+                                    subtitle: Text(
+                                      _isProfilePublic
+                                          ? 'Others can open your profile from forums and friends.'
+                                          : 'Only you can open your full profile.',
+                                    ),
+                                    value: _isProfilePublic,
+                                    onChanged: _isEditing
+                                        ? (value) {
+                                            setState(() {
+                                              _isProfilePublic = value;
+                                            });
+                                          }
+                                        : null,
+                                  ),
+                                ),
                                 const SizedBox(height: 20),
                                 GlassContainer(
                                   blurSigma: context.mdGlassBlurMedium,

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const mongoose = require('mongoose');
+const jwt = require('jsonwebtoken');
 
 const User = require('../models/User');
 const MoodLog = require('../models/Mood');
@@ -22,6 +23,7 @@ const sanitizeUser = (user) => ({
   avatarUrl: user.avatarUrl,
   bio: user.bio,
   provider: user.provider,
+  isProfilePublic: Boolean(user.isProfilePublic),
   createdAt: user.createdAt,
   mbtiLatestType: user.mbtiLatestType || null,
   mbtiLastTestedAt: user.mbtiLastTestedAt || null,
@@ -179,6 +181,18 @@ function serializePartner(friendship, userId) {
   };
 }
 
+function getOptionalRequesterId(req) {
+  const header = req.headers.authorization;
+  if (!header || !header.startsWith('Bearer ')) return null;
+  const token = header.slice(7);
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    return decoded?.userId ? String(decoded.userId) : null;
+  } catch (_) {
+    return null;
+  }
+}
+
 // GET /api/users/profile/:id - Get user profile
 router.get('/profile/:id', async (req, res) => {
   try {
@@ -187,9 +201,10 @@ router.get('/profile/:id', async (req, res) => {
       return res.status(400).json({ error: 'Invalid user ID' });
     }
 
+    const requesterId = getOptionalRequesterId(req);
     const [user, latestMood, publicPosts, moodLogs, partnerFriendship] = await Promise.all([
       User.findById(id).select(
-        'name email avatarUrl bio createdAt mbtiLatestType mbtiLastTestedAt mbtiAttemptsCount',
+        'name email avatarUrl bio isProfilePublic createdAt mbtiLatestType mbtiLastTestedAt mbtiAttemptsCount',
       ),
       MoodLog.findOne({ userId: id }).sort({ dateKey: -1, createdAt: -1 }),
       ForumPost.find({
@@ -213,6 +228,12 @@ router.get('/profile/:id', async (req, res) => {
 
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
+    }
+
+    const isOwner = requesterId === id;
+    if (!user.isProfilePublic && !isOwner) {
+      // Private profiles are only visible to the owner.
+      return res.status(403).json({ error: 'This profile is private.' });
     }
 
     const currentMood = latestMood
@@ -519,6 +540,7 @@ router.patch('/:id', auth, profileUpdateLimiter, async (req, res) => {
       currentPassword,
       newPassword,
       mbtiLatestType,
+      isProfilePublic,
     } = req.body;
 
     const user = await User.findById(req.params.id);
@@ -556,6 +578,13 @@ router.patch('/:id', auth, profileUpdateLimiter, async (req, res) => {
     // Update bio
     if (bio !== undefined) {
       user.bio = typeof bio === 'string' ? bio.trim().substring(0, 500) : '';
+    }
+
+    if (isProfilePublic !== undefined) {
+      if (typeof isProfilePublic !== 'boolean') {
+        return res.status(400).json({ error: 'isProfilePublic must be a boolean' });
+      }
+      user.isProfilePublic = isProfilePublic;
     }
 
     // Update avatar

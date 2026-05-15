@@ -36,6 +36,10 @@ const userSchema = new mongoose.Schema(
       default: '',
       maxlength: 500,
     },
+    isProfilePublic: {
+      type: Boolean,
+      default: false,
+    },
     mbtiLatestType: {
       type: String,
       enum: [

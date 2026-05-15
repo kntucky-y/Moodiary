@@ -48,6 +48,15 @@ class _UserProfilePopup extends StatelessWidget {
     return '${compact.substring(0, 107)}...';
   }
 
+  Future<Map<String, dynamic>> _loadProfile() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token') ?? '';
+    return AuthService.instance.getUserProfile(
+      userId: userId,
+      authToken: token.isEmpty ? null : token,
+    );
+  }
+
   Future<void> _reportUser(BuildContext context, String displayName) async {
     final prefs = await SharedPreferences.getInstance();
     final selfUserId =
@@ -99,7 +108,7 @@ class _UserProfilePopup extends StatelessWidget {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 460, maxHeight: 700),
         child: FutureBuilder<Map<String, dynamic>>(
-          future: AuthService.instance.getUserProfile(userId: userId),
+          future: _loadProfile(),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return GlassContainer(
@@ -114,6 +123,10 @@ class _UserProfilePopup extends StatelessWidget {
             }
 
             if (snapshot.hasError) {
+              final errorText = snapshot.error.toString().toLowerCase();
+              final isPrivateProfileError =
+                  errorText.contains('private profile') ||
+                  errorText.contains('profile is private');
               return GlassContainer(
                 borderRadius: BorderRadius.circular(28),
                 blurSigma: context.mdGlassBlurLarge,
@@ -132,7 +145,9 @@ class _UserProfilePopup extends StatelessWidget {
                     ),
                     const SizedBox(height: 14),
                     Text(
-                      'Unable to load profile',
+                      isPrivateProfileError
+                          ? 'This profile is private'
+                          : 'Unable to load profile',
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.w800,
                       ),
@@ -140,7 +155,9 @@ class _UserProfilePopup extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Please try again in a moment.',
+                      isPrivateProfileError
+                          ? 'The user has chosen to keep their profile visible only to themselves.'
+                          : 'Please try again in a moment.',
                       style: Theme.of(context).textTheme.bodyMedium,
                       textAlign: TextAlign.center,
                     ),

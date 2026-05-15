@@ -126,10 +126,19 @@ class AuthService {
 
   // Profile Management
 
-  Future<Map<String, dynamic>> getUserProfile({required String userId}) async {
+  Future<Map<String, dynamic>> getUserProfile({
+    required String userId,
+    String? authToken,
+  }) async {
     final uri = Uri.parse('$kBackendBaseUrl/api/users/profile/$userId');
     try {
-      final response = await _client.get(uri);
+      final response = await _client.get(
+        uri,
+        headers: {
+          if (authToken != null && authToken.trim().isNotEmpty)
+            'Authorization': 'Bearer $authToken',
+        },
+      );
       final decoded = jsonDecode(response.body) as Map<String, dynamic>;
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -154,6 +163,7 @@ class AuthService {
     String? email,
     String? bio,
     String? avatarUrl,
+    bool? isProfilePublic,
     String? mbtiLatestType,
     String? currentPassword,
     String? newPassword,
@@ -163,6 +173,7 @@ class AuthService {
     if (email != null) body['email'] = email;
     if (bio != null) body['bio'] = bio;
     if (avatarUrl != null) body['avatarUrl'] = avatarUrl;
+    if (isProfilePublic != null) body['isProfilePublic'] = isProfilePublic;
     if (mbtiLatestType != null) body['mbtiLatestType'] = mbtiLatestType;
     if (currentPassword != null) body['currentPassword'] = currentPassword;
     if (newPassword != null) body['newPassword'] = newPassword;

@@ -23,18 +23,30 @@ function sameObjectId(a, b) {
   return String(a) === String(b);
 }
 
-function serializePost(post, currentUserId) {
+function canExposeIdentity({ userId, isAnonymous, currentUserId, publicUserIds }) {
+  if (isAnonymous) return false;
+  if (sameObjectId(userId, currentUserId)) return true;
+  return publicUserIds.has(String(userId));
+}
+
+function serializePost(post, currentUserId, publicUserIds) {
   const likedByMe = post.likedBy.some((id) => sameObjectId(id, currentUserId));
   const isMine = sameObjectId(post.userId, currentUserId);
+  const postIdentityVisible = canExposeIdentity({
+    userId: post.userId,
+    isAnonymous: post.isAnonymous,
+    currentUserId,
+    publicUserIds,
+  });
   return {
     id: String(post._id),
     title: post.title,
     content: post.content,
     isAnonymous: post.isAnonymous,
-    authorId: post.isAnonymous ? null : String(post.userId),
+    authorId: postIdentityVisible ? String(post.userId) : null,
     authorName: post.isAnonymous ? 'Anonymous' : post.authorName,
     authorAvatarUrl:
-      post.isAnonymous || !post.authorAvatarUrl ? null : post.authorAvatarUrl,
+      postIdentityVisible && post.authorAvatarUrl ? post.authorAvatarUrl : null,
     companionId: post.companionId || 1,
     likes: post.likedBy.length,
     isMine,
@@ -45,15 +57,47 @@ function serializePost(post, currentUserId) {
       text: comment.text,
       moodAsset: comment.moodAsset || DEFAULT_COMMENT_ASSET,
       isAnonymous: comment.isAnonymous,
-      authorId: comment.isAnonymous ? null : String(comment.userId),
+      authorId: canExposeIdentity({
+        userId: comment.userId,
+        isAnonymous: comment.isAnonymous,
+        currentUserId,
+        publicUserIds,
+      })
+        ? String(comment.userId)
+        : null,
       authorName: comment.isAnonymous ? 'Anonymous' : comment.authorName,
       authorAvatarUrl:
-        comment.isAnonymous || !comment.authorAvatarUrl
-          ? null
-          : comment.authorAvatarUrl,
+        canExposeIdentity({
+          userId: comment.userId,
+          isAnonymous: comment.isAnonymous,
+          currentUserId,
+          publicUserIds,
+        }) && comment.authorAvatarUrl
+          ? comment.authorAvatarUrl
+          : null,
       createdAt: comment.createdAt,
     })),
   };
+}
+
+async function buildPublicUserIdSet(posts) {
+  const authorIds = new Set();
+  for (const post of posts) {
+    if (post?.userId) authorIds.add(String(post.userId));
+    for (const comment of post?.comments || []) {
+      if (comment?.userId) authorIds.add(String(comment.userId));
+    }
+  }
+
+  if (authorIds.size === 0) return new Set();
+
+  const users = await User.find({
+    _id: { $in: Array.from(authorIds).map((id) => toObjectId(id)) },
+    isProfilePublic: true,
+  })
+    .select('_id')
+    .lean();
+  return new Set(users.map((user) => String(user._id)));
 }
 
 // GET /api/forums — forum posts for authenticated users
@@ -66,7 +110,8 @@ router.get('/', auth, async (req, res) => {
     const posts = await ForumPost.find(query)
       .sort({ createdAt: -1 })
       .limit(200);
-    res.json(posts.map((post) => serializePost(post, req.userId)));
+    const publicUserIds = await buildPublicUserIdSet(posts);
+    res.json(posts.map((post) => serializePost(post, req.userId, publicUserIds)));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -98,7 +143,8 @@ router.post('/', auth, forumWriteLimiter, async (req, res) => {
       archivedAt: null,
     });
 
-    res.status(201).json(serializePost(post, req.userId));
+    const publicUserIds = await buildPublicUserIdSet([post]);
+    res.status(201).json(serializePost(post, req.userId, publicUserIds));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -162,7 +208,8 @@ router.post('/:id/comments', auth, forumWriteLimiter, async (req, res) => {
     });
 
     await post.save();
-    res.status(201).json(serializePost(post, req.userId));
+    const publicUserIds = await buildPublicUserIdSet([post]);
+    res.status(201).json(serializePost(post, req.userId, publicUserIds));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -218,7 +265,8 @@ router.delete('/:id', auth, forumWriteLimiter, async (req, res) => {
     );
 
     if (!post) return res.status(404).json({ error: 'Post not found' });
-    res.json({ success: true, post: serializePost(post, req.userId) });
+    const publicUserIds = await buildPublicUserIdSet([post]);
+    res.json({ success: true, post: serializePost(post, req.userId, publicUserIds) });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -241,7 +289,8 @@ router.post('/:id/recover', auth, forumWriteLimiter, async (req, res) => {
     );
 
     if (!post) return res.status(404).json({ error: 'Post not found' });
-    res.json({ success: true, post: serializePost(post, req.userId) });
+    const publicUserIds = await buildPublicUserIdSet([post]);
+    res.json({ success: true, post: serializePost(post, req.userId, publicUserIds) });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

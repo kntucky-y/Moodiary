@@ -122,7 +122,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       final results = await Future.wait<dynamic>([
-        AuthService.instance.getUserProfile(userId: userId),
+        AuthService.instance.getUserProfile(
+          userId: userId,
+          authToken: authToken,
+        ),
         AuthService.instance.getMyForumPosts(authToken: authToken),
       ]);
       final bundle = {
