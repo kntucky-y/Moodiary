@@ -138,7 +138,7 @@ class AuthService {
           if (authToken != null && authToken.trim().isNotEmpty)
             'Authorization': 'Bearer $authToken',
         },
-      );
+      ).timeout(_requestTimeout);
       final decoded = jsonDecode(response.body) as Map<String, dynamic>;
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -213,7 +213,7 @@ class AuthService {
       final response = await _client.get(
         uri,
         headers: {'Authorization': 'Bearer $authToken'},
-      );
+      ).timeout(_requestTimeout);
       final decoded = jsonDecode(response.body) as Map<String, dynamic>;
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -241,7 +241,7 @@ class AuthService {
       final response = await _client.get(
         uri,
         headers: {'Authorization': 'Bearer $authToken'},
-      );
+      ).timeout(_requestTimeout);
       final decoded = jsonDecode(response.body) as Map<String, dynamic>;
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
