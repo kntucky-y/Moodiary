@@ -565,8 +565,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                             )
                             .take(3)
                             .toList();
-                    _isProfilePublic =
-                        (userData['isProfilePublic'] as bool?) ?? false;
+                    if (!_isEditing) {
+                      _isProfilePublic =
+                          (userData['isProfilePublic'] as bool?) ?? false;
+                    }
                     final mbtiHistory =
                         (bundle?['mbtiHistory']
                                     as List<Map<String, dynamic>>? ??
