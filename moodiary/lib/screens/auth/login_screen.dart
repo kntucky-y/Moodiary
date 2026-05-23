@@ -11,6 +11,7 @@ import '../../theme/moodiary_colors.dart';
 import '../../utils/transitions.dart';
 import '../../utils/user_cache.dart';
 import '../app_shell.dart';
+import 'reset_password_screen.dart';
 import '../companion/companion_screen.dart';
 import '../profile/mbti_test_screen.dart';
 
@@ -187,7 +188,63 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _showForgotPasswordSheet() async {
-    _showInfo('Forgot password is coming soon.');
+    final emailController = TextEditingController(
+      text: _emailController.text.trim(),
+    );
+
+    try {
+      final email = await showDialog<String>(
+        context: context,
+        builder: (dialogContext) {
+          return AlertDialog(
+            title: const Text('Reset password'),
+            content: TextField(
+              controller: emailController,
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(
+                labelText: 'Email',
+                hintText: 'you@example.com',
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(
+                  dialogContext,
+                ).pop(emailController.text.trim()),
+                child: const Text('Send code'),
+              ),
+            ],
+          );
+        },
+      );
+
+      final trimmedEmail = email?.trim() ?? '';
+      if (trimmedEmail.isEmpty) {
+        return;
+      }
+
+      setState(() => _isLoading = true);
+      final message = await AuthService.instance.requestPasswordReset(
+        email: trimmedEmail,
+      );
+
+      if (!mounted) return;
+      _showInfo(message);
+      Navigator.of(context).push(
+        FadeSlideRoute(page: ResetPasswordScreen(initialEmail: trimmedEmail)),
+      );
+    } on AuthException catch (error) {
+      _showError(error.message);
+    } catch (_) {
+      _showError('Cannot connect to the server right now');
+    } finally {
+      emailController.dispose();
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override

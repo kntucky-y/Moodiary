@@ -87,17 +87,21 @@ class AuthService {
       body: {'email': email},
     );
     return response['message'] as String? ??
-        'If that email exists, a reset link has been sent';
+        'If that email exists, a reset code has been sent';
   }
 
   Future<Map<String, dynamic>> resetPassword({
-    required String token,
+    String? email,
+    String? code,
+    String? token,
     required String password,
   }) async {
-    return _postJson(
-      '/api/auth/reset-password',
-      body: {'token': token, 'password': password},
-    );
+    final body = <String, dynamic>{'password': password};
+    if (email != null && email.trim().isNotEmpty) body['email'] = email.trim();
+    if (code != null && code.trim().isNotEmpty) body['code'] = code.trim();
+    if (token != null && token.trim().isNotEmpty) body['token'] = token.trim();
+
+    return _postJson('/api/auth/reset-password', body: body);
   }
 
   Future<void> registerPushToken({
@@ -132,13 +136,15 @@ class AuthService {
   }) async {
     final uri = Uri.parse('$kBackendBaseUrl/api/users/profile/$userId');
     try {
-      final response = await _client.get(
-        uri,
-        headers: {
-          if (authToken != null && authToken.trim().isNotEmpty)
-            'Authorization': 'Bearer $authToken',
-        },
-      ).timeout(_requestTimeout);
+      final response = await _client
+          .get(
+            uri,
+            headers: {
+              if (authToken != null && authToken.trim().isNotEmpty)
+                'Authorization': 'Bearer $authToken',
+            },
+          )
+          .timeout(_requestTimeout);
       final decoded = jsonDecode(response.body) as Map<String, dynamic>;
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -210,10 +216,9 @@ class AuthService {
       '$kBackendBaseUrl/api/users/search/query?query=$encodedQuery&limit=$limit&offset=$offset',
     );
     try {
-      final response = await _client.get(
-        uri,
-        headers: {'Authorization': 'Bearer $authToken'},
-      ).timeout(_requestTimeout);
+      final response = await _client
+          .get(uri, headers: {'Authorization': 'Bearer $authToken'})
+          .timeout(_requestTimeout);
       final decoded = jsonDecode(response.body) as Map<String, dynamic>;
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -238,10 +243,9 @@ class AuthService {
       '$kBackendBaseUrl/api/users/search/suggested?limit=$limit',
     );
     try {
-      final response = await _client.get(
-        uri,
-        headers: {'Authorization': 'Bearer $authToken'},
-      ).timeout(_requestTimeout);
+      final response = await _client
+          .get(uri, headers: {'Authorization': 'Bearer $authToken'})
+          .timeout(_requestTimeout);
       final decoded = jsonDecode(response.body) as Map<String, dynamic>;
 
       if (response.statusCode >= 200 && response.statusCode < 300) {

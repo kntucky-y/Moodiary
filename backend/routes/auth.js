@@ -61,6 +61,9 @@ const respondWithAuth = (res, user, status = 200) => {
 const hashToken = (token) =>
   crypto.createHash('sha256').update(token).digest('hex');
 
+const generateResetCode = () =>
+  crypto.randomInt(100000, 1000000).toString();
+
 const ensurePasswordStrength = (password) =>
   typeof password === 'string' && password.trim().length >= 8;
 
@@ -138,30 +141,31 @@ router.post('/login', loginLimiter, async (req, res) => {
 router.post('/forgot-password', passwordResetLimiter, async (req, res) => {
   try {
     const { email } = req.body;
-    if (!email) {
+    const normalizedEmail = typeof email === 'string' ? email.toLowerCase().trim() : '';
+    if (!normalizedEmail) {
       return res.status(400).json({ error: 'Email is required' });
     }
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: normalizedEmail });
     if (!user) {
       return res.json({
-        message: 'If that email exists, a reset link has been sent',
+        message: 'If that email exists, a reset code has been sent',
       });
     }
 
-    const rawToken = crypto.randomBytes(32).toString('hex');
-    user.resetToken = hashToken(rawToken);
-    user.resetTokenExpires = new Date(Date.now() + 60 * 60 * 1000);
+    const resetCode = generateResetCode();
+    user.resetToken = hashToken(resetCode);
+    user.resetTokenExpires = new Date(Date.now() + 10 * 60 * 1000);
     await user.save();
 
     await sendPasswordResetEmail({
       to: user.email,
       name: user.name,
-      token: rawToken,
+      code: resetCode,
     });
 
     res.json({
-      message: 'If that email exists, a reset link has been sent',
+      message: 'If that email exists, a reset code has been sent',
     });
   } catch (err) {
     console.error('Forgot password error', err);
@@ -190,12 +194,10 @@ router.post('/forgot-password', passwordResetLimiter, async (req, res) => {
 // POST /api/auth/reset-password
 router.post('/reset-password', passwordResetLimiter, async (req, res) => {
   try {
-    const { token, password } = req.body;
+    const { email, code, token, password } = req.body;
 
-    if (!token || !password) {
-      return res
-        .status(400)
-        .json({ error: 'Token and new password are required' });
+    if (!password) {
+      return res.status(400).json({ error: 'New password is required' });
     }
 
     if (!ensurePasswordStrength(password)) {
@@ -204,13 +206,24 @@ router.post('/reset-password', passwordResetLimiter, async (req, res) => {
         .json({ error: 'Password must be at least 8 characters long' });
     }
 
-    const user = await User.findOne({
-      resetToken: hashToken(token),
+    const submittedCode = (code || token || '').toString().trim();
+    if (!submittedCode) {
+      return res.status(400).json({ error: 'Reset code is required' });
+    }
+
+    const query = {
+      resetToken: hashToken(submittedCode),
       resetTokenExpires: { $gt: new Date() },
-    });
+    };
+
+    if (typeof email === 'string' && email.trim()) {
+      query.email = email.toLowerCase().trim();
+    }
+
+    const user = await User.findOne(query);
 
     if (!user) {
-      return res.status(400).json({ error: 'Reset token is invalid or expired' });
+      return res.status(400).json({ error: 'Reset code is invalid or expired' });
     }
 
     user.password = await bcrypt.hash(password, 12);

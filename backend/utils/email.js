@@ -124,23 +124,12 @@ const getTransporter = () => {
   return transporter;
 };
 
-const buildResetLink = (token) => {
-  const base = process.env.PASSWORD_RESET_URL || process.env.APP_URL;
-  if (!base) {
-    return `https://moodiary.app/reset-password?token=${token}`;
-  }
-
-  const separator = base.includes('?') ? '&' : '?';
-  return `${base}${separator}token=${token}`;
-};
-
-const buildResetHtml = ({ name, resetLink, token }) => `
+const buildResetHtml = ({ name, code }) => `
   <p>Hi ${name || 'there'},</p>
   <p>We received a request to reset the password for your Moodiary account.</p>
-  <p><a href="${resetLink}" style="padding:12px 20px;background:#6C63FF;color:#fff;text-decoration:none;border-radius:4px;display:inline-block">Reset password</a></p>
-  <p>If the button does not open, copy this token into the Moodiary app:</p>
-  <p style="font-family:monospace;background:#f3f4f6;padding:12px;border-radius:6px;word-break:break-all">${token}</p>
-  <p>This link will expire in 60 minutes. If you did not request a reset, you can safely ignore this email.</p>
+  <p>Use this verification code in the app to continue:</p>
+  <p style="font-family:monospace;background:#f3f4f6;padding:12px;border-radius:6px;word-break:break-all;font-size:20px;letter-spacing:0.2em">${code}</p>
+  <p>This code will expire in 10 minutes. If you did not request a reset, you can safely ignore this email.</p>
 `;
 
 const getResendConfig = () => {
@@ -188,14 +177,13 @@ async function sendViaResendApi({ to, resendConfig, html }) {
   }
 }
 
-async function sendPasswordResetEmail({ to, name, token }) {
-  const resetLink = buildResetLink(token);
-  const html = buildResetHtml({ name, resetLink, token });
+async function sendPasswordResetEmail({ to, name, code }) {
+  const html = buildResetHtml({ name, code });
 
   const resendConfig = getResendConfig();
   if (resendConfig) {
     await sendViaResendApi({ to, resendConfig, html });
-    return { delivered: true, previewUrl: resetLink, provider: 'resend' };
+    return { delivered: true, provider: 'resend' };
   }
 
   const mailer = getTransporter();
@@ -218,7 +206,7 @@ async function sendPasswordResetEmail({ to, name, token }) {
 
   await Promise.race([mailTask, timeoutTask]);
 
-  return { delivered: true, previewUrl: resetLink, provider: 'smtp' };
+  return { delivered: true, provider: 'smtp' };
 }
 
 module.exports = {

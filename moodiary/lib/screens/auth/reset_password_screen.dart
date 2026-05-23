@@ -3,8 +3,9 @@ import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
-  const ResetPasswordScreen({super.key, this.initialToken});
+  const ResetPasswordScreen({super.key, this.initialEmail, this.initialToken});
 
+  final String? initialEmail;
   final String? initialToken;
 
   @override
@@ -12,6 +13,7 @@ class ResetPasswordScreen extends StatefulWidget {
 }
 
 class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
+  final _emailController = TextEditingController();
   final _tokenController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();
@@ -23,6 +25,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   @override
   void initState() {
     super.initState();
+    if ((widget.initialEmail ?? '').isNotEmpty) {
+      _emailController.text = widget.initialEmail!;
+    }
     if ((widget.initialToken ?? '').isNotEmpty) {
       _tokenController.text = widget.initialToken!;
     }
@@ -30,6 +35,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
   @override
   void dispose() {
+    _emailController.dispose();
     _tokenController.dispose();
     _passwordController.dispose();
     _confirmController.dispose();
@@ -37,12 +43,18 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   }
 
   Future<void> _handleReset() async {
+    final email = _emailController.text.trim();
     final token = _tokenController.text.trim();
     final password = _passwordController.text.trim();
     final confirm = _confirmController.text.trim();
 
     if (token.isEmpty || password.isEmpty || confirm.isEmpty) {
       _showSnack('Please fill in all fields');
+      return;
+    }
+
+    if (token.length == 6 && email.isEmpty) {
+      _showSnack('Email is required for the verification code flow');
       return;
     }
 
@@ -60,6 +72,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
     try {
       await AuthService.instance.resetPassword(
+        email: email.isEmpty ? null : email,
         token: token,
         password: password,
       );
@@ -90,13 +103,23 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: Column(
+          child: ListView(
             children: [
               TextField(
-                controller: _tokenController,
+                controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
                 decoration: const InputDecoration(
-                  labelText: 'Reset token',
-                  helperText: 'Paste the token from your email',
+                  labelText: 'Email',
+                  helperText: 'Use the same email that received the code',
+                ),
+              ),
+              const SizedBox(height: 24),
+              TextField(
+                controller: _tokenController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Verification code',
+                  helperText: 'Enter the 6-digit code from your email',
                 ),
               ),
               const SizedBox(height: 24),
@@ -135,7 +158,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                   ),
                 ),
               ),
-              const Spacer(),
+              const SizedBox(height: 32),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
