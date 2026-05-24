@@ -30,6 +30,11 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   bool _obscureConfirmPassword = true;
   bool _isOtpComplete = false;
   bool _isEmailLocked = false;
+  bool _isResending = false;
+  int _resendSecondsLeft = 0;
+  Timer? _resendTimer;
+
+  static const int _resendCooldownSeconds = 30;
 
   @override
   void initState() {
@@ -49,6 +54,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     _passwordController.dispose();
     _confirmController.dispose();
     _passwordFocusNode.dispose();
+    _resendTimer?.cancel();
     for (final controller in _codeControllers) {
       controller.dispose();
     }
@@ -84,6 +90,51 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     );
     if (_isOtpComplete != isComplete) {
       setState(() => _isOtpComplete = isComplete);
+    }
+  }
+
+  void _startResendCooldown() {
+    _resendTimer?.cancel();
+    setState(() => _resendSecondsLeft = _resendCooldownSeconds);
+    _resendTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_resendSecondsLeft <= 1) {
+        timer.cancel();
+        setState(() => _resendSecondsLeft = 0);
+      } else {
+        setState(() => _resendSecondsLeft -= 1);
+      }
+    });
+  }
+
+  Future<void> _handleResendCode() async {
+    if (_resendSecondsLeft > 0 || _isResending) return;
+
+    final email = _emailController.text.trim();
+    if (email.isEmpty) {
+      _showSnack('Please enter your email to resend the code');
+      return;
+    }
+
+    setState(() => _isResending = true);
+    try {
+      final message = await AuthService.instance.requestPasswordReset(
+        email: email,
+      );
+      if (!mounted) return;
+      _showSnack(message);
+      _startResendCooldown();
+    } on AuthException catch (err) {
+      _showSnack(err.message);
+    } catch (_) {
+      _showSnack('Unable to resend the code right now');
+    } finally {
+      if (mounted) {
+        setState(() => _isResending = false);
+      }
     }
   }
 
@@ -266,6 +317,29 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                     ),
                   ),
                 ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  TextButton(
+                    onPressed: _resendSecondsLeft > 0 || _isResending
+                        ? null
+                        : _handleResendCode,
+                    child: _isResending
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('Resend code'),
+                  ),
+                  if (_resendSecondsLeft > 0)
+                    Text(
+                      'Resend in ${_resendSecondsLeft}s',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                ],
               ),
               const SizedBox(height: 24),
               AnimatedSwitcher(

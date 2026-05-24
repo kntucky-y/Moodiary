@@ -193,11 +193,47 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _showForgotPasswordSheet() async {
-    final trimmedEmail = _emailController.text.trim();
+    String trimmedEmail = _emailController.text.trim();
 
     if (trimmedEmail.isEmpty || !_isValidEmail(trimmedEmail)) {
-      _showError('Enter your email first');
-      return;
+      final emailController = TextEditingController(text: trimmedEmail);
+      try {
+        final email = await showDialog<String>(
+          context: context,
+          builder: (dialogContext) {
+            return AlertDialog(
+              title: const Text('Reset password'),
+              content: TextField(
+                controller: emailController,
+                keyboardType: TextInputType.emailAddress,
+                decoration: const InputDecoration(
+                  labelText: 'Email',
+                  hintText: 'you@example.com',
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.of(
+                    dialogContext,
+                  ).pop(emailController.text.trim()),
+                  child: const Text('Send code'),
+                ),
+              ],
+            );
+          },
+        );
+
+        trimmedEmail = email?.trim() ?? '';
+        if (trimmedEmail.isEmpty || !_isValidEmail(trimmedEmail)) {
+          return;
+        }
+      } finally {
+        emailController.dispose();
+      }
     }
 
     try {
