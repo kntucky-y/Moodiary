@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -51,6 +52,7 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
   bool _headerCollapsed = false;
   LatLng? _pendingMapCenter;
   double _pendingMapZoom = 13;
+  StreamSubscription<Map<String, dynamic>>? _realtimeSub;
 
   final List<String> _categories = [
     'All',
@@ -79,6 +81,24 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
     super.initState();
     _loadResources();
     _bootstrapNearbyClinics();
+    _realtimeSub = RealtimeNotifications.instance.stream.listen(
+      _handleRealtimeEvent,
+    );
+  }
+
+  @override
+  void dispose() {
+    _realtimeSub?.cancel();
+    super.dispose();
+  }
+
+  void _handleRealtimeEvent(Map<String, dynamic> payload) {
+    final type = payload['type']?.toString();
+    if (type == 'mood_analysis_updated') {
+      if (!_loadingResources && mounted) {
+        _loadResources();
+      }
+    }
   }
 
   Future<void> _loadResources() async {
@@ -122,11 +142,10 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
     final trimmed = raw.trim();
     if (trimmed.isEmpty) return null;
 
-    final withoutMarkdown =
-        trimmed
-            .replaceAll(RegExp(r'^<|>$'), '')
-            .replaceFirst(RegExp(r'^\[([^\]]+)\]\(([^)]+)\)$'), r'$2')
-            .trim();
+    final withoutMarkdown = trimmed
+        .replaceAll(RegExp(r'^<|>$'), '')
+        .replaceFirst(RegExp(r'^\[([^\]]+)\]\(([^)]+)\)$'), r'$2')
+        .trim();
     final withoutTrailing = withoutMarkdown.replaceFirst(
       RegExp(r'[\)\],.;!?]+$'),
       '',
@@ -241,7 +260,7 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
         _currentCenter = current;
         _clinicError = null;
       });
-      _moveMapSafely(current, 13);
+      _moveMapSafely(current, _zoomForRadius(_radiusMeters));
       await _loadNearbyClinics(center: current);
     } catch (error) {
       if (!mounted) return;
@@ -296,7 +315,7 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
         _currentCenter = current;
         _clinicError = null;
       });
-      _moveMapSafely(current, 13);
+      _moveMapSafely(current, _zoomForRadius(_radiusMeters));
       await _loadNearbyClinics(center: current);
     } catch (error) {
       if (!mounted) return;
@@ -312,8 +331,22 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
       _currentCenter = center;
       _clinicError = null;
     });
-    _moveMapSafely(center, 13);
+    _moveMapSafely(center, _zoomForRadius(_radiusMeters));
     await _loadNearbyClinics(center: center);
+  }
+
+  double _zoomForRadius(int radiusMeters) {
+    if (radiusMeters <= 3000) return 13.5;
+    if (radiusMeters <= 6000) return 12.5;
+    if (radiusMeters <= 10000) return 11.5;
+    if (radiusMeters <= 20000) return 10.5;
+    return 10.0;
+  }
+
+  void _updateMapZoomForRadius() {
+    final center = _currentCenter ?? _pendingMapCenter;
+    if (center == null) return;
+    _moveMapSafely(center, _zoomForRadius(_radiusMeters));
   }
 
   LatLng _clinicPoint(Map<String, dynamic> clinic) {
@@ -972,6 +1005,7 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
                   initialValue: _radiusMeters,
                   onSelected: (value) {
                     setState(() => _radiusMeters = value);
+                    _updateMapZoomForRadius();
                     _loadNearbyClinics();
                   },
                   itemBuilder: (context) => _radiusOptions

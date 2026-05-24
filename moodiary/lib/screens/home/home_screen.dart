@@ -827,6 +827,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         _analysis = analysis;
         _analysisLoading = false;
       });
+      RealtimeNotifications.instance.emitLocal({
+        'type': 'mood_analysis_updated',
+        'scope': scope,
+      });
     } catch (e) {
       if (!mounted) return;
       setState(() {
