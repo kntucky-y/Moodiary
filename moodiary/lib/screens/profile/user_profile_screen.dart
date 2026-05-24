@@ -175,18 +175,13 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         authToken: _authToken,
         limit: 5,
       );
-      mbtiItems =
-          (mbti['items'] as List<dynamic>? ?? const [])
-              .cast<Map<String, dynamic>>();
+      mbtiItems = (mbti['items'] as List<dynamic>? ?? const [])
+          .cast<Map<String, dynamic>>();
     } catch (_) {
       mbtiItems = const [];
     }
 
-    return {
-      'profile': profile,
-      'posts': posts,
-      'mbtiHistory': mbtiItems,
-    };
+    return {'profile': profile, 'posts': posts, 'mbtiHistory': mbtiItems};
   }
 
   Future<Map<String, dynamic>?> _loadCachedProfileBundle() async {
@@ -641,8 +636,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                           userData['email'] as String? ?? '';
                       _bioController.text = userData['bio'] as String? ?? '';
                     }
-                    final isWideProfileLayout =
-                        MediaQuery.of(context).size.width >= 900;
+                    final isNarrowProfileLayout =
+                        MediaQuery.of(context).size.width < 520;
+                    final avatarRadius = isNarrowProfileLayout ? 40.0 : 48.0;
+                    final avatarIconSize = isNarrowProfileLayout ? 36.0 : 44.0;
 
                     return Stack(
                       children: [
@@ -661,237 +658,166 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                     backgroundColor: context.mdGlassSurface,
                                     borderColor: context.mdGlassBorder,
                                     padding: const EdgeInsets.all(16),
-                                    child: isWideProfileLayout
-                                        ? Row(
+                                    child: Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Column(
+                                          children: [
+                                            Stack(
+                                              children: [
+                                                CircleAvatar(
+                                                  radius: avatarRadius,
+                                                  backgroundImage:
+                                                      displayedAvatarImage,
+                                                  child:
+                                                      displayedAvatarImage ==
+                                                          null
+                                                      ? Icon(
+                                                          Icons.person,
+                                                          size: avatarIconSize,
+                                                        )
+                                                      : null,
+                                                ),
+                                                if (_isEditing)
+                                                  Positioned(
+                                                    right: -2,
+                                                    bottom: -2,
+                                                    child: InkWell(
+                                                      onTap: _pickAvatarImage,
+                                                      child: Container(
+                                                        padding:
+                                                            const EdgeInsets.all(
+                                                              6,
+                                                            ),
+                                                        decoration:
+                                                            BoxDecoration(
+                                                              color: cs.primary,
+                                                              shape: BoxShape
+                                                                  .circle,
+                                                            ),
+                                                        child: Icon(
+                                                          Icons
+                                                              .photo_camera_outlined,
+                                                          size: 16,
+                                                          color: cs.onPrimary,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 10),
+                                            Text(
+                                              (userData['name'] as String? ??
+                                                      'NAME')
+                                                  .toUpperCase(),
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .titleSmall
+                                                  ?.copyWith(
+                                                    fontWeight: FontWeight.w800,
+                                                  ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(width: 14),
+                                        Expanded(
+                                          child: Column(
                                             crossAxisAlignment:
                                                 CrossAxisAlignment.start,
                                             children: [
-                                              Column(
-                                                children: [
-                                                  Stack(
-                                                    children: [
-                                                      CircleAvatar(
-                                                        radius: 48,
-                                                        backgroundImage:
-                                                            displayedAvatarImage,
-                                                        child:
-                                                            displayedAvatarImage ==
-                                                                null
-                                                            ? const Icon(
-                                                                Icons.person,
-                                                                size: 44,
-                                                              )
-                                                            : null,
-                                                      ),
-                                                      if (_isEditing)
-                                                        Positioned(
-                                                          right: -2,
-                                                          bottom: -2,
-                                                          child: InkWell(
-                                                            onTap:
-                                                                _pickAvatarImage,
-                                                            child: Container(
-                                                              padding:
-                                                                  const EdgeInsets.all(
-                                                                    6,
-                                                                  ),
-                                                              decoration: BoxDecoration(
-                                                                color:
-                                                                    cs.primary,
-                                                                shape: BoxShape
-                                                                    .circle,
-                                                              ),
-                                                              child: Icon(
-                                                                Icons
-                                                                    .photo_camera_outlined,
-                                                                size: 16,
-                                                                color: cs
-                                                                    .onPrimary,
-                                                              ),
-                                                            ),
-                                                          ),
-                                                        ),
-                                                    ],
-                                                  ),
-                                                  const SizedBox(height: 10),
-                                                  Text(
-                                                    (userData['name']
-                                                                as String? ??
-                                                            'NAME')
-                                                        .toUpperCase(),
-                                                    style: Theme.of(context)
-                                                        .textTheme
-                                                        .titleSmall
-                                                        ?.copyWith(
-                                                          fontWeight:
-                                                              FontWeight.w800,
-                                                        ),
-                                                  ),
-                                                ],
-                                              ),
-                                              const SizedBox(width: 18),
-                                              Expanded(
-                                                child: Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
-                                                  children: [
-                                                    Text(
-                                                      'Name',
-                                                      style: Theme.of(context)
-                                                          .textTheme
-                                                          .titleSmall,
-                                                    ),
-                                                    const SizedBox(height: 8),
-                                                    if (_isEditing)
-                                                      TextField(
-                                                        controller:
-                                                            _nameController,
-                                                        decoration: InputDecoration(
-                                                          hintText:
-                                                              'Your name',
-                                                          border: OutlineInputBorder(
-                                                            borderRadius:
-                                                                BorderRadius.circular(
-                                                                  8,
-                                                                ),
-                                                          ),
-                                                        ),
-                                                      )
-                                                    else
-                                                      Text(
-                                                        userData['name']
-                                                                as String? ??
-                                                            'N/A',
-                                                      ),
-                                                    const SizedBox(height: 12),
-                                                    Text(
-                                                      'Email',
-                                                      style: Theme.of(context)
-                                                          .textTheme
-                                                          .titleSmall,
-                                                    ),
-                                                    const SizedBox(height: 8),
-                                                    if (_isEditing)
-                                                      TextField(
-                                                        controller:
-                                                            _emailController,
-                                                        decoration: InputDecoration(
-                                                          hintText:
-                                                              'your.email@example.com',
-                                                          border: OutlineInputBorder(
-                                                            borderRadius:
-                                                                BorderRadius.circular(
-                                                                  8,
-                                                                ),
-                                                          ),
-                                                        ),
-                                                      )
-                                                    else
-                                                      Text(
-                                                        userData['email']
-                                                                as String? ??
-                                                            'N/A',
-                                                      ),
-                                                    const SizedBox(height: 12),
-                                                    Text(
-                                                      'Bio',
-                                                      style: Theme.of(context)
-                                                          .textTheme
-                                                          .titleSmall,
-                                                    ),
-                                                    const SizedBox(height: 8),
-                                                    if (_isEditing)
-                                                      TextField(
-                                                        controller:
-                                                            _bioController,
-                                                        maxLines: 4,
-                                                        maxLength: 500,
-                                                        keyboardType:
-                                                            TextInputType
-                                                                .multiline,
-                                                        decoration: InputDecoration(
-                                                          hintText:
-                                                              'Tell us about yourself...',
-                                                          helperText:
-                                                              'You can use emojis in your bio.',
-                                                          border: OutlineInputBorder(
-                                                            borderRadius:
-                                                                BorderRadius.circular(
-                                                                  8,
-                                                                ),
-                                                          ),
-                                                        ),
-                                                      )
-                                                    else
-                                                      Text(
-                                                        userData['bio']
-                                                                    as String? ??
-                                                                'No bio',
-                                                      ),
-                                                  ],
-                                                ),
-                                              ),
-                                            ],
-                                          )
-                                        : Column(
-                                            children: [
-                                              Stack(
-                                                children: [
-                                                  CircleAvatar(
-                                                    radius: 48,
-                                                    backgroundImage:
-                                                        displayedAvatarImage,
-                                                    child:
-                                                        displayedAvatarImage ==
-                                                            null
-                                                        ? const Icon(
-                                                            Icons.person,
-                                                            size: 44,
-                                                          )
-                                                        : null,
-                                                  ),
-                                                  if (_isEditing)
-                                                    Positioned(
-                                                      right: -2,
-                                                      bottom: -2,
-                                                      child: InkWell(
-                                                        onTap: _pickAvatarImage,
-                                                        child: Container(
-                                                          padding:
-                                                              const EdgeInsets.all(
-                                                                6,
-                                                              ),
-                                                          decoration: BoxDecoration(
-                                                            color: cs.primary,
-                                                            shape:
-                                                                BoxShape.circle,
-                                                          ),
-                                                          child: Icon(
-                                                            Icons
-                                                                .photo_camera_outlined,
-                                                            size: 16,
-                                                            color: cs.onPrimary,
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    ),
-                                                ],
-                                              ),
-                                              const SizedBox(height: 10),
                                               Text(
-                                                (userData['name'] as String? ??
-                                                        'NAME')
-                                                    .toUpperCase(),
-                                                style: Theme.of(context)
-                                                    .textTheme
-                                                    .titleSmall
-                                                    ?.copyWith(
-                                                      fontWeight:
-                                                          FontWeight.w800,
-                                                    ),
+                                                'Name',
+                                                style: Theme.of(
+                                                  context,
+                                                ).textTheme.titleSmall,
                                               ),
+                                              const SizedBox(height: 8),
+                                              if (_isEditing)
+                                                TextField(
+                                                  controller: _nameController,
+                                                  decoration: InputDecoration(
+                                                    hintText: 'Your name',
+                                                    border: OutlineInputBorder(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            8,
+                                                          ),
+                                                    ),
+                                                  ),
+                                                )
+                                              else
+                                                Text(
+                                                  userData['name'] as String? ??
+                                                      'N/A',
+                                                ),
+                                              const SizedBox(height: 12),
+                                              Text(
+                                                'Email',
+                                                style: Theme.of(
+                                                  context,
+                                                ).textTheme.titleSmall,
+                                              ),
+                                              const SizedBox(height: 8),
+                                              if (_isEditing)
+                                                TextField(
+                                                  controller: _emailController,
+                                                  decoration: InputDecoration(
+                                                    hintText:
+                                                        'your.email@example.com',
+                                                    border: OutlineInputBorder(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            8,
+                                                          ),
+                                                    ),
+                                                  ),
+                                                )
+                                              else
+                                                Text(
+                                                  userData['email']
+                                                          as String? ??
+                                                      'N/A',
+                                                ),
+                                              const SizedBox(height: 12),
+                                              Text(
+                                                'Bio',
+                                                style: Theme.of(
+                                                  context,
+                                                ).textTheme.titleSmall,
+                                              ),
+                                              const SizedBox(height: 8),
+                                              if (_isEditing)
+                                                TextField(
+                                                  controller: _bioController,
+                                                  maxLines: 4,
+                                                  maxLength: 500,
+                                                  keyboardType:
+                                                      TextInputType.multiline,
+                                                  decoration: InputDecoration(
+                                                    hintText:
+                                                        'Tell us about yourself...',
+                                                    helperText:
+                                                        'You can use emojis in your bio.',
+                                                    border: OutlineInputBorder(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            8,
+                                                          ),
+                                                    ),
+                                                  ),
+                                                )
+                                              else
+                                                Text(
+                                                  userData['bio'] as String? ??
+                                                      'No bio',
+                                                ),
                                             ],
                                           ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(height: 12),
@@ -1299,107 +1225,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                       leading: Icons.forum_outlined,
                                     ),
                                   ),
-                                if (!isWideProfileLayout) ...[
-                                  const SizedBox(height: 14),
-                                  Text(
-                                    'Name',
-                                    style:
-                                        Theme.of(context).textTheme.titleSmall,
-                                  ),
-                                  const SizedBox(height: 8),
-                                  if (_isEditing)
-                                    TextField(
-                                      controller: _nameController,
-                                      decoration: InputDecoration(
-                                        hintText: 'Your name',
-                                        border: OutlineInputBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                        ),
-                                      ),
-                                    )
-                                  else
-                                    GlassContainer(
-                                      blurSigma: context.mdGlassBlurMedium,
-                                      borderRadius: BorderRadius.circular(14),
-                                      backgroundColor: context.mdGlassSurface,
-                                      borderColor: context.mdGlassBorder,
-                                      padding: const EdgeInsets.all(12),
-                                      child: Text(
-                                        userData['name'] as String? ?? 'N/A',
-                                      ),
-                                    ),
-                                  const SizedBox(height: 20),
-                                  Text(
-                                    'Email',
-                                    style:
-                                        Theme.of(context).textTheme.titleSmall,
-                                  ),
-                                  const SizedBox(height: 8),
-                                  if (_isEditing)
-                                    TextField(
-                                      controller: _emailController,
-                                      decoration: InputDecoration(
-                                        hintText: 'your.email@example.com',
-                                        border: OutlineInputBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                        ),
-                                      ),
-                                    )
-                                  else
-                                    GlassContainer(
-                                      blurSigma: context.mdGlassBlurMedium,
-                                      borderRadius: BorderRadius.circular(14),
-                                      backgroundColor: context.mdGlassSurface,
-                                      borderColor: context.mdGlassBorder,
-                                      padding: const EdgeInsets.all(12),
-                                      child: Text(
-                                        userData['email'] as String? ?? 'N/A',
-                                      ),
-                                    ),
-                                  const SizedBox(height: 20),
-                                  Text(
-                                    'Bio',
-                                    style:
-                                        Theme.of(context).textTheme.titleSmall,
-                                  ),
-                                  const SizedBox(height: 8),
-                                  if (_isEditing)
-                                    TextField(
-                                      controller: _bioController,
-                                      maxLines: 4,
-                                      maxLength: 500,
-                                      keyboardType: TextInputType.multiline,
-                                      decoration: InputDecoration(
-                                        hintText:
-                                            'Tell us about yourself... Emojis are welcome 😊',
-                                        helperText:
-                                            'You can use emojis in your bio.',
-                                        border: OutlineInputBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                        ),
-                                      ),
-                                    )
-                                  else
-                                    GlassContainer(
-                                      blurSigma: context.mdGlassBlurMedium,
-                                      borderRadius: BorderRadius.circular(14),
-                                      backgroundColor: context.mdGlassSurface,
-                                      borderColor: context.mdGlassBorder,
-                                      padding: const EdgeInsets.all(12),
-                                      child: Text(
-                                        userData['bio'] as String? ?? 'No bio',
-                                        style: TextStyle(
-                                          color: Theme.of(
-                                            context,
-                                          ).textTheme.bodyMedium?.color,
-                                        ),
-                                      ),
-                                    ),
-                                  const SizedBox(height: 20),
-                                ],
                                 Text(
                                   'Profile Visibility',
                                   style: Theme.of(context).textTheme.titleSmall,
@@ -1640,6 +1465,3 @@ class _MoodMini extends StatelessWidget {
     );
   }
 }
-
-
-

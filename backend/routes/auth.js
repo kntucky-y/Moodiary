@@ -158,10 +158,12 @@ router.post('/forgot-password', passwordResetLimiter, async (req, res) => {
     user.resetTokenExpires = new Date(Date.now() + 10 * 60 * 1000);
     await user.save();
 
-    await sendPasswordResetEmail({
+    sendPasswordResetEmail({
       to: user.email,
       name: user.name,
       code: resetCode,
+    }).catch((error) => {
+      console.error('Password reset email send failed', error);
     });
 
     res.json({
