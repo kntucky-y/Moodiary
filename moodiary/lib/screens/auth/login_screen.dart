@@ -187,46 +187,20 @@ class _LoginScreenState extends State<LoginScreen> {
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
+  bool _isValidEmail(String email) {
+    final normalized = email.trim();
+    return normalized.contains('@') && normalized.contains('.');
+  }
+
   Future<void> _showForgotPasswordSheet() async {
-    final emailController = TextEditingController(
-      text: _emailController.text.trim(),
-    );
+    final trimmedEmail = _emailController.text.trim();
+
+    if (trimmedEmail.isEmpty || !_isValidEmail(trimmedEmail)) {
+      _showError('Enter your email first');
+      return;
+    }
 
     try {
-      final email = await showDialog<String>(
-        context: context,
-        builder: (dialogContext) {
-          return AlertDialog(
-            title: const Text('Reset password'),
-            content: TextField(
-              controller: emailController,
-              keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(
-                labelText: 'Email',
-                hintText: 'you@example.com',
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.of(
-                  dialogContext,
-                ).pop(emailController.text.trim()),
-                child: const Text('Send code'),
-              ),
-            ],
-          );
-        },
-      );
-
-      final trimmedEmail = email?.trim() ?? '';
-      if (trimmedEmail.isEmpty) {
-        return;
-      }
-
       setState(() => _isLoading = true);
       final message = await AuthService.instance.requestPasswordReset(
         email: trimmedEmail,
@@ -242,7 +216,6 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (_) {
       _showError('Cannot connect to the server right now');
     } finally {
-      emailController.dispose();
       if (mounted) setState(() => _isLoading = false);
     }
   }
