@@ -575,7 +575,7 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
             borderRadius: BorderRadius.circular(context.mdRadiusXl),
             backgroundColor: context.mdGlassSurfaceStrong,
             margin: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -617,7 +617,15 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
                       child: FilledButton.icon(
                         onPressed: () {
                           Navigator.of(context).pop();
-                          _launchPhone(clinic['phone'] as String? ?? '');
+                          _confirmClinicAction(
+                            title:
+                                'Call ${clinic['name'] as String? ?? 'Clinic'}',
+                            description: clinic['phone'] as String? ?? '',
+                            address: clinic['address'] as String? ?? '',
+                            actionLabel: 'Call',
+                            onAction: () =>
+                                _launchPhone(clinic['phone'] as String? ?? ''),
+                          );
                         },
                         icon: const Icon(Icons.call),
                         label: const Text('Call'),
@@ -628,7 +636,14 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
                       child: OutlinedButton.icon(
                         onPressed: () {
                           Navigator.of(context).pop();
-                          _launchUrl(clinic['website'] as String? ?? '');
+                          _confirmClinicAction(
+                            title: 'Open website',
+                            description: clinic['website'] as String? ?? '',
+                            address: clinic['address'] as String? ?? '',
+                            actionLabel: 'Open',
+                            onAction: () =>
+                                _launchUrl(clinic['website'] as String? ?? ''),
+                          );
                         },
                         icon: const Icon(Icons.public),
                         label: const Text('Website'),
@@ -642,6 +657,46 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
         );
       },
     );
+  }
+
+  Future<void> _confirmClinicAction({
+    required String title,
+    required String description,
+    required String address,
+    required String actionLabel,
+    required VoidCallback onAction,
+  }) async {
+    final trimmedDescription = description.trim();
+    final trimmedAddress = address.trim();
+    final messageParts = <String>[];
+    if (trimmedDescription.isNotEmpty) {
+      messageParts.add(trimmedDescription);
+    }
+    if (trimmedAddress.isNotEmpty) {
+      messageParts.add(trimmedAddress);
+    }
+    final message = messageParts.join('\n');
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: message.isEmpty ? null : Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(actionLabel),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      onAction();
+    }
   }
 
   List<Map<String, dynamic>> get _filteredResources {
