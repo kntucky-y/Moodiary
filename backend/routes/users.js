@@ -15,6 +15,7 @@ const auth = require('../middleware/auth');
 const { createRateLimiter } = require('../middleware/rate_limit');
 const { scoreMbti } = require('../utils/mbti');
 const { getIO, emitNotification } = require('../socket');
+const { sendWeeklyReportEmail } = require('../utils/email');
 
 const sanitizeUser = (user) => ({
   id: user._id,
@@ -140,6 +141,13 @@ const profileUpdateLimiter = createRateLimiter({
   max: 10,
   message: 'Too many profile updates. Please wait a moment and try again.',
   keyGenerator: (req) => `profile:${req.userId || req.ip}`,
+});
+
+const profileVisibilityLimiter = createRateLimiter({
+  windowMs: 5 * 60 * 1000,
+  max: 30,
+  message: 'Too many visibility updates. Please wait a moment and try again.',
+  keyGenerator: (req) => `profile-visibility:${req.userId || req.ip}`,
 });
 
 const userActionLimiter = createRateLimiter({
@@ -525,7 +533,7 @@ router.get('/:id/mbti/history', auth, async (req, res) => {
 });
 
 // PATCH /api/users/:id - Update user profile (authenticated)
-router.patch('/:id', auth, profileUpdateLimiter, async (req, res) => {
+router.patch('/:id', auth, async (req, res) => {
   try {
     // Only allow users to update their own profile
     if (req.userId !== req.params.id) {
@@ -542,6 +550,20 @@ router.patch('/:id', auth, profileUpdateLimiter, async (req, res) => {
       mbtiLatestType,
       isProfilePublic,
     } = req.body;
+
+    const updatesOnlyVisibility = req.body && Object.keys(req.body).length === 1 &&
+      Object.prototype.hasOwnProperty.call(req.body, 'isProfilePublic');
+    const limiter = updatesOnlyVisibility
+      ? profileVisibilityLimiter
+      : profileUpdateLimiter;
+    let limiterPassed = false;
+    await new Promise((resolve) => {
+      limiter(req, res, () => {
+        limiterPassed = true;
+        resolve();
+      });
+    });
+    if (!limiterPassed) return;
 
     const user = await User.findById(req.params.id);
     if (!user) {
@@ -902,6 +924,64 @@ router.get('/:id/muted', auth, async (req, res) => {
   } catch (err) {
     console.error('Get muted users error', err);
     res.status(500).json({ error: 'Unable to fetch muted users' });
+  }
+});
+
+// POST /api/users/:id/weekly-report - Send weekly report email to owner
+router.post('/:id/weekly-report', auth, userActionLimiter, async (req, res) => {
+  try {
+    if (!ensureOwnUser(req, res)) {
+      return;
+    }
+
+    const user = await User.findById(req.userId).select('name email');
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const since = new Date();
+    since.setDate(since.getDate() - 7);
+
+    const logs = await MoodLog.find({
+      userId: req.userId,
+      createdAt: { $gte: since },
+    })
+      .select('moodLevel score dateKey')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const totalEntries = logs.length;
+    const avgMood = totalEntries
+      ? (logs.reduce((sum, item) => sum + (Number(item.moodLevel) || 0), 0) / totalEntries).toFixed(2)
+      : 'N/A';
+    const avgScore = totalEntries
+      ? Math.round(logs.reduce((sum, item) => sum + (Number(item.score) || 0), 0) / totalEntries)
+      : 'N/A';
+
+    const entriesList = logs
+      .slice(0, 7)
+      .map((item) => `<li>${item.dateKey || '-'}: mood ${item.moodLevel || '-'}, score ${item.score || 0}</li>`)
+      .join('');
+
+    const reportHtml = `
+      <p><strong>Period:</strong> Last 7 days</p>
+      <p><strong>Entries logged:</strong> ${totalEntries}</p>
+      <p><strong>Average mood level:</strong> ${avgMood}</p>
+      <p><strong>Average score:</strong> ${avgScore}</p>
+      <p><strong>Recent entries:</strong></p>
+      <ul>${entriesList || '<li>No entries this week.</li>'}</ul>
+    `;
+
+    await sendWeeklyReportEmail({
+      to: user.email,
+      name: user.name,
+      reportHtml,
+    });
+
+    res.json({ message: 'Weekly report email sent.' });
+  } catch (err) {
+    console.error('Weekly report email error', err);
+    res.status(500).json({ error: 'Unable to send weekly report email' });
   }
 });
 

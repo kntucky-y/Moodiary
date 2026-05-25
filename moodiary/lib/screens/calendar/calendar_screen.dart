@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 import 'dart:math' as math;
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
@@ -18,6 +18,7 @@ import '../../services/theme_controller.dart';
 import '../../theme/moodiary_colors.dart';
 import '../../widgets/glass.dart';
 import '../../utils/route_observer.dart';
+import '../../utils/user_cache.dart';
 
 const _kPurple = Color(0xFFA076F9);
 const _kSubtle = Color(0xFF8A8A8D);
@@ -281,6 +282,7 @@ class _CalendarScreenState extends State<CalendarScreen> with RouteAware {
   Future<void> _logout() async {
     _closeSidebar();
     final prefs = await SharedPreferences.getInstance();
+    await UserCache.clear(prefs);
     await prefs.remove('token');
     await prefs.remove('user_name');
     await prefs.remove('user_id');

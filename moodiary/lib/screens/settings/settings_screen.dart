@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../services/auth_service.dart';
 import '../../services/local_notifications_service.dart';
 import '../../services/theme_controller.dart';
 import '../../theme/moodiary_colors.dart';
@@ -34,6 +35,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _weeklySummary = false;
   bool _dataSaver = false;
   bool _loading = true;
+  bool _sendingWeeklyTest = false;
 
   @override
   void initState() {
@@ -132,6 +134,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
         return;
       }
       await LocalNotificationsService.instance.scheduleWeeklySummary();
+      final prefs = await SharedPreferences.getInstance();
+      final userId =
+          prefs.getString('user_id') ?? prefs.getString('userId') ?? '';
+      final token = prefs.getString('token') ?? '';
+      if (userId.isNotEmpty && token.isNotEmpty) {
+        try {
+          await AuthService.instance.sendWeeklyReportEmail(
+            userId: userId,
+            authToken: token,
+          );
+          if (!silent && mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Weekly report email sent.')),
+            );
+          }
+        } catch (e) {
+          if (!silent && mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Could not send weekly report: $e')),
+            );
+          }
+        }
+      }
     }
   }
 
@@ -154,6 +179,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _sendWeeklyReportTest() async {
+    if (_sendingWeeklyTest) return;
+    setState(() => _sendingWeeklyTest = true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userId =
+          prefs.getString('user_id') ?? prefs.getString('userId') ?? '';
+      final token = prefs.getString('token') ?? '';
+      if (userId.isEmpty || token.isEmpty) {
+        throw AuthException('Please log in again to send test email.');
+      }
+      await AuthService.instance.sendWeeklyReportEmail(
+        userId: userId,
+        authToken: token,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Test weekly report email sent.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not send test email: $e')));
+    } finally {
+      if (mounted) setState(() => _sendingWeeklyTest = false);
+    }
   }
 
   @override
@@ -262,6 +316,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   value: _weeklySummary,
                   onChanged: (value) => _updateBool(_weeklyKey, value),
+                ),
+                const Divider(height: 0),
+                ListTile(
+                  leading: _sendingWeeklyTest
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.mark_email_read_outlined),
+                  title: const Text('Send test weekly report now'),
+                  subtitle: const Text('Verify your email delivery instantly'),
+                  enabled: !_sendingWeeklyTest,
+                  onTap: _sendingWeeklyTest ? null : _sendWeeklyReportTest,
                 ),
               ],
             ),

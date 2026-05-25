@@ -441,10 +441,9 @@ class AuthService {
   }) async {
     final uri = Uri.parse('$kBackendBaseUrl/api/users/$userId/blocked');
     try {
-      final response = await _client.get(
-        uri,
-        headers: {'Authorization': 'Bearer $authToken'},
-      );
+      final response = await _client
+          .get(uri, headers: {'Authorization': 'Bearer $authToken'})
+          .timeout(_requestTimeout);
       final decoded = jsonDecode(response.body) as Map<String, dynamic>;
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -469,10 +468,9 @@ class AuthService {
   }) async {
     final uri = Uri.parse('$kBackendBaseUrl/api/users/$userId/muted');
     try {
-      final response = await _client.get(
-        uri,
-        headers: {'Authorization': 'Bearer $authToken'},
-      );
+      final response = await _client
+          .get(uri, headers: {'Authorization': 'Bearer $authToken'})
+          .timeout(_requestTimeout);
       final decoded = jsonDecode(response.body) as Map<String, dynamic>;
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -502,10 +500,9 @@ class AuthService {
       '$kBackendBaseUrl/api/notifications?limit=$limit&offset=$offset&unread=$unreadParam',
     );
     try {
-      final response = await _client.get(
-        uri,
-        headers: {'Authorization': 'Bearer $authToken'},
-      );
+      final response = await _client
+          .get(uri, headers: {'Authorization': 'Bearer $authToken'})
+          .timeout(_requestTimeout);
       final decoded = jsonDecode(response.body) as Map<String, dynamic>;
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -553,6 +550,18 @@ class AuthService {
       '/api/notifications/$notificationId',
       authToken: authToken,
       method: 'DELETE',
+      body: const {},
+    );
+  }
+
+  Future<void> sendWeeklyReportEmail({
+    required String userId,
+    required String authToken,
+  }) async {
+    await _sendAuthedJson(
+      '/api/users/$userId/weekly-report',
+      authToken: authToken,
+      method: 'POST',
       body: const {},
     );
   }

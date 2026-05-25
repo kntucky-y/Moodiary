@@ -21,6 +21,7 @@ import '../../services/realtime_notifications.dart';
 import '../settings/settings_screen.dart';
 import '../../utils/avatar_utils.dart';
 import '../../utils/streak_utils.dart';
+import '../../utils/user_cache.dart';
 
 const _kPurple = Color(0xFFA076F9);
 
@@ -1301,6 +1302,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Future<void> _logout() async {
     final prefs = await SharedPreferences.getInstance();
+    await UserCache.clear(prefs);
     await prefs.remove('token');
     await prefs.remove('user_name');
     await prefs.remove('user_id');

@@ -709,21 +709,17 @@ class _MuteToggleButtonState extends State<_MuteToggleButton> {
     }
 
     try {
-      final mutedFuture = AuthService.instance.getMutedUsers(
-        userId: _selfUserId,
-        authToken: _authToken,
-      );
-      final connectedFuture = AuthService.instance.getConnectedUserIds(
-        authToken: _authToken,
-      );
-
-      final muted = await mutedFuture;
-      Set<String> connectedIds = const {};
-      try {
-        connectedIds = await connectedFuture;
-      } catch (_) {
-        // If friend lookup fails, keep mute state lookup functional.
-      }
+      final results = await Future.wait<dynamic>([
+        AuthService.instance.getMutedUsers(
+          userId: _selfUserId,
+          authToken: _authToken,
+        ),
+        AuthService.instance
+            .getConnectedUserIds(authToken: _authToken)
+            .timeout(const Duration(seconds: 6), onTimeout: () => <String>{}),
+      ]);
+      final muted = results[0] as List<Map<String, dynamic>>;
+      final connectedIds = results[1] as Set<String>;
 
       final isMuted = muted.any(
         (u) => (u['_id'] ?? u['id']).toString() == widget.targetUserId,

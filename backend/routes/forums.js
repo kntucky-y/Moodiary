@@ -108,8 +108,12 @@ router.get('/', auth, async (req, res) => {
       ? { isArchived: true, userId: req.userId }
       : { isArchived: { $ne: true } };
     const posts = await ForumPost.find(query)
+      .select(
+        '_id userId title content isAnonymous authorName authorAvatarUrl companionId likedBy comments createdAt',
+      )
       .sort({ createdAt: -1 })
-      .limit(200);
+      .limit(120)
+      .lean();
     const publicUserIds = await buildPublicUserIdSet(posts);
     res.json(posts.map((post) => serializePost(post, req.userId, publicUserIds)));
   } catch (err) {

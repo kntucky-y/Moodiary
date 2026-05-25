@@ -20,6 +20,7 @@ import '../../services/realtime_notifications.dart';
 import '../../services/theme_controller.dart';
 import '../../theme/moodiary_colors.dart';
 import '../../utils/avatar_utils.dart';
+import '../../utils/user_cache.dart';
 import '../../widgets/user_profile_popup.dart';
 import '../../widgets/glass.dart';
 import 'user_discovery_screen.dart';
@@ -539,6 +540,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
 
   Future<void> _logout() async {
     final prefs = await SharedPreferences.getInstance();
+    await UserCache.clear(prefs);
     await prefs.remove('token');
     await prefs.remove('user_name');
     await prefs.remove('user_id');

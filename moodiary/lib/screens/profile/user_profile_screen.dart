@@ -372,6 +372,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
   Future<void> _logout() async {
     final prefs = await SharedPreferences.getInstance();
+    await UserCache.clear(prefs);
     await prefs.remove('token');
     await prefs.remove('user_name');
     await prefs.remove('user_id');

@@ -209,6 +209,59 @@ async function sendPasswordResetEmail({ to, name, code }) {
   return { delivered: true, provider: 'smtp' };
 }
 
+async function sendWeeklyReportEmail({ to, name, reportHtml }) {
+  const html = `
+    <p>Hi ${name || 'there'},</p>
+    <p>Here is your Moodiary weekly report.</p>
+    ${reportHtml}
+  `;
+
+  const resendConfig = getResendConfig();
+  if (resendConfig) {
+    if (typeof fetch !== 'function') {
+      throw new Error('Fetch API is unavailable in current Node runtime');
+    }
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), MAIL_SEND_TIMEOUT_MS);
+    try {
+      const response = await fetch(RESEND_API_URL, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${resendConfig.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: resendConfig.from,
+          to: [to],
+          subject: 'Your Moodiary weekly report',
+          html,
+        }),
+        signal: controller.signal,
+      });
+      if (!response.ok) {
+        const details = await response.text();
+        throw new Error(`Resend API failed (${response.status}): ${details}`);
+      }
+      return { delivered: true, provider: 'resend' };
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
+  const mailer = getTransporter();
+  const config = getMailConfig();
+  const from = config?.from || 'Moodiary <no-reply@moodiary.app>';
+
+  await mailer.sendMail({
+    from,
+    to,
+    subject: 'Your Moodiary weekly report',
+    html,
+  });
+  return { delivered: true, provider: 'smtp' };
+}
+
 module.exports = {
   sendPasswordResetEmail,
+  sendWeeklyReportEmail,
 };

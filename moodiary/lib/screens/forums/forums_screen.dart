@@ -20,6 +20,7 @@ import '../../services/realtime_notifications.dart';
 import '../../services/theme_controller.dart';
 import '../../theme/moodiary_colors.dart';
 import '../../utils/avatar_utils.dart';
+import '../../utils/user_cache.dart';
 import '../../widgets/user_profile_popup.dart';
 import '../../widgets/glass.dart';
 
@@ -178,12 +179,22 @@ class _ForumsScreenState extends State<ForumsScreen> {
       setState(() => _loading = true);
     }
     try {
-      final resp = await http
-          .get(
-            Uri.parse('$_kBaseUrl/api/forums?archived=$_showArchived'),
-            headers: _authHeaders,
-          )
-          .timeout(const Duration(seconds: 30));
+      http.Response resp;
+      try {
+        resp = await http
+            .get(
+              Uri.parse('$_kBaseUrl/api/forums?archived=$_showArchived'),
+              headers: _authHeaders,
+            )
+            .timeout(const Duration(seconds: 30));
+      } on TimeoutException {
+        resp = await http
+            .get(
+              Uri.parse('$_kBaseUrl/api/forums?archived=$_showArchived'),
+              headers: _authHeaders,
+            )
+            .timeout(const Duration(seconds: 45));
+      }
       if (!mounted) return;
       if (resp.statusCode == 200) {
         final data = jsonDecode(resp.body) as List<dynamic>;
@@ -276,6 +287,7 @@ class _ForumsScreenState extends State<ForumsScreen> {
   Future<void> _logout() async {
     _closeSidebar();
     final prefs = await SharedPreferences.getInstance();
+    await UserCache.clear(prefs);
     await prefs.remove('token');
     await prefs.remove('user_name');
     await prefs.remove('user_id');

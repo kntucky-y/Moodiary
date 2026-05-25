@@ -14,6 +14,7 @@ import '../../services/realtime_notifications.dart';
 import '../../services/theme_controller.dart';
 import '../../theme/moodiary_colors.dart';
 import '../../utils/transitions.dart';
+import '../../utils/user_cache.dart';
 import '../../widgets/app_sidebar.dart';
 import '../../widgets/glass.dart';
 import '../app_shell.dart';
@@ -463,6 +464,7 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
   Future<void> _logout() async {
     _closeSidebar();
     final prefs = await SharedPreferences.getInstance();
+    await UserCache.clear(prefs);
     await prefs.remove('token');
     await prefs.remove('user_name');
     await prefs.remove('user_id');

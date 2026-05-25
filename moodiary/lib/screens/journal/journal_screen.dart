@@ -17,6 +17,7 @@ import '../../widgets/app_sidebar.dart';
 import '../../widgets/glass.dart';
 import '../../theme/moodiary_colors.dart';
 import '../../utils/route_observer.dart';
+import '../../utils/user_cache.dart';
 
 const _kPurple = Color(0xFFA076F9);
 const _kSubtle = Color(0xFF8A8A8D);
@@ -221,6 +222,7 @@ class _JournalScreenState extends State<JournalScreen> with RouteAware {
   Future<void> _logout() async {
     _closeSidebar();
     final prefs = await SharedPreferences.getInstance();
+    await UserCache.clear(prefs);
     await prefs.remove('token');
     await prefs.remove('user_name');
     await prefs.remove('user_id');
