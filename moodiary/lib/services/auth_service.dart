@@ -136,15 +136,20 @@ class AuthService {
   }) async {
     final uri = Uri.parse('$kBackendBaseUrl/api/users/profile/$userId');
     try {
-      final response = await _client
-          .get(
-            uri,
-            headers: {
-              if (authToken != null && authToken.trim().isNotEmpty)
-                'Authorization': 'Bearer $authToken',
-            },
-          )
-          .timeout(_requestTimeout);
+      final headers = {
+        if (authToken != null && authToken.trim().isNotEmpty)
+          'Authorization': 'Bearer $authToken',
+      };
+      http.Response response;
+      try {
+        response = await _client
+            .get(uri, headers: headers)
+            .timeout(const Duration(seconds: 12));
+      } on TimeoutException {
+        response = await _client
+            .get(uri, headers: headers)
+            .timeout(const Duration(seconds: 20));
+      }
       final decoded = jsonDecode(response.body) as Map<String, dynamic>;
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -157,6 +162,9 @@ class AuthService {
     } catch (error) {
       if (error is AuthException) {
         rethrow;
+      }
+      if (error is TimeoutException) {
+        throw AuthException('Profile request timed out. Please try again.');
       }
       throw AuthException('Cannot reach the server. Please try again.');
     }

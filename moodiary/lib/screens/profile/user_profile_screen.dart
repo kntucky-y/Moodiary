@@ -50,6 +50,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   bool _isEditing = false;
   bool _isProfilePublic = false;
   bool _savingProfileVisibility = false;
+  bool _didHydrateProfileVisibility = false;
   String _currentUserName = 'Friend';
   int _companionId = 1;
   String _companionName = 'Companion';
@@ -319,6 +320,11 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           UserCache.profileBundleCacheKey,
           jsonEncode(existingCache),
         );
+        if (mounted) {
+          setState(() {
+            _profileFuture = Future.value(existingCache);
+          });
+        }
       }
     } catch (e) {
       if (!mounted) return;
@@ -599,9 +605,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                             )
                             .take(3)
                             .toList();
-                    if (!_isEditing) {
+                    if (!_didHydrateProfileVisibility) {
                       _isProfilePublic =
                           (userData['isProfilePublic'] as bool?) ?? false;
+                      _didHydrateProfileVisibility = true;
                     }
                     final mbtiHistory =
                         (bundle?['mbtiHistory']

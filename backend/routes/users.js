@@ -213,17 +213,24 @@ router.get('/profile/:id', async (req, res) => {
     const [user, latestMood, publicPosts, moodLogs, partnerFriendship] = await Promise.all([
       User.findById(id).select(
         'name email avatarUrl bio isProfilePublic createdAt mbtiLatestType mbtiLastTestedAt mbtiAttemptsCount',
-      ),
-      MoodLog.findOne({ userId: id }).sort({ dateKey: -1, createdAt: -1 }),
+      ).lean(),
+      MoodLog.findOne({ userId: id })
+        .select('moodLevel dateKey')
+        .sort({ dateKey: -1, createdAt: -1 })
+        .lean(),
       ForumPost.find({
         userId: id,
         isArchived: { $ne: true },
         isAnonymous: { $ne: true },
       })
+        .select('_id title content isAnonymous createdAt companionId')
         .sort({ createdAt: -1 })
-        .limit(6),
+        .limit(6)
+        .lean(),
       MoodLog.find({ userId: id })
         .select('dateKey moodLevel taskScore activityScore score activities')
+        .sort({ dateKey: -1, createdAt: -1 })
+        .limit(60)
         .lean(),
       Friendship.findOne({
         members: id,

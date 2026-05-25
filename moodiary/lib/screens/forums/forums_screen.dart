@@ -394,30 +394,47 @@ class _ForumsScreenState extends State<ForumsScreen> {
     );
     if (!shouldArchive) return;
 
+    final removedIndex = _posts.indexWhere((p) => p.id == postId);
+    final removedPost = removedIndex >= 0 ? _posts[removedIndex] : null;
     setState(() => _workingPostIds.add(postId));
     try {
+      if (removedIndex >= 0) {
+        setState(() {
+          _posts.removeAt(removedIndex);
+          if (_activePostId == postId) _activePostId = null;
+        });
+        await _savePostsCache();
+      }
       final resp = await http.delete(
         Uri.parse('$_kBaseUrl/api/forums/$postId'),
         headers: _authHeaders,
       );
       if (!mounted) return;
       if (resp.statusCode == 200) {
-        setState(() {
-          _posts.removeWhere((p) => p.id == postId);
-          if (_activePostId == postId) _activePostId = null;
-        });
-        await _savePostsCache();
-        if (!mounted) return;
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('Post archived.')));
       } else {
+        if (removedPost != null && removedIndex >= 0) {
+          setState(() {
+            _posts.insert(removedIndex, removedPost);
+          });
+          await _savePostsCache();
+          if (!mounted) return;
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to archive post: ${resp.body}')),
         );
       }
     } catch (e) {
       if (mounted) {
+        if (removedPost != null && removedIndex >= 0) {
+          setState(() {
+            _posts.insert(removedIndex, removedPost);
+          });
+          await _savePostsCache();
+          if (!mounted) return;
+        }
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Archive failed: $e')));
@@ -477,30 +494,47 @@ class _ForumsScreenState extends State<ForumsScreen> {
     );
     if (!shouldDelete) return;
 
+    final removedIndex = _posts.indexWhere((p) => p.id == postId);
+    final removedPost = removedIndex >= 0 ? _posts[removedIndex] : null;
     setState(() => _workingPostIds.add(postId));
     try {
+      if (removedIndex >= 0) {
+        setState(() {
+          _posts.removeAt(removedIndex);
+          if (_activePostId == postId) _activePostId = null;
+        });
+        await _savePostsCache();
+      }
       final resp = await http.delete(
         Uri.parse('$_kBaseUrl/api/forums/$postId/permanent'),
         headers: _authHeaders,
       );
       if (!mounted) return;
       if (resp.statusCode == 200) {
-        setState(() {
-          _posts.removeWhere((p) => p.id == postId);
-          if (_activePostId == postId) _activePostId = null;
-        });
-        await _savePostsCache();
-        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Post permanently deleted.')),
         );
       } else {
+        if (removedPost != null && removedIndex >= 0) {
+          setState(() {
+            _posts.insert(removedIndex, removedPost);
+          });
+          await _savePostsCache();
+          if (!mounted) return;
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to delete post: ${resp.body}')),
         );
       }
     } catch (e) {
       if (mounted) {
+        if (removedPost != null && removedIndex >= 0) {
+          setState(() {
+            _posts.insert(removedIndex, removedPost);
+          });
+          await _savePostsCache();
+          if (!mounted) return;
+        }
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Delete failed: $e')));

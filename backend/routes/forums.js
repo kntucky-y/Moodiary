@@ -269,8 +269,7 @@ router.delete('/:id', auth, forumWriteLimiter, async (req, res) => {
     );
 
     if (!post) return res.status(404).json({ error: 'Post not found' });
-    const publicUserIds = await buildPublicUserIdSet([post]);
-    res.json({ success: true, post: serializePost(post, req.userId, publicUserIds) });
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -293,8 +292,7 @@ router.post('/:id/recover', auth, forumWriteLimiter, async (req, res) => {
     );
 
     if (!post) return res.status(404).json({ error: 'Post not found' });
-    const publicUserIds = await buildPublicUserIdSet([post]);
-    res.json({ success: true, post: serializePost(post, req.userId, publicUserIds) });
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

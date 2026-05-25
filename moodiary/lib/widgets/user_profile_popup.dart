@@ -98,6 +98,47 @@ class _UserProfilePopup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return _UserProfilePopupBody(
+      userId: userId,
+      loadProfile: _loadProfile,
+      formatDate: _formatDate,
+      excerpt: _excerpt,
+      reportUser: _reportUser,
+    );
+  }
+}
+
+class _UserProfilePopupBody extends StatefulWidget {
+  final String userId;
+  final Future<Map<String, dynamic>> Function() loadProfile;
+  final String Function(DateTime dateTime) formatDate;
+  final String Function(String text) excerpt;
+  final Future<void> Function(BuildContext context, String displayName)
+  reportUser;
+
+  const _UserProfilePopupBody({
+    required this.userId,
+    required this.loadProfile,
+    required this.formatDate,
+    required this.excerpt,
+    required this.reportUser,
+  });
+
+  @override
+  State<_UserProfilePopupBody> createState() => _UserProfilePopupBodyState();
+}
+
+class _UserProfilePopupBodyState extends State<_UserProfilePopupBody> {
+  late final Future<Map<String, dynamic>> _profileFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _profileFuture = widget.loadProfile();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Dialog(
@@ -108,7 +149,7 @@ class _UserProfilePopup extends StatelessWidget {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 460, maxHeight: 700),
         child: FutureBuilder<Map<String, dynamic>>(
-          future: _loadProfile(),
+          future: _profileFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return GlassContainer(
@@ -190,7 +231,7 @@ class _UserProfilePopup extends StatelessWidget {
             final avatarUrl = user['avatarUrl'] as String?;
             final createdAtRaw = user['createdAt'] as String?;
             final joinedDate = createdAtRaw != null
-                ? _formatDate(DateTime.parse(createdAtRaw).toLocal())
+                ? widget.formatDate(DateTime.parse(createdAtRaw).toLocal())
                 : 'Unknown';
 
             return GlassContainer(
@@ -583,7 +624,7 @@ class _UserProfilePopup extends StatelessWidget {
                                             ),
                                             const SizedBox(height: 4),
                                             Text(
-                                              _excerpt(
+                                              widget.excerpt(
                                                 (post['content'] as String?) ??
                                                     '',
                                               ),
@@ -627,16 +668,16 @@ class _UserProfilePopup extends StatelessWidget {
                           const SizedBox(height: 6),
                           Row(
                             children: [
-                              _MuteToggleButton(targetUserId: userId),
+                              _MuteToggleButton(targetUserId: widget.userId),
                               const SizedBox(width: 8),
-                              _BlockToggleButton(targetUserId: userId),
+                              _BlockToggleButton(targetUserId: widget.userId),
                             ],
                           ),
                           const SizedBox(height: 8),
                           SizedBox(
                             width: double.infinity,
                             child: OutlinedButton.icon(
-                              onPressed: () => _reportUser(context, name),
+                              onPressed: () => widget.reportUser(context, name),
                               icon: const Icon(Icons.flag_outlined),
                               label: const Text('Report user'),
                               style: OutlinedButton.styleFrom(
