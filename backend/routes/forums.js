@@ -57,7 +57,12 @@ function serializePost(
     isMine,
     likedByMe,
     createdAt: post.createdAt,
-    commentCount: Array.isArray(post.comments) ? post.comments.length : 0,
+    commentCount:
+      typeof post.commentCount === 'number'
+        ? post.commentCount
+        : Array.isArray(post.comments)
+          ? post.comments.length
+          : 0,
     comments: includeComments
       ? post.comments.map((comment) => ({
           id: String(comment._id),
@@ -117,13 +122,29 @@ router.get('/', auth, async (req, res) => {
     const query = archived
       ? { isArchived: true, userId: req.userId }
       : { isArchived: { $ne: true } };
-    const posts = await ForumPost.find(query)
-      .select(
-        '_id userId title content isAnonymous authorName authorAvatarUrl companionId likedBy createdAt comments',
-      )
-      .sort({ createdAt: -1 })
-      .limit(80)
-      .lean();
+    const posts = await ForumPost.aggregate([
+      { $match: query },
+      { $sort: { createdAt: -1 } },
+      { $limit: 60 },
+      {
+        $project: {
+          _id: 1,
+          userId: 1,
+          title: 1,
+          content: 1,
+          isAnonymous: 1,
+          authorName: 1,
+          authorAvatarUrl: 1,
+          companionId: 1,
+          likedBy: 1,
+          createdAt: 1,
+          commentCount: {
+            $size: { $ifNull: ['$comments', []] },
+          },
+          comments: [],
+        },
+      },
+    ]);
     const publicUserIds = await buildPublicUserIdSet(posts, {
       includeCommentAuthors: false,
     });

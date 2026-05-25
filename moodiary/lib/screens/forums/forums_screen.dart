@@ -116,8 +116,10 @@ class _ForumsScreenState extends State<ForumsScreen> {
       setState(() {
         _posts = posts;
         _activePostId = decoded['activePostId'] as String?;
-        _showMineOnly = (decoded['showMineOnly'] as bool?) ?? false;
-        _showArchived = (decoded['showArchived'] as bool?) ?? false;
+        // Always reopen forums in the default public feed to avoid
+        // accidentally showing an empty filtered/archive view.
+        _showMineOnly = false;
+        _showArchived = false;
         _loading = posts.isEmpty;
       });
     } catch (_) {
@@ -159,8 +161,6 @@ class _ForumsScreenState extends State<ForumsScreen> {
           )
           .toList(),
       'activePostId': _activePostId,
-      'showMineOnly': _showMineOnly,
-      'showArchived': _showArchived,
     };
     await prefs.setString(_kForumsCacheKey, jsonEncode(cache));
   }
