@@ -2,6 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../services/auth_service.dart';
+import '../../services/local_notifications_service.dart';
+import '../../services/realtime_notifications.dart';
+import '../../services/theme_controller.dart';
+import '../../utils/transitions.dart';
+import '../../utils/user_cache.dart';
+import '../onboarding/onboarding_screen.dart';
 
 class AccountManagementScreen extends StatefulWidget {
   const AccountManagementScreen({super.key});
@@ -196,12 +202,22 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
 
       if (mounted) {
         final prefs = await SharedPreferences.getInstance();
-        await prefs.clear();
+        await UserCache.clear(prefs);
+        await prefs.remove('token');
+        await prefs.remove('user_name');
+        await prefs.remove('user_id');
+        await prefs.remove('last_user_id');
+        await prefs.remove('user_avatar_url');
+        await prefs.remove('mbti_latest_type');
+        RealtimeNotifications.instance.disconnect();
+        await ThemeController.instance.resetToDefault();
+        await LocalNotificationsService.instance.cancelAllScheduled();
 
         if (mounted) {
-          Navigator.of(
-            context,
-          ).pushNamedAndRemoveUntil('/onboarding', (route) => false);
+          Navigator.of(context).pushAndRemoveUntil(
+            FadeSlideRoute(page: const OnboardingScreen()),
+            (_) => false,
+          );
         }
       }
     } catch (e) {

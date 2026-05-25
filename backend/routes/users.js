@@ -11,6 +11,10 @@ const UserReport = require('../models/UserReport');
 const MbtiTestAttempt = require('../models/MbtiTestAttempt');
 const Friendship = require('../models/Friendship');
 const FriendRequest = require('../models/FriendRequest');
+const FriendChatState = require('../models/FriendChatState');
+const FriendMessage = require('../models/FriendMessage');
+const JournalEntry = require('../models/JournalEntry');
+const NotificationHistory = require('../models/NotificationHistory');
 const auth = require('../middleware/auth');
 const { createRateLimiter } = require('../middleware/rate_limit');
 const { scoreMbti } = require('../utils/mbti');
@@ -692,7 +696,26 @@ router.delete('/:id', auth, profileUpdateLimiter, async (req, res) => {
       return res.status(401).json({ error: 'Incorrect password' });
     }
 
-    // Delete user
+    await Promise.all([
+      MoodLog.deleteMany({ userId: req.userId }),
+      ForumPost.deleteMany({ userId: req.userId }),
+      MbtiTestAttempt.deleteMany({ userId: req.userId }),
+      JournalEntry.deleteMany({ userId: req.userId }),
+      NotificationHistory.deleteMany({ recipient: req.userId }),
+      Friendship.deleteMany({ members: req.userId }),
+      FriendRequest.deleteMany({
+        $or: [{ requester: req.userId }, { recipient: req.userId }],
+      }),
+      FriendMessage.deleteMany({ sender: req.userId }),
+      FriendChatState.deleteMany({ user: req.userId }),
+      User.updateMany({}, {
+        $pull: {
+          blockedUsers: req.userId,
+          mutedUsers: req.userId,
+        },
+      }),
+    ]);
+
     await User.findByIdAndDelete(req.params.id);
 
     res.json({ message: 'Account deleted successfully' });

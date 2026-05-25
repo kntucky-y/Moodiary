@@ -82,6 +82,7 @@ class _ForumsScreenState extends State<ForumsScreen> {
   List<_ForumPost> _posts = [];
   final Set<String> _likeBusyPostIds = <String>{};
   final Set<String> _workingPostIds = <String>{};
+  final Set<String> _loadingDetailPostIds = <String>{};
   final Random _random = Random();
 
   @override
@@ -141,6 +142,7 @@ class _ForumsScreenState extends State<ForumsScreen> {
               'likes': post.likes,
               'likedByMe': post.likedByMe,
               'isMine': post.isMine,
+              'commentCount': post.commentCount,
               'comments': post.comments
                   .map(
                     (comment) => {
@@ -241,6 +243,38 @@ class _ForumsScreenState extends State<ForumsScreen> {
             content: Text('Failed to load forums. Please try again.'),
           ),
         );
+      }
+    }
+  }
+
+  Future<void> _fetchPostDetail(String postId) async {
+    if (_token == null || _loadingDetailPostIds.contains(postId)) return;
+    setState(() => _loadingDetailPostIds.add(postId));
+    try {
+      final resp = await http
+          .get(
+            Uri.parse('$_kBaseUrl/api/forums/$postId'),
+            headers: _authHeaders,
+          )
+          .timeout(const Duration(seconds: 20));
+      if (!mounted) return;
+      if (resp.statusCode == 200) {
+        final updated = _ForumPost.fromJson(
+          jsonDecode(resp.body) as Map<String, dynamic>,
+        );
+        final index = _posts.indexWhere((p) => p.id == postId);
+        if (index >= 0) {
+          setState(() {
+            _posts[index] = updated;
+          });
+          await _savePostsCache();
+        }
+      }
+    } catch (_) {
+      // Keep the lightweight post card if detail loading fails.
+    } finally {
+      if (mounted) {
+        setState(() => _loadingDetailPostIds.remove(postId));
       }
     }
   }
@@ -607,6 +641,7 @@ class _ForumsScreenState extends State<ForumsScreen> {
       _activePostId = postId;
       _fabExpanded = false;
     });
+    unawaited(_fetchPostDetail(postId));
   }
 
   void _closePostDetail() {
@@ -949,6 +984,8 @@ class _ForumsScreenState extends State<ForumsScreen> {
       }
     }
     final detailPost = activePost;
+    final detailLoading =
+        detailPost != null && _loadingDetailPostIds.contains(detailPost.id);
 
     return Scaffold(
       backgroundColor: context.mdScaffold,
@@ -1129,6 +1166,7 @@ class _ForumsScreenState extends State<ForumsScreen> {
                                         )
                                       : null,
                                   onAddComment: _addComment,
+                                  loadingComments: detailLoading,
                                 )
                               : _ForumListView(
                                   key: const ValueKey('forum-list'),
@@ -1357,6 +1395,7 @@ class _ForumListView extends StatelessWidget {
 class _ForumDetailView extends StatefulWidget {
   final _ForumPost post;
   final bool showArchivedActions;
+  final bool loadingComments;
   final ValueChanged<String> onOpenPost;
   final VoidCallback onClose;
   final VoidCallback onLikeTap;
@@ -1370,6 +1409,7 @@ class _ForumDetailView extends StatefulWidget {
     super.key,
     required this.post,
     required this.showArchivedActions,
+    required this.loadingComments,
     required this.onOpenPost,
     required this.onClose,
     required this.onLikeTap,
@@ -1443,6 +1483,11 @@ class _ForumDetailViewState extends State<_ForumDetailView> {
                   ],
                 ),
                 const SizedBox(height: 10),
+                if (widget.loadingComments)
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 10),
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
                 ...post.comments.map(
                   (c) => GlassContainer(
                     blurSigma: context.mdGlassBlurSmall,
@@ -1861,6 +1906,7 @@ class _ForumPost {
   final int companionId;
   final bool isMine;
   final List<_ForumComment> comments;
+  final int commentCount;
   int likes;
   bool likedByMe;
 
@@ -1875,6 +1921,7 @@ class _ForumPost {
     required this.companionId,
     required this.isMine,
     required this.comments,
+    required this.commentCount,
     required this.likes,
     required this.likedByMe,
   });
@@ -1894,12 +1941,13 @@ class _ForumPost {
       comments: rawComments
           .map((e) => _ForumComment.fromJson(e as Map<String, dynamic>))
           .toList(),
+      commentCount:
+          (json['commentCount'] as int?) ??
+          (json['comments'] as List<dynamic>? ?? const []).length,
       likes: (json['likes'] as int?) ?? 0,
       likedByMe: (json['likedByMe'] as bool?) ?? false,
     );
   }
-
-  int get commentCount => comments.length;
 
   Color get cardColor {
     final idx = id.hashCode.abs() % _kCardPalette.length;

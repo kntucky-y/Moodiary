@@ -29,7 +29,12 @@ function canExposeIdentity({ userId, isAnonymous, currentUserId, publicUserIds }
   return publicUserIds.has(String(userId));
 }
 
-function serializePost(post, currentUserId, publicUserIds) {
+function serializePost(
+  post,
+  currentUserId,
+  publicUserIds,
+  { includeComments = true } = {},
+) {
   const likedByMe = post.likedBy.some((id) => sameObjectId(id, currentUserId));
   const isMine = sameObjectId(post.userId, currentUserId);
   const postIdentityVisible = canExposeIdentity({
@@ -52,40 +57,45 @@ function serializePost(post, currentUserId, publicUserIds) {
     isMine,
     likedByMe,
     createdAt: post.createdAt,
-    comments: post.comments.map((comment) => ({
-      id: String(comment._id),
-      text: comment.text,
-      moodAsset: comment.moodAsset || DEFAULT_COMMENT_ASSET,
-      isAnonymous: comment.isAnonymous,
-      authorId: canExposeIdentity({
-        userId: comment.userId,
-        isAnonymous: comment.isAnonymous,
-        currentUserId,
-        publicUserIds,
-      })
-        ? String(comment.userId)
-        : null,
-      authorName: comment.isAnonymous ? 'Anonymous' : comment.authorName,
-      authorAvatarUrl:
-        canExposeIdentity({
-          userId: comment.userId,
+    commentCount: Array.isArray(post.comments) ? post.comments.length : 0,
+    comments: includeComments
+      ? post.comments.map((comment) => ({
+          id: String(comment._id),
+          text: comment.text,
+          moodAsset: comment.moodAsset || DEFAULT_COMMENT_ASSET,
           isAnonymous: comment.isAnonymous,
-          currentUserId,
-          publicUserIds,
-        }) && comment.authorAvatarUrl
-          ? comment.authorAvatarUrl
-          : null,
-      createdAt: comment.createdAt,
-    })),
+          authorId: canExposeIdentity({
+            userId: comment.userId,
+            isAnonymous: comment.isAnonymous,
+            currentUserId,
+            publicUserIds,
+          })
+            ? String(comment.userId)
+            : null,
+          authorName: comment.isAnonymous ? 'Anonymous' : comment.authorName,
+          authorAvatarUrl:
+            canExposeIdentity({
+              userId: comment.userId,
+              isAnonymous: comment.isAnonymous,
+              currentUserId,
+              publicUserIds,
+            }) && comment.authorAvatarUrl
+              ? comment.authorAvatarUrl
+              : null,
+          createdAt: comment.createdAt,
+        }))
+      : [],
   };
 }
 
-async function buildPublicUserIdSet(posts) {
+async function buildPublicUserIdSet(posts, { includeCommentAuthors = true } = {}) {
   const authorIds = new Set();
   for (const post of posts) {
     if (post?.userId) authorIds.add(String(post.userId));
-    for (const comment of post?.comments || []) {
-      if (comment?.userId) authorIds.add(String(comment.userId));
+    if (includeCommentAuthors) {
+      for (const comment of post?.comments || []) {
+        if (comment?.userId) authorIds.add(String(comment.userId));
+      }
     }
   }
 
@@ -109,13 +119,40 @@ router.get('/', auth, async (req, res) => {
       : { isArchived: { $ne: true } };
     const posts = await ForumPost.find(query)
       .select(
-        '_id userId title content isAnonymous authorName authorAvatarUrl companionId likedBy comments createdAt',
+        '_id userId title content isAnonymous authorName authorAvatarUrl companionId likedBy createdAt comments',
       )
       .sort({ createdAt: -1 })
-      .limit(120)
+      .limit(80)
       .lean();
-    const publicUserIds = await buildPublicUserIdSet(posts);
-    res.json(posts.map((post) => serializePost(post, req.userId, publicUserIds)));
+    const publicUserIds = await buildPublicUserIdSet(posts, {
+      includeCommentAuthors: false,
+    });
+    res.json(
+      posts.map((post) =>
+        serializePost(post, req.userId, publicUserIds, {
+          includeComments: false,
+        }),
+      ),
+    );
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/forums/:id - fetch a single post with full detail
+router.get('/:id', auth, async (req, res) => {
+  try {
+    const post = await ForumPost.findById(req.params.id)
+      .select(
+        '_id userId title content isAnonymous authorName authorAvatarUrl companionId likedBy comments createdAt isArchived',
+      )
+      .lean();
+    if (!post) return res.status(404).json({ error: 'Post not found' });
+    if (post.isArchived && !sameObjectId(post.userId, req.userId)) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+    const publicUserIds = await buildPublicUserIdSet([post]);
+    res.json(serializePost(post, req.userId, publicUserIds));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
