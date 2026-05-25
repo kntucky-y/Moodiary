@@ -372,10 +372,9 @@ class AuthService {
       '$kBackendBaseUrl/api/users/$userId/mbti/history?limit=$limit&offset=$offset',
     );
     try {
-      final response = await _client.get(
-        uri,
-        headers: {'Authorization': 'Bearer $authToken'},
-      );
+      final response = await _client
+          .get(uri, headers: {'Authorization': 'Bearer $authToken'})
+          .timeout(_requestTimeout);
       final decoded = jsonDecode(response.body) as Map<String, dynamic>;
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -389,6 +388,9 @@ class AuthService {
     } catch (error) {
       if (error is AuthException) {
         rethrow;
+      }
+      if (error is TimeoutException) {
+        throw AuthException('Request timed out. Please try again.');
       }
       throw AuthException('Cannot reach the server. Please try again.');
     }

@@ -205,22 +205,32 @@ class _ForumsScreenState extends State<ForumsScreen> {
         await _savePostsCache();
       } else {
         setState(() => _loading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load forums: ${resp.body}')),
-        );
+        if (!silent || _posts.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to load forums. Please try again.'),
+            ),
+          );
+        }
       }
     } on TimeoutException {
       if (!mounted) return;
       setState(() => _loading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Forums timed out. Please try again.')),
-      );
+      if (!silent || _posts.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Forums timed out. Please try again.')),
+        );
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() => _loading = false);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to load forums: $e')));
+      if (!silent || _posts.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to load forums. Please try again.'),
+          ),
+        );
+      }
     }
   }
 

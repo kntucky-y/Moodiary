@@ -153,33 +153,24 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   Future<Map<String, dynamic>> _loadProfileBundle() async {
     final prefs = await SharedPreferences.getInstance();
     final userName = prefs.getString('user_name');
-    final profile = await AuthService.instance.getUserProfile(
+    final profileFuture = AuthService.instance.getUserProfile(
       userId: _userId,
       authToken: _authToken,
     );
+    final postsFuture = AuthService.instance
+        .getMyForumPosts(authToken: _authToken, userName: userName)
+        .catchError((_) => const <Map<String, dynamic>>[]);
+    final mbtiFuture = AuthService.instance
+        .getMbtiHistory(userId: _userId, authToken: _authToken, limit: 5)
+        .then(
+          (mbti) => (mbti['items'] as List<dynamic>? ?? const [])
+              .cast<Map<String, dynamic>>(),
+        )
+        .catchError((_) => const <Map<String, dynamic>>[]);
 
-    List<Map<String, dynamic>> posts = const [];
-    try {
-      posts = await AuthService.instance.getMyForumPosts(
-        authToken: _authToken,
-        userName: userName,
-      );
-    } catch (_) {
-      posts = const [];
-    }
-
-    List<Map<String, dynamic>> mbtiItems = const [];
-    try {
-      final mbti = await AuthService.instance.getMbtiHistory(
-        userId: _userId,
-        authToken: _authToken,
-        limit: 5,
-      );
-      mbtiItems = (mbti['items'] as List<dynamic>? ?? const [])
-          .cast<Map<String, dynamic>>();
-    } catch (_) {
-      mbtiItems = const [];
-    }
+    final profile = await profileFuture;
+    final posts = await postsFuture;
+    final mbtiItems = await mbtiFuture;
 
     return {'profile': profile, 'posts': posts, 'mbtiHistory': mbtiItems};
   }

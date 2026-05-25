@@ -246,10 +246,12 @@ class _FriendsScreenState extends State<FriendsScreen> {
       return;
     }
     try {
-      final resp = await http.get(
-        Uri.parse('$_kBaseUrl/api/friends'),
-        headers: {'Authorization': 'Bearer $_token'},
-      );
+      final resp = await http
+          .get(
+            Uri.parse('$_kBaseUrl/api/friends'),
+            headers: {'Authorization': 'Bearer $_token'},
+          )
+          .timeout(const Duration(seconds: 20));
       if (resp.statusCode == 200) {
         final data = jsonDecode(resp.body) as Map<String, dynamic>;
         final friends = (data['friends'] as List<dynamic>)
@@ -282,6 +284,8 @@ class _FriendsScreenState extends State<FriendsScreen> {
       } else {
         setState(() => _loading = false);
       }
+    } on TimeoutException {
+      setState(() => _loading = false);
     } catch (_) {
       setState(() => _loading = false);
     }
