@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math' show Random;
 
@@ -177,10 +178,12 @@ class _ForumsScreenState extends State<ForumsScreen> {
       setState(() => _loading = true);
     }
     try {
-      final resp = await http.get(
-        Uri.parse('$_kBaseUrl/api/forums?archived=$_showArchived'),
-        headers: _authHeaders,
-      );
+      final resp = await http
+          .get(
+            Uri.parse('$_kBaseUrl/api/forums?archived=$_showArchived'),
+            headers: _authHeaders,
+          )
+          .timeout(const Duration(seconds: 30));
       if (!mounted) return;
       if (resp.statusCode == 200) {
         final data = jsonDecode(resp.body) as List<dynamic>;
@@ -206,6 +209,12 @@ class _ForumsScreenState extends State<ForumsScreen> {
           SnackBar(content: Text('Failed to load forums: ${resp.body}')),
         );
       }
+    } on TimeoutException {
+      if (!mounted) return;
+      setState(() => _loading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Forums timed out. Please try again.')),
+      );
     } catch (e) {
       if (!mounted) return;
       setState(() => _loading = false);

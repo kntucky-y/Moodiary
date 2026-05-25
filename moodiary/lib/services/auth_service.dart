@@ -717,10 +717,9 @@ class AuthService {
   }) async {
     final uri = Uri.parse('$kBackendBaseUrl/api/forums');
     try {
-      final response = await _client.get(
-        uri,
-        headers: {'Authorization': 'Bearer $authToken'},
-      );
+      final response = await _client
+          .get(uri, headers: {'Authorization': 'Bearer $authToken'})
+          .timeout(_requestTimeout);
       if (response.statusCode >= 200 && response.statusCode < 300) {
         final decoded = jsonDecode(response.body) as List<dynamic>;
         return decoded
@@ -735,6 +734,9 @@ class AuthService {
     } catch (error) {
       if (error is AuthException) {
         rethrow;
+      }
+      if (error is TimeoutException) {
+        throw AuthException('Request timed out. Please try again.');
       }
       throw AuthException('Cannot reach the server. Please try again.');
     }
@@ -804,19 +806,17 @@ class AuthService {
       final encodedBody = jsonEncode(body);
       late final http.Response response;
       if (method == 'POST') {
-        response = await _client.post(uri, headers: headers, body: encodedBody);
+        response = await _client
+            .post(uri, headers: headers, body: encodedBody)
+            .timeout(_requestTimeout);
       } else if (method == 'PATCH') {
-        response = await _client.patch(
-          uri,
-          headers: headers,
-          body: encodedBody,
-        );
+        response = await _client
+            .patch(uri, headers: headers, body: encodedBody)
+            .timeout(_requestTimeout);
       } else {
-        response = await _client.delete(
-          uri,
-          headers: headers,
-          body: encodedBody,
-        );
+        response = await _client
+            .delete(uri, headers: headers, body: encodedBody)
+            .timeout(_requestTimeout);
       }
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -826,6 +826,9 @@ class AuthService {
     } catch (error) {
       if (error is AuthException) {
         rethrow;
+      }
+      if (error is TimeoutException) {
+        throw AuthException('Request timed out. Please try again.');
       }
       throw AuthException('Cannot reach the server. Please try again.');
     }
@@ -846,19 +849,17 @@ class AuthService {
       final encodedBody = jsonEncode(body);
       late final http.Response response;
       if (method == 'POST') {
-        response = await _client.post(uri, headers: headers, body: encodedBody);
+        response = await _client
+            .post(uri, headers: headers, body: encodedBody)
+            .timeout(_requestTimeout);
       } else if (method == 'PATCH') {
-        response = await _client.patch(
-          uri,
-          headers: headers,
-          body: encodedBody,
-        );
+        response = await _client
+            .patch(uri, headers: headers, body: encodedBody)
+            .timeout(_requestTimeout);
       } else {
-        response = await _client.delete(
-          uri,
-          headers: headers,
-          body: encodedBody,
-        );
+        response = await _client
+            .delete(uri, headers: headers, body: encodedBody)
+            .timeout(_requestTimeout);
       }
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -870,6 +871,9 @@ class AuthService {
     } catch (error) {
       if (error is AuthException) {
         rethrow;
+      }
+      if (error is TimeoutException) {
+        throw AuthException('Request timed out. Please try again.');
       }
       throw AuthException('Cannot reach the server. Please try again.');
     }
