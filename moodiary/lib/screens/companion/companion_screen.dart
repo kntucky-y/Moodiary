@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -107,16 +109,18 @@ class CompanionScreen extends StatelessWidget {
     await prefs.setString('companion_name', companion.name);
 
     if (!context.mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
-      FadeSlideRoute(
-        page: MoodiaryShell(
-          userName: userName,
-          companionId: companion.id,
-          companionName: companion.name,
-          initialTab: MoodiaryTab.home,
+    unawaited(
+      Navigator.of(context).pushAndRemoveUntil(
+        FadeSlideRoute(
+          page: MoodiaryShell(
+            userName: userName,
+            companionId: companion.id,
+            companionName: companion.name,
+            initialTab: MoodiaryTab.home,
+          ),
         ),
+        (_) => false,
       ),
-      (_) => false,
     );
   }
 
@@ -268,16 +272,18 @@ class _CompanionModal extends StatelessWidget {
     await prefs.setInt('companion_id', companion.id);
     await prefs.setString('companion_name', companion.name);
     if (context.mounted) {
-      Navigator.of(context).pushAndRemoveUntil(
-        FadeSlideRoute(
-          page: MoodiaryShell(
-            userName: userName,
-            companionId: companion.id,
-            companionName: companion.name,
-            initialTab: MoodiaryTab.home,
+      unawaited(
+        Navigator.of(context).pushAndRemoveUntil(
+          FadeSlideRoute(
+            page: MoodiaryShell(
+              userName: userName,
+              companionId: companion.id,
+              companionName: companion.name,
+              initialTab: MoodiaryTab.home,
+            ),
           ),
+          (_) => false,
         ),
-        (_) => false,
       );
     }
   }

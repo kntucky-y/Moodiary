@@ -1,24 +1,27 @@
+import 'dart:async';
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import '../calendar/calendar_screen.dart';
-import '../app_shell.dart';
-import '../companion/companion_screen.dart';
-import '../onboarding/onboarding_screen.dart';
-import '../settings/settings_screen.dart';
-import '../../services/local_notifications_service.dart';
+
 import '../../services/auth_service.dart';
+import '../../services/local_notifications_service.dart';
 import '../../services/realtime_notifications.dart';
 import '../../services/session_store.dart';
 import '../../services/theme_controller.dart';
-import '../../utils/transitions.dart';
-import '../../widgets/app_sidebar.dart';
-import '../../widgets/glass.dart';
 import '../../theme/moodiary_colors.dart';
 import '../../utils/route_observer.dart';
+import '../../utils/transitions.dart';
 import '../../utils/user_cache.dart';
+import '../../widgets/app_sidebar.dart';
+import '../../widgets/glass.dart';
+import '../app_shell.dart';
+import '../calendar/calendar_screen.dart';
+import '../companion/companion_screen.dart';
+import '../onboarding/onboarding_screen.dart';
+import '../settings/settings_screen.dart';
 
 const _kPurple = Color(0xFFA076F9);
 const _kSubtle = Color(0xFF8A8A8D);
@@ -120,7 +123,6 @@ class _JournalScreenState extends State<JournalScreen> with RouteAware {
   }
 
   Future<void> _init() async {
-    final prefs = await SharedPreferences.getInstance();
     _token = await SessionStore.instance.readToken();
     await _fetchEntries(archived: false, force: true);
   }
@@ -204,7 +206,7 @@ class _JournalScreenState extends State<JournalScreen> with RouteAware {
     Navigator.of(context).push(FadeSlideRoute(page: page));
   }
 
-  void _openShellTab(MoodiaryTab tab, {bool fromSidebar = false}) {
+  void _openShellTab(MoodiaryTab tab) {
     _closeSidebar();
     Navigator.of(context).pushAndRemoveUntil(
       FadeSlideRoute(
@@ -232,9 +234,11 @@ class _JournalScreenState extends State<JournalScreen> with RouteAware {
     await ThemeController.instance.resetToDefault();
     await LocalNotificationsService.instance.cancelAllScheduled();
     if (!mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
-      FadeSlideRoute(page: const OnboardingScreen()),
-      (_) => false,
+    unawaited(
+      Navigator.of(context).pushAndRemoveUntil(
+        FadeSlideRoute(page: const OnboardingScreen()),
+        (_) => false,
+      ),
     );
   }
 
@@ -392,7 +396,7 @@ class _JournalScreenState extends State<JournalScreen> with RouteAware {
     }
   }
 
-  void _openEditor({_JournalEntry? existing}) async {
+  Future<void> _openEditor({_JournalEntry? existing}) async {
     setState(() => _fabExpanded = false);
     final result = await Navigator.of(context).push<bool>(
       FadeSlideRoute(

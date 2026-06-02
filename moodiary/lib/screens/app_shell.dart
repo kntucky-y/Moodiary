@@ -3,8 +3,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../theme/moodiary_colors.dart';
 import '../widgets/glass.dart';
-import 'friends/friends_screen.dart';
 import 'forums/forums_screen.dart';
+import 'friends/friends_screen.dart';
 import 'home/home_screen.dart';
 import 'profile/user_profile_screen.dart';
 import 'resources/resources_screen.dart';
@@ -106,7 +106,7 @@ class _MoodiaryShellState extends State<MoodiaryShell> {
 
   void _selectTab(MoodiaryTab tab, {bool fromSidebar = false}) {
     final nextIndex = tab.index;
-    final hideTopNav = false;
+    const hideTopNav = false;
     if (_index == nextIndex) {
       return;
     }

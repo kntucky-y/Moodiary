@@ -7,7 +7,7 @@ import 'package:image_picker/image_picker.dart';
 Future<Uint8List?> pickAvatarBytesImpl() async {
   if (Platform.isWindows) {
     final script = [
-      r"Add-Type -AssemblyName System.Windows.Forms",
+      r'Add-Type -AssemblyName System.Windows.Forms',
       r'$dialog = New-Object System.Windows.Forms.OpenFileDialog',
       r'$dialog.Title = "Select avatar image"',
       r'$dialog.Filter = "Image Files (*.png;*.jpg;*.jpeg;*.webp)|*.png;*.jpg;*.jpeg;*.webp|All files (*.*)|*.*"',

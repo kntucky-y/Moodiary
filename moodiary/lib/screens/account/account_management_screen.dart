@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -213,9 +215,11 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
         await LocalNotificationsService.instance.cancelAllScheduled();
 
         if (mounted) {
-          Navigator.of(context).pushAndRemoveUntil(
-            FadeSlideRoute(page: const OnboardingScreen()),
-            (_) => false,
+          unawaited(
+            Navigator.of(context).pushAndRemoveUntil(
+              FadeSlideRoute(page: const OnboardingScreen()),
+              (_) => false,
+            ),
           );
         }
       }

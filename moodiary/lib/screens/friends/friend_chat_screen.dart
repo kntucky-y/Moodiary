@@ -5,14 +5,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:socket_io_client/socket_io_client.dart' as io;
+
 import '../../services/auth_service.dart';
 import '../../services/realtime_notifications.dart';
-import '../forums/forums_screen.dart';
-import '../../utils/transitions.dart';
 import '../../theme/moodiary_colors.dart';
 import '../../utils/avatar_utils.dart';
+import '../../utils/transitions.dart';
 import '../../widgets/glass.dart';
 import '../../widgets/user_profile_popup.dart';
+import '../forums/forums_screen.dart';
 
 const _kBaseUrl = kBackendBaseUrl;
 const _kPurple = Color(0xFFA076F9);
@@ -299,7 +300,7 @@ class _FriendChatScreenState extends State<FriendChatScreen>
     if (text.isEmpty || _token == null) return;
     if (text.length > _kMaxMessageLength) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Text(
             'Message is too long (max $_kMaxMessageLength characters).',
           ),
@@ -877,13 +878,15 @@ class _FriendChatScreenState extends State<FriendChatScreen>
               },
               onOpenForumPost: (postId) async {
                 if (!context.mounted) return;
-                Navigator.of(context).push(
-                  FadeSlideRoute(
-                    page: ForumsScreen(
-                      userName: _userName,
-                      companionId: _companionId,
-                      companionName: _companionName,
-                      initialPostId: postId,
+                unawaited(
+                  Navigator.of(context).push(
+                    FadeSlideRoute(
+                      page: ForumsScreen(
+                        userName: _userName,
+                        companionId: _companionId,
+                        companionName: _companionName,
+                        initialPostId: postId,
+                      ),
                     ),
                   ),
                 );

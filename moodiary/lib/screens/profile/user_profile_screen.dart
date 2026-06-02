@@ -18,9 +18,9 @@ import '../../utils/user_cache.dart';
 import '../../widgets/app_sidebar.dart';
 import '../../widgets/glass.dart';
 import '../../widgets/user_profile_popup.dart';
+import '../app_shell.dart';
 import '../calendar/calendar_screen.dart';
 import '../companion/companion_screen.dart';
-import '../app_shell.dart';
 import '../journal/journal_screen.dart';
 import '../onboarding/onboarding_screen.dart';
 import '../settings/settings_screen.dart';
@@ -110,7 +110,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     if (rawCache != null) {
       try {
         final decoded = jsonDecode(rawCache) as List<dynamic>;
-        final index = decoded.indexWhere((e) => e['dateKey'] == dateKey);
+        final index = decoded.indexWhere(
+          (e) => e is Map<String, dynamic> && e['dateKey'] == dateKey,
+        );
         if (index >= 0) {
           final todayLog = decoded[index] as Map<String, dynamic>;
           final rawScore = todayLog['score'];
@@ -144,7 +146,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       setState(() {
         _profileFuture = Future.value(cachedBundle);
       });
-      _refreshProfileBundleInBackground();
+      unawaited(_refreshProfileBundleInBackground());
     } else {
       setState(() {
         _profileFuture = _loadProfileBundle();
@@ -355,7 +357,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     Navigator.of(context).push(FadeSlideRoute(page: page));
   }
 
-  void _openShellTab(MoodiaryTab tab, {bool fromSidebar = false}) {
+  void _openShellTab(MoodiaryTab tab) {
     _setSidebarOpen(false);
     final onShellTabSelected = widget.onShellTabSelected;
     if (onShellTabSelected != null) {
@@ -386,9 +388,11 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     await ThemeController.instance.resetToDefault();
     await LocalNotificationsService.instance.cancelAllScheduled();
     if (!mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
-      FadeSlideRoute(page: const OnboardingScreen()),
-      (_) => false,
+    unawaited(
+      Navigator.of(context).pushAndRemoveUntil(
+        FadeSlideRoute(page: const OnboardingScreen()),
+        (_) => false,
+      ),
     );
   }
 
@@ -587,10 +591,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                     }
 
                     final bundle = snapshot.data;
-                    final userData =
-                        bundle?['profile']?['user'] as Map<String, dynamic>?;
+                    final profile = bundle?['profile'] as Map<String, dynamic>?;
+                    final userData = profile?['user'] as Map<String, dynamic>?;
                     final partner =
-                        bundle?['profile']?['partner'] as Map<String, dynamic>?;
+                        profile?['partner'] as Map<String, dynamic>?;
                     if (userData == null) {
                       return const Center(child: Text('Profile not found'));
                     }

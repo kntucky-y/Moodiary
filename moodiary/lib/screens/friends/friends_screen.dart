@@ -5,27 +5,27 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../calendar/calendar_screen.dart';
-import '../journal/journal_screen.dart';
-import '../forums/forums_screen.dart';
-import '../app_shell.dart';
-import '../companion/companion_screen.dart';
-import '../onboarding/onboarding_screen.dart';
-import '../settings/settings_screen.dart';
-import '../../services/local_notifications_service.dart';
 import '../../services/auth_service.dart';
-import '../../utils/transitions.dart';
-import '../../widgets/app_sidebar.dart';
+import '../../services/local_notifications_service.dart';
 import '../../services/realtime_notifications.dart';
 import '../../services/session_store.dart';
 import '../../services/theme_controller.dart';
 import '../../theme/moodiary_colors.dart';
 import '../../utils/avatar_utils.dart';
+import '../../utils/transitions.dart';
 import '../../utils/user_cache.dart';
-import '../../widgets/user_profile_popup.dart';
+import '../../widgets/app_sidebar.dart';
 import '../../widgets/glass.dart';
-import 'user_discovery_screen.dart';
+import '../../widgets/user_profile_popup.dart';
+import '../app_shell.dart';
+import '../calendar/calendar_screen.dart';
+import '../companion/companion_screen.dart';
+import '../forums/forums_screen.dart';
+import '../journal/journal_screen.dart';
+import '../onboarding/onboarding_screen.dart';
+import '../settings/settings_screen.dart';
 import 'friend_chat_screen.dart';
+import 'user_discovery_screen.dart';
 
 const _kBaseUrl = kBackendBaseUrl;
 const _kPurple = Color(0xFFA076F9);
@@ -518,7 +518,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
     Navigator.of(context).push(FadeSlideRoute(page: page));
   }
 
-  void _openShellTab(MoodiaryTab tab, {bool fromSidebar = false}) {
+  void _openShellTab(MoodiaryTab tab) {
     _closeSidebar();
     final onShellTabSelected = widget.onShellTabSelected;
     if (onShellTabSelected != null) {
@@ -550,16 +550,20 @@ class _FriendsScreenState extends State<FriendsScreen> {
     await ThemeController.instance.resetToDefault();
     await LocalNotificationsService.instance.cancelAllScheduled();
     if (!mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
-      FadeSlideRoute(page: const OnboardingScreen()),
-      (_) => false,
+    unawaited(
+      Navigator.of(context).pushAndRemoveUntil(
+        FadeSlideRoute(page: const OnboardingScreen()),
+        (_) => false,
+      ),
     );
   }
 
   void _openAddFriendSheet() {
-    Navigator.of(
-      context,
-    ).push(FadeSlideRoute(page: const UserDiscoveryScreen()));
+    unawaited(
+      Navigator.of(
+        context,
+      ).push(FadeSlideRoute(page: const UserDiscoveryScreen())),
+    );
   }
 
   void _openChat(_FriendSummary friend) {
@@ -570,18 +574,20 @@ class _FriendsScreenState extends State<FriendsScreen> {
       );
       return;
     }
-    Navigator.of(context).push(
-      FadeSlideRoute(
-        page: FriendChatScreen(
-          friendshipId: friend.id,
-          friendUserId: friend.friendUserId,
-          friendName: friend.name,
-          friendEmail: friend.email,
-          friendAvatarUrl: friend.avatarUrl,
-          authToken: token,
-          userName: _currentUserName,
-          companionId: widget.companionId,
-          companionName: widget.companionName,
+    unawaited(
+      Navigator.of(context).push(
+        FadeSlideRoute(
+          page: FriendChatScreen(
+            friendshipId: friend.id,
+            friendUserId: friend.friendUserId,
+            friendName: friend.name,
+            friendEmail: friend.email,
+            friendAvatarUrl: friend.avatarUrl,
+            authToken: token,
+            userName: _currentUserName,
+            companionId: widget.companionId,
+            companionName: widget.companionName,
+          ),
         ),
       ),
     );
@@ -593,13 +599,15 @@ class _FriendsScreenState extends State<FriendsScreen> {
       userId: friend.friendUserId,
     );
     if (selectedPostId == null || !mounted) return;
-    Navigator.of(context).push(
-      FadeSlideRoute(
-        page: ForumsScreen(
-          userName: _currentUserName,
-          companionId: widget.companionId,
-          companionName: widget.companionName,
-          initialPostId: selectedPostId,
+    unawaited(
+      Navigator.of(context).push(
+        FadeSlideRoute(
+          page: ForumsScreen(
+            userName: _currentUserName,
+            companionId: widget.companionId,
+            companionName: widget.companionName,
+            initialPostId: selectedPostId,
+          ),
         ),
       ),
     );
@@ -705,7 +713,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
                 child: Container(
                   decoration: BoxDecoration(
                     color: context.mdSurface,
-                    borderRadius: BorderRadius.vertical(
+                    borderRadius: const BorderRadius.vertical(
                       top: Radius.circular(40),
                     ),
                   ),

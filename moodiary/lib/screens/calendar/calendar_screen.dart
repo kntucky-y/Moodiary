@@ -1,25 +1,28 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
+
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import '../app_shell.dart';
-import '../journal/journal_screen.dart';
-import '../companion/companion_screen.dart';
-import '../onboarding/onboarding_screen.dart';
-import '../settings/settings_screen.dart';
-import '../../utils/transitions.dart';
-import '../../widgets/app_sidebar.dart';
-import '../../services/local_notifications_service.dart';
+
 import '../../services/auth_service.dart';
+import '../../services/local_notifications_service.dart';
 import '../../services/realtime_notifications.dart';
 import '../../services/session_store.dart';
 import '../../services/theme_controller.dart';
 import '../../theme/moodiary_colors.dart';
-import '../../widgets/glass.dart';
 import '../../utils/route_observer.dart';
+import '../../utils/transitions.dart';
 import '../../utils/user_cache.dart';
+import '../../widgets/app_sidebar.dart';
+import '../../widgets/glass.dart';
+import '../app_shell.dart';
+import '../companion/companion_screen.dart';
+import '../journal/journal_screen.dart';
+import '../onboarding/onboarding_screen.dart';
+import '../settings/settings_screen.dart';
 
 const _kPurple = Color(0xFFA076F9);
 const _kSubtle = Color(0xFF8A8A8D);
@@ -200,7 +203,7 @@ class _CalendarScreenState extends State<CalendarScreen> with RouteAware {
     await RealtimeNotifications.instance.ensureConnected(token: _token);
     // Load from local cache instantly, then refresh from DB in background
     _loadFromCache(prefs);
-    _fetchLogs(prefs);
+    unawaited(_fetchLogs(prefs));
   }
 
   Future<void> _refreshLogs() async {
@@ -264,7 +267,7 @@ class _CalendarScreenState extends State<CalendarScreen> with RouteAware {
     Navigator.of(context).push(FadeSlideRoute(page: page));
   }
 
-  void _openShellTab(MoodiaryTab tab, {bool fromSidebar = false}) {
+  void _openShellTab(MoodiaryTab tab) {
     _closeSidebar();
     Navigator.of(context).pushAndRemoveUntil(
       FadeSlideRoute(
@@ -292,9 +295,11 @@ class _CalendarScreenState extends State<CalendarScreen> with RouteAware {
     await ThemeController.instance.resetToDefault();
     await LocalNotificationsService.instance.cancelAllScheduled();
     if (!mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
-      FadeSlideRoute(page: const OnboardingScreen()),
-      (_) => false,
+    unawaited(
+      Navigator.of(context).pushAndRemoveUntil(
+        FadeSlideRoute(page: const OnboardingScreen()),
+        (_) => false,
+      ),
     );
   }
 
@@ -526,7 +531,7 @@ class _CalendarScreenState extends State<CalendarScreen> with RouteAware {
                   fontWeight: FontWeight.bold,
                   color: primaryText,
                 ),
-                children: [
+                children: const [
                   TextSpan(text: 'M'),
                   TextSpan(
                     text: 'oo',
@@ -688,11 +693,11 @@ class _CalendarScreenState extends State<CalendarScreen> with RouteAware {
         ),
         const SizedBox(height: 16),
         // Legend
-        Wrap(
+        const Wrap(
           alignment: WrapAlignment.center,
           spacing: 12,
           runSpacing: 6,
-          children: const [
+          children: [
             _LegendDot(color: Color(0xFF10B981), label: 'High'),
             _LegendDot(color: Color(0xFF84CC16), label: 'Good'),
             _LegendDot(color: Color(0xFFFACC15), label: 'Moderate'),

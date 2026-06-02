@@ -65,5 +65,4 @@ class DefaultFirebaseOptions {
     storageBucket: 'moodiary-notifs-2026-92842.firebasestorage.app',
     iosBundleId: 'com.example.moodiary',
   );
-
 }

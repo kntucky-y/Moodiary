@@ -1,28 +1,30 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:url_launcher/url_launcher.dart';
-import '../onboarding/onboarding_screen.dart';
-import '../companion/companion_screen.dart';
-import '../calendar/calendar_screen.dart';
-import '../journal/journal_screen.dart';
-import '../app_shell.dart';
-import '../profile/user_profile_screen.dart';
-import '../../services/local_notifications_service.dart';
+
 import '../../services/auth_service.dart';
-import '../../services/theme_controller.dart';
-import '../../services/session_store.dart';
-import '../../theme/moodiary_colors.dart';
-import '../../utils/transitions.dart';
-import '../../widgets/app_sidebar.dart';
-import '../../widgets/glass.dart';
+import '../../services/local_notifications_service.dart';
 import '../../services/realtime_notifications.dart';
-import '../settings/settings_screen.dart';
+import '../../services/session_store.dart';
+import '../../services/theme_controller.dart';
+import '../../theme/moodiary_colors.dart';
 import '../../utils/avatar_utils.dart';
 import '../../utils/streak_utils.dart';
+import '../../utils/transitions.dart';
 import '../../utils/user_cache.dart';
+import '../../widgets/app_sidebar.dart';
+import '../../widgets/glass.dart';
+import '../app_shell.dart';
+import '../calendar/calendar_screen.dart';
+import '../companion/companion_screen.dart';
+import '../journal/journal_screen.dart';
+import '../onboarding/onboarding_screen.dart';
+import '../profile/user_profile_screen.dart';
+import '../settings/settings_screen.dart';
 
 const _kPurple = Color(0xFFA076F9);
 
@@ -53,7 +55,6 @@ class _MoodTask {
   final String title;
   final String description;
   final int points;
-  final String? asset;
   final IconData? icon;
   final Color iconColor;
   final Color iconBackground;
@@ -63,7 +64,6 @@ class _MoodTask {
     required this.title,
     required this.description,
     required this.points,
-    this.asset,
     this.icon,
     this.iconColor = _kPurple,
     this.iconBackground = const Color(0xFFF3F0FB),
@@ -501,7 +501,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       await prefs.setString('tasks_completed', 'false,false,false');
       await prefs.setInt('mood_score_$today', 0);
       await _upsertTaskProgressInMoodCache(today, 0);
-      _syncScoreToDb(today, 0);
+      unawaited(_syncScoreToDb(today, 0));
     }
 
     List<bool> completedStates = List<bool>.filled(tasks.length, false);
@@ -593,11 +593,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final cached = prefs.getString('mood_logs_cache');
     if (cached != null) {
       try {
-        final List<dynamic> data = jsonDecode(cached);
-        final entry = data.firstWhere(
-          (d) => d['dateKey'] == today,
-          orElse: () => null,
-        );
+        final data = jsonDecode(cached) as List<dynamic>;
+        final entry =
+            data.firstWhere(
+                  (d) => d is Map<String, dynamic> && d['dateKey'] == today,
+                  orElse: () => null,
+                )
+                as Map<String, dynamic>?;
         if (entry != null) {
           moodActivityScore = (entry['moodScore'] ?? 0) as int;
           activityScore = (entry['activityScore'] ?? 0) as int;
@@ -618,7 +620,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         if (cachedMoodLevel != null) _selectedMood = cachedMoodLevel - 1;
       });
       await _refreshStreak();
-      _entranceCtrl.forward(from: 0);
+      unawaited(_entranceCtrl.forward(from: 0));
     }
   }
 
@@ -840,24 +842,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         _analysisLoading = false;
       });
     }
-  }
-
-  Uri? _normalizeUrl(String raw) {
-    final trimmed = raw.trim();
-    if (trimmed.isEmpty) return null;
-    final withScheme =
-        trimmed.startsWith('http://') || trimmed.startsWith('https://')
-        ? trimmed
-        : 'https://$trimmed';
-    return Uri.tryParse(withScheme);
-  }
-
-  Future<void> _launchUrl(String url) async {
-    final uri = _normalizeUrl(url);
-    if (uri == null) return;
-    try {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } catch (_) {}
   }
 
   Future<void> _loadJournalPreview() async {
@@ -1130,11 +1114,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         cacheData = jsonDecode(rawCache);
       } catch (_) {}
     }
-    final idx = cacheData.indexWhere((d) => d['dateKey'] == today);
+    final idx = cacheData.indexWhere(
+      (d) => d is Map<String, dynamic> && d['dateKey'] == today,
+    );
     if (idx >= 0) {
-      cacheData[idx]['moodLevel'] = index + 1;
-      cacheData[idx]['moodScore'] = newMoodScore;
-      cacheData[idx]['score'] = _taskPoints + newMoodScore;
+      final cacheEntry = cacheData[idx] as Map<String, dynamic>;
+      cacheEntry['moodLevel'] = index + 1;
+      cacheEntry['moodScore'] = newMoodScore;
+      cacheEntry['score'] = _taskPoints + newMoodScore;
     } else {
       cacheData.add({
         'dateKey': today,
@@ -1184,7 +1171,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     await prefs.setInt('mood_score_$today', newTaskPoints);
     await _upsertTaskProgressInMoodCache(today, newTaskPoints);
     await _refreshStreak(showFeedback: true);
-    _syncScoreToDb(today, newTaskPoints);
+    unawaited(_syncScoreToDb(today, newTaskPoints));
   }
 
   Future<void> _undoTask(int index) async {
@@ -1211,11 +1198,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     await prefs.setInt('mood_score_$today', newTaskPoints);
     await _upsertTaskProgressInMoodCache(today, newTaskPoints);
     await _refreshStreak(showFeedback: true);
-    _syncScoreToDb(today, newTaskPoints);
+    unawaited(_syncScoreToDb(today, newTaskPoints));
   }
 
-  void _syncScoreToDb(String dateKey, int taskScore) async {
-    final prefs = await SharedPreferences.getInstance();
+  Future<void> _syncScoreToDb(String dateKey, int taskScore) async {
     final token = await SessionStore.instance.readToken();
     if (token == null) return;
     try {
@@ -1246,7 +1232,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return '${now.year}/${now.month.toString().padLeft(2, '0')}/${now.day.toString().padLeft(2, '0')}';
   }
 
-  void _openShellTab(MoodiaryTab tab, {bool fromSidebar = false}) {
+  void _openShellTab(MoodiaryTab tab) {
     setState(() => _sidebarOpen = false);
     final onShellTabSelected = widget.onShellTabSelected;
     if (onShellTabSelected != null) {
@@ -1293,11 +1279,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     await _loadJournalPreview();
   }
 
-  void _handleCalendarTap() async {
+  Future<void> _handleCalendarTap() async {
     await _openCalendarScreen();
   }
 
-  void _handleJournalTap() async {
+  Future<void> _handleJournalTap() async {
     await _openJournalScreen();
   }
 
@@ -1310,9 +1296,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     await ThemeController.instance.resetToDefault();
     await LocalNotificationsService.instance.cancelAllScheduled();
     if (mounted) {
-      Navigator.of(context).pushAndRemoveUntil(
-        FadeSlideRoute(page: const OnboardingScreen()),
-        (_) => false,
+      unawaited(
+        Navigator.of(context).pushAndRemoveUntil(
+          FadeSlideRoute(page: const OnboardingScreen()),
+          (_) => false,
+        ),
       );
     }
   }
@@ -1652,7 +1640,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         ),
                         const SizedBox(height: 12),
                         if (_tasksLoading)
-                          _TasksLoadingIndicator()
+                          const _TasksLoadingIndicator()
                         else if (_todayTasks.isEmpty)
                           _AiTasksEmptyState(onRetry: _fetchAiInsights)
                         else
@@ -1976,24 +1964,11 @@ class _TaskArtwork extends StatelessWidget {
         Color.lerp(background, Colors.black, 0.05) ?? background;
 
     final fallbackIcon = task.icon ?? Icons.auto_awesome_rounded;
-    Widget content;
-    if (task.asset != null) {
-      content = ClipRRect(
-        borderRadius: BorderRadius.circular(size * 0.25),
-        child: Image.asset(
-          task.asset!,
-          fit: BoxFit.contain,
-          errorBuilder: (context, error, stackTrace) =>
-              _TaskGlyph(icon: fallbackIcon, color: accent, size: size * 0.52),
-        ),
-      );
-    } else {
-      content = _TaskGlyph(
-        icon: fallbackIcon,
-        color: accent,
-        size: size * 0.52,
-      );
-    }
+    final content = _TaskGlyph(
+      icon: fallbackIcon,
+      color: accent,
+      size: size * 0.52,
+    );
 
     return Container(
       width: size,
@@ -3033,7 +3008,6 @@ class _CompanionChatState extends State<_CompanionChat> {
   }
 
   Future<void> _init() async {
-    final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
     _token = await SessionStore.instance.readToken();
     await _loadHistory();
@@ -3055,15 +3029,15 @@ class _CompanionChatState extends State<_CompanionChat> {
         headers: {'Authorization': 'Bearer $_token'},
       );
       if (!mounted) return;
-      final data = jsonDecode(response.body);
-      final List<dynamic> msgs = data['messages'] ?? [];
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final msgs = data['messages'] as List<dynamic>? ?? [];
       if (msgs.isEmpty) {
         _addCompanion(
           'Hi! I\'m ${widget.companionName}. How are you feeling today?',
         );
       } else {
         setState(() {
-          for (final m in msgs) {
+          for (final m in msgs.whereType<Map<String, dynamic>>()) {
             _messages.add(
               _ChatMessage(
                 text: m['text'] as String,
@@ -3122,8 +3096,11 @@ class _CompanionChatState extends State<_CompanionChat> {
           'message': msg,
         }),
       );
-      final data = jsonDecode(response.body);
-      final reply = data['reply'] ?? data['error'] ?? 'Something went wrong.';
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final reply =
+          data['reply'] as String? ??
+          data['error'] as String? ??
+          'Something went wrong.';
       _addCompanion(reply);
     } catch (_) {
       _addCompanion('Oops, I lost connection. Try again?');

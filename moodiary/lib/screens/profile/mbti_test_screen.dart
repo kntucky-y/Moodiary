@@ -197,9 +197,11 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
 
       if (!mounted) return;
       if (widget.requireCompanionSelection) {
-        Navigator.of(context).pushAndRemoveUntil(
-          FadeSlideRoute(page: CompanionScreen(userName: widget.userName)),
-          (_) => false,
+        unawaited(
+          Navigator.of(context).pushAndRemoveUntil(
+            FadeSlideRoute(page: CompanionScreen(userName: widget.userName)),
+            (_) => false,
+          ),
         );
         return;
       }
@@ -283,16 +285,18 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
     await prefs.setString('companion_name', companionName);
 
     if (!mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
-      FadeSlideRoute(
-        page: MoodiaryShell(
-          userName: widget.userName,
-          companionId: companionId,
-          companionName: companionName,
-          initialTab: MoodiaryTab.home,
+    unawaited(
+      Navigator.of(context).pushAndRemoveUntil(
+        FadeSlideRoute(
+          page: MoodiaryShell(
+            userName: widget.userName,
+            companionId: companionId,
+            companionName: companionName,
+            initialTab: MoodiaryTab.home,
+          ),
         ),
+        (_) => false,
       ),
-      (_) => false,
     );
   }
 
@@ -341,16 +345,18 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
     await prefs.setString('companion_name', companionName);
 
     if (!mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
-      FadeSlideRoute(
-        page: MoodiaryShell(
-          userName: widget.userName,
-          companionId: companionId,
-          companionName: companionName,
-          initialTab: MoodiaryTab.home,
+    unawaited(
+      Navigator.of(context).pushAndRemoveUntil(
+        FadeSlideRoute(
+          page: MoodiaryShell(
+            userName: widget.userName,
+            companionId: companionId,
+            companionName: companionName,
+            initialTab: MoodiaryTab.home,
+          ),
         ),
+        (_) => false,
       ),
-      (_) => false,
     );
   }
 

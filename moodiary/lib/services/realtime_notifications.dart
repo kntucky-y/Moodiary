@@ -3,10 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 
+import '../utils/in_app_notifications.dart';
 import 'auth_service.dart';
 import 'local_notifications_service.dart';
 import 'session_store.dart';
-import '../utils/in_app_notifications.dart';
 
 class RealtimeNotifications {
   RealtimeNotifications._() {

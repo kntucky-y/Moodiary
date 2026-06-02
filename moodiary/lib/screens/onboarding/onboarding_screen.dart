@@ -227,14 +227,14 @@ class _Page2 extends StatelessWidget {
     return Stack(
       children: [
         // Subtitle
-        Positioned(
+        const Positioned(
           top: 90,
           left: 28,
           right: 28,
           child: Text(
             'Start your journey towards self-awareness\nby tracking your mood effortlessly',
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
               color: Color(0xFF444444),
               fontStyle: FontStyle.italic,
@@ -754,10 +754,10 @@ class _MoodImage extends StatelessWidget {
       path,
       width: moodSize,
       height: moodSize,
-      errorBuilder: (context, error, stackTrace) => Icon(
+      errorBuilder: (context, error, stackTrace) => const Icon(
         Icons.sentiment_satisfied_alt_rounded,
         size: moodSize,
-        color: const Color(0xFFCCCCCC),
+        color: Color(0xFFCCCCCC),
       ),
     );
   }

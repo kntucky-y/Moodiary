@@ -6,24 +6,24 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../calendar/calendar_screen.dart';
-import '../journal/journal_screen.dart';
-import '../app_shell.dart';
-import '../companion/companion_screen.dart';
-import '../onboarding/onboarding_screen.dart';
-import '../settings/settings_screen.dart';
-import '../../utils/transitions.dart';
-import '../../widgets/app_sidebar.dart';
-import '../../services/local_notifications_service.dart';
 import '../../services/auth_service.dart';
+import '../../services/local_notifications_service.dart';
 import '../../services/realtime_notifications.dart';
 import '../../services/session_store.dart';
 import '../../services/theme_controller.dart';
 import '../../theme/moodiary_colors.dart';
 import '../../utils/avatar_utils.dart';
+import '../../utils/transitions.dart';
 import '../../utils/user_cache.dart';
-import '../../widgets/user_profile_popup.dart';
+import '../../widgets/app_sidebar.dart';
 import '../../widgets/glass.dart';
+import '../../widgets/user_profile_popup.dart';
+import '../app_shell.dart';
+import '../calendar/calendar_screen.dart';
+import '../companion/companion_screen.dart';
+import '../journal/journal_screen.dart';
+import '../onboarding/onboarding_screen.dart';
+import '../settings/settings_screen.dart';
 
 const _kPurple = Color(0xFFA076F9);
 const _kSubtle = Color(0xFF8A8A8D);
@@ -93,7 +93,6 @@ class _ForumsScreenState extends State<ForumsScreen> {
   }
 
   Future<void> _init() async {
-    final prefs = await SharedPreferences.getInstance();
     final token = await SessionStore.instance.readToken();
     if (!mounted) return;
     setState(() => _token = token);
@@ -298,7 +297,7 @@ class _ForumsScreenState extends State<ForumsScreen> {
     Navigator.of(context).push(FadeSlideRoute(page: page));
   }
 
-  void _openShellTab(MoodiaryTab tab, {bool fromSidebar = false}) {
+  void _openShellTab(MoodiaryTab tab) {
     _closeSidebar();
     final onShellTabSelected = widget.onShellTabSelected;
     if (onShellTabSelected != null) {
@@ -331,9 +330,11 @@ class _ForumsScreenState extends State<ForumsScreen> {
     await ThemeController.instance.resetToDefault();
     await LocalNotificationsService.instance.cancelAllScheduled();
     if (!mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
-      FadeSlideRoute(page: const OnboardingScreen()),
-      (_) => false,
+    unawaited(
+      Navigator.of(context).pushAndRemoveUntil(
+        FadeSlideRoute(page: const OnboardingScreen()),
+        (_) => false,
+      ),
     );
   }
 

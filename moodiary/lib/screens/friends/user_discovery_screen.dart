@@ -5,10 +5,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../services/auth_service.dart';
 import '../../services/session_store.dart';
-import '../../utils/transitions.dart';
 import '../../utils/avatar_utils.dart';
-import '../forums/forums_screen.dart';
+import '../../utils/transitions.dart';
 import '../../widgets/user_profile_popup.dart';
+import '../forums/forums_screen.dart';
 
 class UserDiscoveryScreen extends StatefulWidget {
   const UserDiscoveryScreen({super.key});
@@ -264,13 +264,15 @@ class _UserDiscoveryScreenState extends State<UserDiscoveryScreen> {
                                       selectedPostId == null) {
                                     return;
                                   }
-                                  Navigator.of(context).push(
-                                    FadeSlideRoute(
-                                      page: ForumsScreen(
-                                        userName: _userName,
-                                        companionId: _companionId,
-                                        companionName: _companionName,
-                                        initialPostId: selectedPostId,
+                                  unawaited(
+                                    Navigator.of(context).push(
+                                      FadeSlideRoute(
+                                        page: ForumsScreen(
+                                          userName: _userName,
+                                          companionId: _companionId,
+                                          companionName: _companionName,
+                                          initialPostId: selectedPostId,
+                                        ),
                                       ),
                                     ),
                                   );

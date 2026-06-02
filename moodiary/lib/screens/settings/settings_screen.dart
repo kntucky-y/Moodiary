@@ -3,15 +3,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../services/auth_service.dart';
 import '../../services/local_notifications_service.dart';
-import '../../services/theme_controller.dart';
 import '../../services/session_store.dart';
+import '../../services/theme_controller.dart';
 import '../../theme/moodiary_colors.dart';
 import '../../utils/transitions.dart';
 import '../../widgets/glass.dart';
-import '../companion/companion_screen.dart';
 import '../account/account_management_screen.dart';
-import '../notifications/notifications_screen.dart';
+import '../companion/companion_screen.dart';
 import '../legal/legal_screens.dart';
+import '../notifications/notifications_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   final String userName;
@@ -226,7 +226,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         padding: listPadding,
         children: [
-          _SectionHeader(label: 'Appearance'),
+          const _SectionHeader(label: 'Appearance'),
           GlassContainer(
             blurSigma: context.mdGlassBlurMedium,
             borderRadius: BorderRadius.circular(20),
@@ -271,12 +271,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ButtonSegment(
                             value: ThemeMode.light,
                             icon: Icon(Icons.wb_sunny_outlined, size: iconSize),
-                            label: Text('Light'),
+                            label: const Text('Light'),
                           ),
                           ButtonSegment(
                             value: ThemeMode.dark,
                             icon: Icon(Icons.nightlight_round, size: iconSize),
-                            label: Text('Dark'),
+                            label: const Text('Dark'),
                           ),
                         ],
                         selected: <ThemeMode>{_themeMode},
@@ -290,7 +290,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           const SizedBox(height: 24),
-          _SectionHeader(label: 'Notifications'),
+          const _SectionHeader(label: 'Notifications'),
           GlassContainer(
             blurSigma: context.mdGlassBlurMedium,
             borderRadius: BorderRadius.circular(20),
@@ -332,7 +332,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           const SizedBox(height: 24),
-          _SectionHeader(label: 'Account'),
+          const _SectionHeader(label: 'Account'),
           GlassContainer(
             blurSigma: context.mdGlassBlurMedium,
             borderRadius: BorderRadius.circular(20),
@@ -368,7 +368,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           const SizedBox(height: 24),
-          _SectionHeader(label: 'Companion & Data'),
+          const _SectionHeader(label: 'Companion & Data'),
           GlassContainer(
             blurSigma: context.mdGlassBlurMedium,
             borderRadius: BorderRadius.circular(20),
@@ -403,7 +403,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           const SizedBox(height: 24),
-          _SectionHeader(label: 'About'),
+          const _SectionHeader(label: 'About'),
           GlassContainer(
             blurSigma: context.mdGlassBlurMedium,
             borderRadius: BorderRadius.circular(20),
@@ -412,10 +412,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             padding: EdgeInsets.zero,
             child: Column(
               children: [
-                ListTile(
-                  leading: const Icon(Icons.info_outline),
-                  title: const Text('Version'),
-                  subtitle: const Text('v1.0.0'),
+                const ListTile(
+                  leading: Icon(Icons.info_outline),
+                  title: Text('Version'),
+                  subtitle: Text('v1.0.0'),
                 ),
                 const Divider(height: 0),
                 ListTile(

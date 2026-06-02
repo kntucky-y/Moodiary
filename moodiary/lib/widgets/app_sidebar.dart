@@ -127,52 +127,52 @@ class _AppSidebarState extends State<AppSidebar> {
       borderColor: Colors.transparent,
       padding: EdgeInsets.fromLTRB(24, topPadding + 24, 24, 24),
       child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Text(
+                'moodiary',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: _kPurple,
+                ),
+              ),
+              const Spacer(),
+              IconButton(
+                icon: Icon(Icons.close, color: subtleText),
+                onPressed: widget.onClose,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Hi, $currentName!',
+            style: TextStyle(color: subtleText, fontSize: 13),
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.zero,
               children: [
-                const Text(
-                  'moodiary',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: _kPurple,
+                ...items.map(_buildItem),
+                if (widget.onChangeCompanion != null)
+                  _buildActionItem(
+                    icon: Icons.swap_horiz_rounded,
+                    label: 'Change Companion',
+                    onTap: widget.onChangeCompanion!,
                   ),
-                ),
-                const Spacer(),
-                IconButton(
-                  icon: Icon(Icons.close, color: subtleText),
-                  onPressed: widget.onClose,
-                ),
+                if (widget.onLogout != null)
+                  _buildActionItem(
+                    icon: Icons.logout,
+                    label: 'Logout',
+                    onTap: () => _confirmAndLogout(context),
+                  ),
               ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Hi, $currentName!',
-              style: TextStyle(color: subtleText, fontSize: 13),
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: ListView(
-                padding: EdgeInsets.zero,
-                children: [
-                  ...items.map(_buildItem),
-                  if (widget.onChangeCompanion != null)
-                    _buildActionItem(
-                      icon: Icons.swap_horiz_rounded,
-                      label: 'Change Companion',
-                      onTap: widget.onChangeCompanion!,
-                    ),
-                  if (widget.onLogout != null)
-                    _buildActionItem(
-                      icon: Icons.logout,
-                      label: 'Logout',
-                      onTap: () => _confirmAndLogout(context),
-                    ),
-                ],
-              ),
-            ),
-          ],
+          ),
+        ],
       ),
     );
   }

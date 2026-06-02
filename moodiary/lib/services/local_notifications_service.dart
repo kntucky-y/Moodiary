@@ -25,7 +25,7 @@ class LocalNotificationsService {
   Future<void> initialize() async {
     if (_initialized) return;
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
-    final darwin = DarwinInitializationSettings(
+    const darwin = DarwinInitializationSettings(
       requestAlertPermission: false,
       requestBadgePermission: false,
       requestSoundPermission: false,
@@ -35,7 +35,7 @@ class LocalNotificationsService {
       appUserModelId: 'com.moodiary.app',
       guid: '4ef6c957-6a87-4c8b-8d67-7da73cb5c4e9',
     );
-    final settings = InitializationSettings(
+    const settings = InitializationSettings(
       android: android,
       iOS: darwin,
       macOS: darwin,

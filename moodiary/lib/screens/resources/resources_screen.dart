@@ -440,7 +440,7 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
     Navigator.of(context).push(FadeSlideRoute(page: page));
   }
 
-  void _openShellTab(MoodiaryTab tab, {bool fromSidebar = false}) {
+  void _openShellTab(MoodiaryTab tab) {
     _closeSidebar();
     final onShellTabSelected = widget.onShellTabSelected;
     if (onShellTabSelected != null) {
@@ -473,9 +473,11 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
     await ThemeController.instance.resetToDefault();
     await LocalNotificationsService.instance.cancelAllScheduled();
     if (!mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
-      FadeSlideRoute(page: const OnboardingScreen()),
-      (_) => false,
+    unawaited(
+      Navigator.of(context).pushAndRemoveUntil(
+        FadeSlideRoute(page: const OnboardingScreen()),
+        (_) => false,
+      ),
     );
   }
 
@@ -770,8 +772,8 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
     }
 
     if (_moodLinks.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+      return const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 16),
         child: _EmptyStateCard(
           icon: Icons.auto_awesome_outlined,
           title: 'No mood links yet',
@@ -876,8 +878,8 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
     final picks = _dailyRandomResources;
     if (picks.isEmpty) {
       return [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16),
           child: _EmptyStateCard(
             icon: Icons.auto_stories_outlined,
             title: 'No resources yet',
@@ -1167,132 +1169,10 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
     );
   }
 
-  List<Widget> _buildResourceCards() {
-    if (_resourcesError != null) {
-      return [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: _ErrorStateCard(
-            icon: Icons.auto_stories_outlined,
-            title: 'Resources could not load',
-            message: _resourcesError!,
-            actionLabel: 'Retry',
-            onAction: () {
-              _loadResources();
-            },
-          ),
-        ),
-      ];
-    }
-
-    if (_loadingResources) {
-      return const [
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16),
-          child: _LoadingCard(),
-        ),
-      ];
-    }
-
-    final resources = _filteredResources;
-    if (resources.isEmpty) {
-      return [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: _EmptyStateCard(
-            icon: Icons.auto_stories_outlined,
-            title: 'No guides in this category',
-            message:
-                'Try a different filter to see more self-care articles and support links.',
-          ),
-        ),
-      ];
-    }
-
-    return resources
-        .map(
-          (resource) => Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-            child: GlassCard(
-              borderRadius: BorderRadius.circular(20),
-              backgroundColor: context.mdGlassSurface,
-              borderColor: context.mdGlassBorder,
-              onTap: () => _launchUrl(resource['url'] as String? ?? ''),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (resource['featured'] as bool? ?? false)
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 8),
-                                child: _SummaryChip(
-                                  icon: Icons.star_rounded,
-                                  label: 'Featured',
-                                  compact: true,
-                                ),
-                              ),
-                            Text(
-                              resource['title'] as String? ?? '',
-                              style: Theme.of(context).textTheme.titleMedium
-                                  ?.copyWith(
-                                    fontWeight: FontWeight.w700,
-                                    color: context.mdPrimaryText,
-                                  ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              resource['category'] as String? ?? '',
-                              style: Theme.of(context).textTheme.labelSmall
-                                  ?.copyWith(color: context.mdSecondaryText),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Icon(
-                        Icons.open_in_new,
-                        size: 20,
-                        color: context.mdSecondaryText,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    resource['description'] as String? ?? '',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: context.mdSecondaryText,
-                      height: 1.4,
-                    ),
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if ((resource['recommendationReason'] as String? ?? '')
-                          .trim()
-                          .isNotEmpty &&
-                      (resource['recommendationReason'] as String? ?? '')
-                              .trim() !=
-                          'Suggested from your recent mood and journal patterns.') ...[
-                    const SizedBox(height: 10),
-                    _RecommendationReason(
-                      text: resource['recommendationReason'] as String,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-        )
-        .toList();
-  }
-
   @override
   Widget build(BuildContext context) {
     final pagePadding = MediaQuery.of(context).size.width >= 700 ? 20.0 : 16.0;
-    final headerHorizontalPadding = 20.0;
+    const headerHorizontalPadding = 20.0;
     final primaryText = context.mdPrimaryText;
     final secondaryText = context.mdSecondaryText;
 
@@ -1306,7 +1186,7 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
                 SafeArea(
                   bottom: false,
                   child: Padding(
-                    padding: EdgeInsets.fromLTRB(
+                    padding: const EdgeInsets.fromLTRB(
                       headerHorizontalPadding,
                       10,
                       headerHorizontalPadding,
@@ -1523,7 +1403,7 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
                               pagePadding,
                               0,
                             ),
-                            child: _SectionTitle(
+                            child: const _SectionTitle(
                               title: 'Suggested guides',
                               subtitle:
                                   'Updated from your recent mood and journal patterns.',
@@ -1541,7 +1421,7 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
                               pagePadding,
                               0,
                             ),
-                            child: _SectionTitle(
+                            child: const _SectionTitle(
                               title: "Today's random picks",
                               subtitle: 'Three fresh resources each day.',
                             ),

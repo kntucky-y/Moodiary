@@ -1,20 +1,20 @@
-import 'dart:convert';
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../services/auth_service.dart';
-import '../../services/session_store.dart';
 import '../../services/push_notifications_service.dart';
 import '../../services/realtime_notifications.dart';
+import '../../services/session_store.dart';
 import '../../theme/moodiary_colors.dart';
 import '../../utils/transitions.dart';
 import '../../utils/user_cache.dart';
 import '../app_shell.dart';
-import 'reset_password_screen.dart';
 import '../companion/companion_screen.dart';
 import '../profile/mbti_test_screen.dart';
+import 'reset_password_screen.dart';
 
 const _kPurple = Color(0xFF9B7FDB);
 
@@ -91,28 +91,30 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (!mounted) return;
 
-    Navigator.of(context).pushAndRemoveUntil(
-      FadeSlideRoute(
-        page: requiresMbti
-            ? MbtiTestScreen(
-                userName: userName,
-                requireCompanionSelection:
-                    companionId == null || companionName == null,
-                forceHomeOnComplete:
-                    companionId != null && companionName != null,
-                initialCompanionId: companionId,
-                initialCompanionName: companionName,
-              )
-            : companionId != null && companionName != null
-            ? MoodiaryShell(
-                userName: userName,
-                companionId: companionId,
-                companionName: companionName,
-                initialTab: MoodiaryTab.home,
-              )
-            : CompanionScreen(userName: userName),
+    unawaited(
+      Navigator.of(context).pushAndRemoveUntil(
+        FadeSlideRoute(
+          page: requiresMbti
+              ? MbtiTestScreen(
+                  userName: userName,
+                  requireCompanionSelection:
+                      companionId == null || companionName == null,
+                  forceHomeOnComplete:
+                      companionId != null && companionName != null,
+                  initialCompanionId: companionId,
+                  initialCompanionName: companionName,
+                )
+              : companionId != null && companionName != null
+              ? MoodiaryShell(
+                  userName: userName,
+                  companionId: companionId,
+                  companionName: companionName,
+                  initialTab: MoodiaryTab.home,
+                )
+              : CompanionScreen(userName: userName),
+        ),
+        (_) => false,
       ),
-      (_) => false,
     );
   }
 
@@ -245,8 +247,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (!mounted) return;
       _showInfo(message);
-      Navigator.of(context).push(
-        FadeSlideRoute(page: ResetPasswordScreen(initialEmail: trimmedEmail)),
+      unawaited(
+        Navigator.of(context).push(
+          FadeSlideRoute(page: ResetPasswordScreen(initialEmail: trimmedEmail)),
+        ),
       );
     } on AuthException catch (error) {
       _showError(error.message);

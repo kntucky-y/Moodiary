@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'screens/app_shell.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/reset_password_screen.dart';
 import 'screens/companion/companion_screen.dart';
-import 'screens/profile/mbti_test_screen.dart';
 import 'screens/onboarding/onboarding_screen.dart';
-import 'screens/app_shell.dart';
+import 'screens/profile/mbti_test_screen.dart';
 import 'services/auth_service.dart';
 import 'services/local_notifications_service.dart';
 import 'services/push_notifications_service.dart';
@@ -15,10 +15,10 @@ import 'services/realtime_notifications.dart';
 import 'services/session_store.dart';
 import 'services/theme_controller.dart';
 import 'theme/moodiary_colors.dart';
-import 'utils/transitions.dart';
 import 'utils/in_app_notifications.dart';
-import 'utils/user_cache.dart';
 import 'utils/route_observer.dart';
+import 'utils/transitions.dart';
+import 'utils/user_cache.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -112,7 +112,7 @@ class MoodiaryApp extends StatelessWidget {
       ),
     );
     return base.copyWith(
-      inputDecorationTheme: InputDecorationTheme(
+      inputDecorationTheme: const InputDecorationTheme(
         hintStyle: TextStyle(color: secondaryText),
         labelStyle: TextStyle(color: secondaryText),
       ),
