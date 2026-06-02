@@ -13,25 +13,6 @@ analyzer:
   plugins:
     - custom_lint
 
-dart_code_metrics:
-  rules:
-    - avoid-unnecessary-type-casts
-    - avoid-non-null-assertion
-    - avoid-redundant-async
-    - avoid-unused-parameters
-    - member-ordering
-    - no-magic-number
-    - prefer-trailing-comma
-  anti-patterns:
-    - forbidden-usage:
-        entries:
-          - name: SharedPreferences in UI
-            path: "lib/screens/**"
-            code: "SharedPreferences.getInstance"
-          - name: Http calls in UI
-            path: "lib/screens/**"
-            code: "http."
-
 linter:
   # The lint rules applied to this project can be customized in the
   # section below to disable rules from the `package:flutter_lints/flutter.yaml`
