@@ -11,36 +11,54 @@ class SessionStore {
   static const _userIdKey = 'user_id';
 
   final FlutterSecureStorage _secure = const FlutterSecureStorage();
+  String? _cachedToken;
+  String? _cachedUserId;
 
   Future<String?> readToken() async {
+    final cached = _cachedToken;
+    if (cached != null && cached.trim().isNotEmpty) {
+      return cached.trim();
+    }
     final token = await _secure.read(key: _tokenKey);
     if (token != null && token.trim().isNotEmpty) {
-      return token.trim();
+      _cachedToken = token.trim();
+      return _cachedToken;
     }
     return _migrateLegacyToken();
   }
 
   Future<String?> readUserId() async {
+    final cached = _cachedUserId;
+    if (cached != null && cached.trim().isNotEmpty) {
+      return cached.trim();
+    }
     final userId = await _secure.read(key: _userIdKey);
     if (userId != null && userId.trim().isNotEmpty) {
-      return userId.trim();
+      _cachedUserId = userId.trim();
+      return _cachedUserId;
     }
     return _migrateLegacyUserId();
   }
 
   Future<void> setToken(String token) async {
     if (token.trim().isEmpty) return;
-    await _secure.write(key: _tokenKey, value: token.trim());
+    final trimmed = token.trim();
+    _cachedToken = trimmed;
+    await _secure.write(key: _tokenKey, value: trimmed);
     await _removeLegacyToken();
   }
 
   Future<void> setUserId(String userId) async {
     if (userId.trim().isEmpty) return;
-    await _secure.write(key: _userIdKey, value: userId.trim());
+    final trimmed = userId.trim();
+    _cachedUserId = trimmed;
+    await _secure.write(key: _userIdKey, value: trimmed);
     await _removeLegacyUserId();
   }
 
   Future<void> clearSession() async {
+    _cachedToken = null;
+    _cachedUserId = null;
     await _secure.delete(key: _tokenKey);
     await _secure.delete(key: _userIdKey);
     await _removeLegacyToken();
@@ -49,24 +67,32 @@ class SessionStore {
 
   Future<String?> _migrateLegacyToken() async {
     if (kIsWeb) {
-      return _readLegacyToken();
+      final legacy = await _readLegacyToken();
+      _cachedToken = legacy?.trim();
+      return _cachedToken;
     }
     final legacy = await _readLegacyToken();
     if (legacy == null || legacy.trim().isEmpty) return null;
-    await _secure.write(key: _tokenKey, value: legacy.trim());
+    final trimmed = legacy.trim();
+    _cachedToken = trimmed;
+    await _secure.write(key: _tokenKey, value: trimmed);
     await _removeLegacyToken();
-    return legacy.trim();
+    return trimmed;
   }
 
   Future<String?> _migrateLegacyUserId() async {
     if (kIsWeb) {
-      return _readLegacyUserId();
+      final legacy = await _readLegacyUserId();
+      _cachedUserId = legacy?.trim();
+      return _cachedUserId;
     }
     final legacy = await _readLegacyUserId();
     if (legacy == null || legacy.trim().isEmpty) return null;
-    await _secure.write(key: _userIdKey, value: legacy.trim());
+    final trimmed = legacy.trim();
+    _cachedUserId = trimmed;
+    await _secure.write(key: _userIdKey, value: trimmed);
     await _removeLegacyUserId();
-    return legacy.trim();
+    return trimmed;
   }
 
   Future<String?> _readLegacyToken() async {

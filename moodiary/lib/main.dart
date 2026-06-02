@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -52,8 +54,6 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await ThemeController.instance.load();
   await DataSaverMode.load();
-  await LocalNotificationsService.instance.initialize();
-  await PushNotificationsService.instance.initialize();
   InAppNotifications.instance.configure(_rootNavigatorKey);
   final startupRoute = _resolveStartupResetRoute(Uri.base);
   runApp(
@@ -63,6 +63,8 @@ Future<void> main() async {
       initialResetToken: startupRoute.$2,
     ),
   );
+  unawaited(LocalNotificationsService.instance.initialize());
+  unawaited(PushNotificationsService.instance.initialize());
 }
 
 class MoodiaryApp extends StatelessWidget {
@@ -333,13 +335,7 @@ class _StartupGateState extends State<StartupGate> {
       return const OnboardingScreen();
     }
 
-    try {
-      await AuthService.instance.getConnectedUserIds(authToken: token);
-      await RealtimeNotifications.instance.ensureConnected(token: token);
-    } catch (_) {
-      await _clearStoredSession(prefs);
-      return const OnboardingScreen();
-    }
+    unawaited(_restoreBackgroundServices(token, prefs));
 
     final userName = prefs.getString('user_name')?.trim();
     final mbtiLatestType = prefs.getString('mbti_latest_type')?.trim();
@@ -375,6 +371,18 @@ class _StartupGateState extends State<StartupGate> {
       companionName: companionName,
       initialTab: MoodiaryTab.home,
     );
+  }
+
+  Future<void> _restoreBackgroundServices(
+    String token,
+    SharedPreferences prefs,
+  ) async {
+    try {
+      await AuthService.instance.getConnectedUserIds(authToken: token);
+      await RealtimeNotifications.instance.ensureConnected(token: token);
+    } catch (_) {
+      await _clearStoredSession(prefs);
+    }
   }
 
   Future<void> _clearStoredSession(SharedPreferences prefs) async {

@@ -79,9 +79,8 @@ class _LoginScreenState extends State<LoginScreen> {
       await prefs.setString('last_user_id', userId);
     }
 
-    await RealtimeNotifications.instance.ensureConnected(token: token);
-    await PushNotificationsService.instance.syncWithAuthToken(token);
-
+    unawaited(RealtimeNotifications.instance.ensureConnected(token: token));
+    unawaited(PushNotificationsService.instance.syncWithAuthToken(token));
     unawaited(_warmProfileCache(userId: userId, authToken: token));
 
     final companionId = prefs.getInt('companion_id');

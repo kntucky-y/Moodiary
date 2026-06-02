@@ -6,6 +6,7 @@
 // tree, read text, and verify that the values of widget properties are correct.
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:moodiary/main.dart';
 import 'package:moodiary/screens/onboarding/onboarding_screen.dart';
 import 'package:moodiary/services/theme_controller.dart';
@@ -14,6 +15,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   SharedPreferences.setMockInitialValues({});
+  FlutterSecureStorage.setMockInitialValues({});
 
   testWidgets('renders onboarding screen by default', (tester) async {
     final controller = ThemeController.instance;
@@ -26,6 +28,7 @@ void main() {
         initialResetToken: null,
       ),
     );
+    await tester.pump(const Duration(milliseconds: 100));
 
     expect(find.byType(OnboardingScreen), findsOneWidget);
   });

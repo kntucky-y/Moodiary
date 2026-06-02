@@ -110,9 +110,6 @@ class _MoodiaryShellState extends State<MoodiaryShell> {
     if (_index == nextIndex) {
       return;
     }
-    if (tab == MoodiaryTab.resources) {
-      _pages[nextIndex] = null;
-    }
     if (_tabHideTopNav[nextIndex] != hideTopNav) {
       _pages[nextIndex] = null;
     }

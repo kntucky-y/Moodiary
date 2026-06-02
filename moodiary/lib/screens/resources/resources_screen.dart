@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -24,6 +25,8 @@ import '../companion/companion_screen.dart';
 import '../journal/journal_screen.dart';
 import '../onboarding/onboarding_screen.dart';
 import '../settings/settings_screen.dart';
+
+const _kResourcesCacheKey = 'resources_cache_v1';
 
 class ResourcesScreen extends StatefulWidget {
   final String userName;
@@ -81,8 +84,9 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
   @override
   void initState() {
     super.initState();
-    _loadResources();
-    _bootstrapNearbyClinics();
+    _loadCachedResources();
+    unawaited(_loadResources());
+    unawaited(_bootstrapNearbyClinics());
     _realtimeSub = RealtimeNotifications.instance.stream.listen(
       _handleRealtimeEvent,
     );
@@ -103,6 +107,24 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
     }
   }
 
+  Future<void> _loadCachedResources() async {
+    final prefs = await SharedPreferences.getInstance();
+    final rawCache = prefs.getString(_kResourcesCacheKey);
+    if (rawCache == null || rawCache.isEmpty || !mounted) return;
+    try {
+      final payload = jsonDecode(rawCache) as Map<String, dynamic>;
+      final rawResources = payload['resources'] as List<dynamic>? ?? const [];
+      final rawMoodLinks = payload['moodLinks'] as List<dynamic>? ?? const [];
+      setState(() {
+        _resources = rawResources.cast<Map<String, dynamic>>();
+        _moodLinks = rawMoodLinks.cast<Map<String, dynamic>>();
+        _analysisScope = payload['analysisScope']?.toString();
+      });
+    } catch (_) {
+      // Ignore malformed cache and let the network refresh replace it.
+    }
+  }
+
   Future<void> _loadResources() async {
     setState(() {
       _loadingResources = true;
@@ -116,6 +138,8 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
       final rawResources = payload['resources'] as List<dynamic>? ?? const [];
       final rawMoodLinks = payload['moodLinks'] as List<dynamic>? ?? const [];
       final analysisScope = payload['analysisScope']?.toString();
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_kResourcesCacheKey, jsonEncode(payload));
       if (!mounted) return;
       setState(() {
         _resources = rawResources.cast<Map<String, dynamic>>();

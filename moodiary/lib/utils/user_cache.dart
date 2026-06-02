@@ -17,6 +17,7 @@ class UserCache {
     'home_ai_insights_cache_ts',
     'home_journal_preview_cache',
     'home_journal_preview_cache_ts',
+    'resources_cache_v1',
     'forums_cache_v1',
     'friends_cache_v1',
     'companion_id',

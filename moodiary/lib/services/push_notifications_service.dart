@@ -40,19 +40,26 @@ class PushNotificationsService {
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
     final messaging = FirebaseMessaging.instance;
-    await messaging.setAutoInitEnabled(true);
-    await messaging.requestPermission(alert: true, badge: true, sound: true);
+    _initialized = true;
+    unawaited(messaging.setAutoInitEnabled(true));
+    unawaited(
+      messaging.requestPermission(alert: true, badge: true, sound: true),
+    );
 
     _tokenRefreshSub = messaging.onTokenRefresh.listen((token) {
       unawaited(_registerTokenWithStoredSession(token));
     });
 
-    final token = await messaging.getToken();
-    if (token != null && token.isNotEmpty) {
-      await _registerTokenWithStoredSession(token);
-    }
-
-    _initialized = true;
+    unawaited(
+      messaging
+          .getToken()
+          .then((token) {
+            if (token != null && token.isNotEmpty) {
+              return _registerTokenWithStoredSession(token);
+            }
+          })
+          .catchError((_) {}),
+    );
   }
 
   Future<void> syncWithAuthToken(String authToken) async {
