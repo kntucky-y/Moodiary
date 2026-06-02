@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../services/auth_service.dart';
+import '../../services/session_store.dart';
 import '../../utils/transitions.dart';
 import '../../utils/avatar_utils.dart';
 import '../forums/forums_screen.dart';
@@ -38,7 +39,7 @@ class _UserDiscoveryScreenState extends State<UserDiscoveryScreen> {
 
   Future<void> _init() async {
     final prefs = await SharedPreferences.getInstance();
-    _authToken = prefs.getString('token') ?? '';
+    _authToken = await SessionStore.instance.readToken() ?? '';
     _userName = prefs.getString('user_name') ?? '';
     _companionId = prefs.getInt('companion_id') ?? 1;
     _companionName = prefs.getString('companion_name') ?? 'Companion';

@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/auth_service.dart';
 import '../../services/local_notifications_service.dart';
 import '../../services/realtime_notifications.dart';
+import '../../services/session_store.dart';
 import '../../services/theme_controller.dart';
 import '../../theme/moodiary_colors.dart';
 import '../../utils/avatar_file_picker.dart';
@@ -89,8 +90,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
   Future<void> _loadProfile() async {
     final prefs = await SharedPreferences.getInstance();
-    _userId = prefs.getString('user_id') ?? prefs.getString('userId') ?? '';
-    _authToken = prefs.getString('token') ?? '';
+    _userId = await SessionStore.instance.readUserId() ?? '';
+    _authToken = await SessionStore.instance.readToken() ?? '';
     final storedName = prefs.getString('user_name')?.trim();
     if (storedName != null && storedName.isNotEmpty) {
       _currentUserName = storedName;
@@ -379,9 +380,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   Future<void> _logout() async {
     final prefs = await SharedPreferences.getInstance();
     await UserCache.clear(prefs);
-    await prefs.remove('token');
+    await SessionStore.instance.clearSession();
     await prefs.remove('user_name');
-    await prefs.remove('user_id');
     RealtimeNotifications.instance.disconnect();
     await ThemeController.instance.resetToDefault();
     await LocalNotificationsService.instance.cancelAllScheduled();

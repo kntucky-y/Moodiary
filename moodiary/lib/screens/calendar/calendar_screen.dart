@@ -14,6 +14,7 @@ import '../../widgets/app_sidebar.dart';
 import '../../services/local_notifications_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/realtime_notifications.dart';
+import '../../services/session_store.dart';
 import '../../services/theme_controller.dart';
 import '../../theme/moodiary_colors.dart';
 import '../../widgets/glass.dart';
@@ -195,7 +196,7 @@ class _CalendarScreenState extends State<CalendarScreen> with RouteAware {
 
   Future<void> _init() async {
     final prefs = await SharedPreferences.getInstance();
-    _token = prefs.getString('token');
+    _token = await SessionStore.instance.readToken();
     await RealtimeNotifications.instance.ensureConnected(token: _token);
     // Load from local cache instantly, then refresh from DB in background
     _loadFromCache(prefs);
@@ -283,9 +284,8 @@ class _CalendarScreenState extends State<CalendarScreen> with RouteAware {
     _closeSidebar();
     final prefs = await SharedPreferences.getInstance();
     await UserCache.clear(prefs);
-    await prefs.remove('token');
+    await SessionStore.instance.clearSession();
     await prefs.remove('user_name');
-    await prefs.remove('user_id');
     await prefs.remove('companion_id');
     await prefs.remove('companion_name');
     RealtimeNotifications.instance.disconnect();

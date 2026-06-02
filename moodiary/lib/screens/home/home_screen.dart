@@ -13,6 +13,7 @@ import '../profile/user_profile_screen.dart';
 import '../../services/local_notifications_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/theme_controller.dart';
+import '../../services/session_store.dart';
 import '../../theme/moodiary_colors.dart';
 import '../../utils/transitions.dart';
 import '../../widgets/app_sidebar.dart';
@@ -656,7 +657,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Future<void> _fetchAiInsights() async {
     final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token');
+    final token = await SessionStore.instance.readToken();
     if (token == null) {
       if (_todayTasks.isEmpty) {
         await _applyAiTasks(_fallbackTasks(), resetProgress: false);
@@ -786,7 +787,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Future<void> _fetchMoodAnalysis(String scope) async {
     final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token');
+    final token = await SessionStore.instance.readToken();
     if (token == null) {
       if (mounted) {
         setState(() {
@@ -884,7 +885,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Future<void> _fetchJournalPreview() async {
     final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token');
+    final token = await SessionStore.instance.readToken();
     if (token == null) {
       if (mounted) setState(() => _journalLoading = false);
       return;
@@ -954,7 +955,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Future<void> _fetchMiniCalendarFromBackend() async {
     final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token');
+    final token = await SessionStore.instance.readToken();
     if (token == null) return;
     try {
       final resp = await http.get(
@@ -1151,7 +1152,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     await prefs.remove(_kAiAnalysisCacheTsKey);
     await _refreshStreak(showFeedback: true);
     // Sync to DB — server auto-computes moodLevelScore and merges with existing data
-    final token = prefs.getString('token');
+    final token = await SessionStore.instance.readToken();
     if (token == null) return;
     try {
       await http.post(
@@ -1215,7 +1216,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   void _syncScoreToDb(String dateKey, int taskScore) async {
     final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token');
+    final token = await SessionStore.instance.readToken();
     if (token == null) return;
     try {
       await http.post(
@@ -1303,9 +1304,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Future<void> _logout() async {
     final prefs = await SharedPreferences.getInstance();
     await UserCache.clear(prefs);
-    await prefs.remove('token');
+    await SessionStore.instance.clearSession();
     await prefs.remove('user_name');
-    await prefs.remove('user_id');
     RealtimeNotifications.instance.disconnect();
     await ThemeController.instance.resetToDefault();
     await LocalNotificationsService.instance.cancelAllScheduled();
@@ -3035,7 +3035,7 @@ class _CompanionChatState extends State<_CompanionChat> {
   Future<void> _init() async {
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
-    _token = prefs.getString('token');
+    _token = await SessionStore.instance.readToken();
     await _loadHistory();
   }
 

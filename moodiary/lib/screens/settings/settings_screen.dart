@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/auth_service.dart';
 import '../../services/local_notifications_service.dart';
 import '../../services/theme_controller.dart';
+import '../../services/session_store.dart';
 import '../../theme/moodiary_colors.dart';
 import '../../utils/transitions.dart';
 import '../../widgets/glass.dart';
@@ -134,10 +135,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         return;
       }
       await LocalNotificationsService.instance.scheduleWeeklySummary();
-      final prefs = await SharedPreferences.getInstance();
-      final userId =
-          prefs.getString('user_id') ?? prefs.getString('userId') ?? '';
-      final token = prefs.getString('token') ?? '';
+      final userId = await SessionStore.instance.readUserId() ?? '';
+      final token = await SessionStore.instance.readToken() ?? '';
       if (userId.isNotEmpty && token.isNotEmpty) {
         try {
           await AuthService.instance.sendWeeklyReportEmail(
@@ -185,10 +184,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (_sendingWeeklyTest) return;
     setState(() => _sendingWeeklyTest = true);
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final userId =
-          prefs.getString('user_id') ?? prefs.getString('userId') ?? '';
-      final token = prefs.getString('token') ?? '';
+      final userId = await SessionStore.instance.readUserId() ?? '';
+      final token = await SessionStore.instance.readToken() ?? '';
       if (userId.isEmpty || token.isEmpty) {
         throw AuthException('Please log in again to send test email.');
       }

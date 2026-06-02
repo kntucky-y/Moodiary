@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
 import '../../services/auth_service.dart';
+import '../../services/session_store.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -29,8 +28,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Future<void> _init() async {
-    final prefs = await SharedPreferences.getInstance();
-    _authToken = prefs.getString('token') ?? '';
+    _authToken = await SessionStore.instance.readToken() ?? '';
     await _load(reset: true);
   }
 

@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/auth_service.dart';
 import '../../services/local_notifications_service.dart';
 import '../../services/realtime_notifications.dart';
+import '../../services/session_store.dart';
 import '../../services/theme_controller.dart';
 import '../../utils/transitions.dart';
 import '../../utils/user_cache.dart';
@@ -41,9 +42,8 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
   }
 
   Future<void> _loadUserData() async {
-    final prefs = await SharedPreferences.getInstance();
-    _userId = prefs.getString('user_id') ?? prefs.getString('userId') ?? '';
-    _authToken = prefs.getString('token') ?? '';
+    _userId = await SessionStore.instance.readUserId() ?? '';
+    _authToken = await SessionStore.instance.readToken() ?? '';
     if (!mounted) return;
     setState(() => _isReady = true);
     await _loadSafetyLists();
@@ -203,9 +203,8 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
       if (mounted) {
         final prefs = await SharedPreferences.getInstance();
         await UserCache.clear(prefs);
-        await prefs.remove('token');
+        await SessionStore.instance.clearSession();
         await prefs.remove('user_name');
-        await prefs.remove('user_id');
         await prefs.remove('last_user_id');
         await prefs.remove('user_avatar_url');
         await prefs.remove('mbti_latest_type');

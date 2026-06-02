@@ -3,9 +3,9 @@ import 'dart:async';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'auth_service.dart';
+import 'session_store.dart';
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -76,8 +76,7 @@ class PushNotificationsService {
   }
 
   Future<void> _registerTokenWithStoredSession(String token) async {
-    final prefs = await SharedPreferences.getInstance();
-    final authToken = prefs.getString('token');
+    final authToken = await SessionStore.instance.readToken();
     if (authToken == null || authToken.isEmpty) return;
     try {
       await AuthService.instance.registerPushToken(

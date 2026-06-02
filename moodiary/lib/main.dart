@@ -12,6 +12,7 @@ import 'services/auth_service.dart';
 import 'services/local_notifications_service.dart';
 import 'services/push_notifications_service.dart';
 import 'services/realtime_notifications.dart';
+import 'services/session_store.dart';
 import 'services/theme_controller.dart';
 import 'theme/moodiary_colors.dart';
 import 'utils/transitions.dart';
@@ -326,7 +327,7 @@ class _StartupGateState extends State<StartupGate> {
 
   Future<Widget> _resolveStartupScreen() async {
     final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token')?.trim() ?? '';
+    final token = (await SessionStore.instance.readToken())?.trim() ?? '';
 
     if (token.isEmpty) {
       return const OnboardingScreen();
@@ -377,9 +378,8 @@ class _StartupGateState extends State<StartupGate> {
   }
 
   Future<void> _clearStoredSession(SharedPreferences prefs) async {
-    await prefs.remove('token');
+    await SessionStore.instance.clearSession();
     await prefs.remove('user_name');
-    await prefs.remove('user_id');
     await prefs.remove('last_user_id');
     await prefs.remove('user_avatar_url');
     await prefs.remove('mbti_latest_type');

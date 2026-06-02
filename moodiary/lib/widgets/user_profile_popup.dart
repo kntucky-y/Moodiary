@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/auth_service.dart';
 import '../services/realtime_notifications.dart';
+import '../services/session_store.dart';
 import '../theme/moodiary_colors.dart';
 import '../utils/avatar_utils.dart';
 import 'glass.dart';
@@ -49,8 +50,7 @@ class _UserProfilePopup extends StatelessWidget {
   }
 
   Future<Map<String, dynamic>> _loadProfile() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token') ?? '';
+    final token = await SessionStore.instance.readToken() ?? '';
     return AuthService.instance.getUserProfile(
       userId: userId,
       authToken: token.isEmpty ? null : token,
@@ -58,10 +58,8 @@ class _UserProfilePopup extends StatelessWidget {
   }
 
   Future<void> _reportUser(BuildContext context, String displayName) async {
-    final prefs = await SharedPreferences.getInstance();
-    final selfUserId =
-        prefs.getString('user_id') ?? prefs.getString('userId') ?? '';
-    final token = prefs.getString('token') ?? '';
+    final selfUserId = await SessionStore.instance.readUserId() ?? '';
+    final token = await SessionStore.instance.readToken() ?? '';
     if (selfUserId.isEmpty || token.isEmpty || selfUserId == userId) {
       return;
     }
@@ -738,9 +736,8 @@ class _MuteToggleButtonState extends State<_MuteToggleButton> {
   }
 
   Future<void> _loadState() async {
-    final prefs = await SharedPreferences.getInstance();
-    _selfUserId = prefs.getString('user_id') ?? prefs.getString('userId') ?? '';
-    _authToken = prefs.getString('token') ?? '';
+    _selfUserId = await SessionStore.instance.readUserId() ?? '';
+    _authToken = await SessionStore.instance.readToken() ?? '';
 
     if (_selfUserId.isEmpty ||
         _authToken.isEmpty ||
@@ -851,9 +848,8 @@ class _BlockToggleButtonState extends State<_BlockToggleButton> {
   }
 
   Future<void> _loadState() async {
-    final prefs = await SharedPreferences.getInstance();
-    _selfUserId = prefs.getString('user_id') ?? prefs.getString('userId') ?? '';
-    _authToken = prefs.getString('token') ?? '';
+    _selfUserId = await SessionStore.instance.readUserId() ?? '';
+    _authToken = await SessionStore.instance.readToken() ?? '';
 
     if (_selfUserId.isEmpty ||
         _authToken.isEmpty ||

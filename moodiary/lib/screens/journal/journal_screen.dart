@@ -11,6 +11,7 @@ import '../settings/settings_screen.dart';
 import '../../services/local_notifications_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/realtime_notifications.dart';
+import '../../services/session_store.dart';
 import '../../services/theme_controller.dart';
 import '../../utils/transitions.dart';
 import '../../widgets/app_sidebar.dart';
@@ -120,7 +121,7 @@ class _JournalScreenState extends State<JournalScreen> with RouteAware {
 
   Future<void> _init() async {
     final prefs = await SharedPreferences.getInstance();
-    _token = prefs.getString('token');
+    _token = await SessionStore.instance.readToken();
     await _fetchEntries(archived: false, force: true);
   }
 
@@ -223,9 +224,8 @@ class _JournalScreenState extends State<JournalScreen> with RouteAware {
     _closeSidebar();
     final prefs = await SharedPreferences.getInstance();
     await UserCache.clear(prefs);
-    await prefs.remove('token');
+    await SessionStore.instance.clearSession();
     await prefs.remove('user_name');
-    await prefs.remove('user_id');
     await prefs.remove('companion_id');
     await prefs.remove('companion_name');
     RealtimeNotifications.instance.disconnect();

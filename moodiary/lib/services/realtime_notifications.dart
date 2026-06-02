@@ -1,11 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 
 import 'auth_service.dart';
 import 'local_notifications_service.dart';
+import 'session_store.dart';
 import '../utils/in_app_notifications.dart';
 
 class RealtimeNotifications {
@@ -77,8 +77,7 @@ class RealtimeNotifications {
   }
 
   Future<String?> _loadToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('token');
+    return SessionStore.instance.readToken();
   }
 
   void _handleNotification(dynamic data) {

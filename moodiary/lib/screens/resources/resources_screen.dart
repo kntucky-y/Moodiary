@@ -11,6 +11,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../services/auth_service.dart';
 import '../../services/local_notifications_service.dart';
 import '../../services/realtime_notifications.dart';
+import '../../services/session_store.dart';
 import '../../services/theme_controller.dart';
 import '../../theme/moodiary_colors.dart';
 import '../../utils/transitions.dart';
@@ -109,9 +110,8 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
     });
 
     try {
-      final prefs = await SharedPreferences.getInstance();
       final payload = await AuthService.instance.getResources(
-        authToken: prefs.getString('token'),
+        authToken: await SessionStore.instance.readToken(),
       );
       final rawResources = payload['resources'] as List<dynamic>? ?? const [];
       final rawMoodLinks = payload['moodLinks'] as List<dynamic>? ?? const [];
@@ -465,9 +465,8 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
     _closeSidebar();
     final prefs = await SharedPreferences.getInstance();
     await UserCache.clear(prefs);
-    await prefs.remove('token');
+    await SessionStore.instance.clearSession();
     await prefs.remove('user_name');
-    await prefs.remove('user_id');
     await prefs.remove('companion_id');
     await prefs.remove('companion_name');
     RealtimeNotifications.instance.disconnect();

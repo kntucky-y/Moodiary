@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../services/auth_service.dart';
+import '../../services/session_store.dart';
 import '../../services/push_notifications_service.dart';
 import '../../services/realtime_notifications.dart';
 import '../../theme/moodiary_colors.dart';
@@ -52,7 +53,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     final prefs = await SharedPreferences.getInstance();
     final lastUserId = prefs.getString('last_user_id');
-    await prefs.setString('token', token);
+    await SessionStore.instance.setToken(token);
 
     final userName = (user['name'] ?? 'Friend') as String;
     await prefs.setString('user_name', userName);
@@ -74,7 +75,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (lastUserId != null && lastUserId != userId) {
         await UserCache.clear(prefs);
       }
-      await prefs.setString('user_id', userId);
+      await SessionStore.instance.setUserId(userId);
       await prefs.setString('last_user_id', userId);
     }
 

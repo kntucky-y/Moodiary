@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../services/auth_service.dart';
+import '../../services/session_store.dart';
 import '../../theme/moodiary_colors.dart';
 import '../../utils/transitions.dart';
 import '../../widgets/glass.dart';
@@ -121,9 +122,8 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
 
     try {
       final prefs = await SharedPreferences.getInstance();
-      final userId =
-          prefs.getString('user_id') ?? prefs.getString('userId') ?? '';
-      final token = prefs.getString('token') ?? '';
+      final userId = await SessionStore.instance.readUserId() ?? '';
+      final token = await SessionStore.instance.readToken() ?? '';
       if (userId.isEmpty || token.isEmpty) {
         throw AuthException(
           'You need to sign in again before taking the MBTI test.',
@@ -180,9 +180,8 @@ class _MbtiTestScreenState extends State<MbtiTestScreen> {
 
     try {
       final prefs = await SharedPreferences.getInstance();
-      final userId =
-          prefs.getString('user_id') ?? prefs.getString('userId') ?? '';
-      final token = prefs.getString('token') ?? '';
+      final userId = await SessionStore.instance.readUserId() ?? '';
+      final token = await SessionStore.instance.readToken() ?? '';
       if (userId.isEmpty || token.isEmpty) {
         throw AuthException(
           'You need to sign in again before setting your MBTI type.',

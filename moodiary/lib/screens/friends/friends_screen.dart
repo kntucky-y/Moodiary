@@ -17,6 +17,7 @@ import '../../services/auth_service.dart';
 import '../../utils/transitions.dart';
 import '../../widgets/app_sidebar.dart';
 import '../../services/realtime_notifications.dart';
+import '../../services/session_store.dart';
 import '../../services/theme_controller.dart';
 import '../../theme/moodiary_colors.dart';
 import '../../utils/avatar_utils.dart';
@@ -91,7 +92,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
 
   Future<void> _init() async {
     final prefs = await SharedPreferences.getInstance();
-    _token = prefs.getString('token');
+    _token = await SessionStore.instance.readToken();
     final latestName = prefs.getString('user_name')?.trim();
     if (latestName != null && latestName.isNotEmpty) {
       _currentUserName = latestName;
@@ -541,9 +542,8 @@ class _FriendsScreenState extends State<FriendsScreen> {
   Future<void> _logout() async {
     final prefs = await SharedPreferences.getInstance();
     await UserCache.clear(prefs);
-    await prefs.remove('token');
+    await SessionStore.instance.clearSession();
     await prefs.remove('user_name');
-    await prefs.remove('user_id');
     await prefs.remove('companion_id');
     await prefs.remove('companion_name');
     RealtimeNotifications.instance.disconnect();

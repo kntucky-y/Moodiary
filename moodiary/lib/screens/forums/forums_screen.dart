@@ -17,6 +17,7 @@ import '../../widgets/app_sidebar.dart';
 import '../../services/local_notifications_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/realtime_notifications.dart';
+import '../../services/session_store.dart';
 import '../../services/theme_controller.dart';
 import '../../theme/moodiary_colors.dart';
 import '../../utils/avatar_utils.dart';
@@ -93,7 +94,7 @@ class _ForumsScreenState extends State<ForumsScreen> {
 
   Future<void> _init() async {
     final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token');
+    final token = await SessionStore.instance.readToken();
     if (!mounted) return;
     setState(() => _token = token);
     if (token == null) {
@@ -322,9 +323,8 @@ class _ForumsScreenState extends State<ForumsScreen> {
     _closeSidebar();
     final prefs = await SharedPreferences.getInstance();
     await UserCache.clear(prefs);
-    await prefs.remove('token');
+    await SessionStore.instance.clearSession();
     await prefs.remove('user_name');
-    await prefs.remove('user_id');
     await prefs.remove('companion_id');
     await prefs.remove('companion_name');
     RealtimeNotifications.instance.disconnect();
