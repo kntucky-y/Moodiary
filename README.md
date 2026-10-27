@@ -38,14 +38,17 @@ insights, social features, and notifications.
 
 ## App preview
 
-This preview was captured from the real Moodiary Flutter web app running locally
-in release mode. It shows the onboarding flow and the product's expressive mood-first visual language.
+Moodiary is designed around a phone-first experience. These screens are
+captured from the real Flutter app at a phone-sized viewport, showing the
+onboarding flow from welcome to mood tracking and mental clarity.
 
-<img src="docs/screenshots/moodiary-real-landscape.png" width="100%" alt="Moodiary Flutter onboarding screen" />
-
-The app's expressive visual language uses illustrated mood states, guided
-activities, and small moments of feedback instead of treating journaling like
-a spreadsheet.
+<table>
+  <tr>
+    <td><img src="docs/screenshots/moodiary-phone-intro.png" width="220" alt="Moodiary welcome screen" /></td>
+    <td><img src="docs/screenshots/moodiary-phone-track.png" width="220" alt="Moodiary mood tracking screen" /></td>
+    <td><img src="docs/screenshots/moodiary-phone-clarity.png" width="220" alt="Moodiary mental clarity screen" /></td>
+  </tr>
+</table>
 
 ## Architecture
 
