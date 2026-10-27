@@ -38,9 +38,9 @@ insights, social features, and notifications.
 
 ## App preview
 
-The repository does not currently include store screenshots or a deployed
-public app build, so this gallery uses Moodiary's in-app artwork to show the
-visual language used across the experience.
+The repository does not currently include a deployed public app build, so this
+landscape gallery is a presentation preview composed from Moodiary's in-app
+artwork.
 
 <img src="docs/screenshots/moodiary-preview.png" width="100%" alt="Moodiary landscape app preview" />
 
