@@ -42,13 +42,7 @@ The repository does not currently include store screenshots or a deployed
 public app build, so this gallery uses Moodiary's in-app artwork to show the
 visual language used across the experience.
 
-<p align="center">
-  <img src="moodiary/assets/moodiary.png" width="180" alt="Moodiary app artwork" />
-  <img src="moodiary/assets/very-happy.png" width="120" alt="Very happy mood" />
-  <img src="moodiary/assets/meditation.png" width="120" alt="Meditation mood illustration" />
-  <img src="moodiary/assets/worried.png" width="120" alt="Worried mood" />
-  <img src="moodiary/assets/love.png" width="120" alt="Love mood" />
-</p>
+<img src="docs/screenshots/moodiary-preview.png" width="100%" alt="Moodiary landscape app preview" />
 
 The app's expressive visual language uses illustrated mood states, guided
 activities, and small moments of feedback instead of treating journaling like
