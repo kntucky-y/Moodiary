@@ -38,11 +38,10 @@ insights, social features, and notifications.
 
 ## App preview
 
-The repository does not currently include a deployed public app build, so this
-landscape gallery is a presentation preview composed from Moodiary's in-app
-artwork.
+This preview was captured from the real Moodiary Flutter web app running locally
+in release mode. It shows the onboarding flow and the product's expressive mood-first visual language.
 
-<img src="docs/screenshots/moodiary-preview.png" width="100%" alt="Moodiary landscape app preview" />
+<img src="docs/screenshots/moodiary-real-landscape.png" width="100%" alt="Moodiary Flutter onboarding screen" />
 
 The app's expressive visual language uses illustrated mood states, guided
 activities, and small moments of feedback instead of treating journaling like
