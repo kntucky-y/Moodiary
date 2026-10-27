@@ -1,123 +1,140 @@
+<div align="center">
+
 # Moodiary
 
-Moodiary is a full-stack journaling and mood-tracking platform with a Flutter client and a Node/Express backend. It supports secure authentication, password recovery, mood insights, and social features such as chat, forums, and notifications.
+### A private space to understand your moods, write honestly, and stay connected.
+
+<p>
+  <a href="https://github.com/kntucky-y/Moodiary"><img src="https://img.shields.io/badge/Repository-181717?style=for-the-badge&logo=github&logoColor=white" alt="Repository" /></a>
+  <img src="https://img.shields.io/badge/Flutter-02569B?style=for-the-badge&logo=flutter&logoColor=white" alt="Flutter" />
+  <img src="https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=node.js&logoColor=white" alt="Node.js" />
+  <img src="https://img.shields.io/badge/MongoDB-47A248?style=for-the-badge&logo=mongodb&logoColor=white" alt="MongoDB" />
+</p>
+
+<img src="https://raw.githubusercontent.com/kntucky-y/Moodiary/main/moodiary/assets/moodiary.png" width="180" alt="Moodiary app artwork" />
+
+</div>
+
+## Overview
+
+Moodiary is a full-stack journaling and mood-tracking platform designed to
+make reflection feel approachable. The Flutter client runs across mobile, web,
+and desktop, while a Node/Express API handles authentication, journaling,
+insights, social features, and notifications.
+
+> Moodiary is an educational and wellness tool, not a clinical diagnostic
+> service.
 
 ## Features
 
-- Mood logging, trends, and insights
-- Guided journaling with tags
-- MBTI-style companion matching (educational, non-clinical)
-- Friends chat with realtime messaging and notifications
-- Community forums
-- Resources map powered by OpenStreetMap
-- Optional AI mood coach tasks and summaries
+- **Mood logging** with trends, insights, expressive mood assets, and tags
+- **Guided journaling** for structured reflection and personal notes
+- **AI-assisted summaries** and mood-coach tasks through Groq
+- **Companion matching** based on an MBTI-style educational flow
+- **Friends chat** with realtime messaging, friend requests, and notifications
+- **Community forums** for sharing and discussion
+- **Resources map** powered by OpenStreetMap
+- **Password recovery**, email delivery, and Firebase push notifications
+
+## Visual assets
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/kntucky-y/Moodiary/main/moodiary/assets/very-happy.png" width="110" alt="Very happy mood" />
+  <img src="https://raw.githubusercontent.com/kntucky-y/Moodiary/main/moodiary/assets/meditation.png" width="110" alt="Meditation mood illustration" />
+  <img src="https://raw.githubusercontent.com/kntucky-y/Moodiary/main/moodiary/assets/worried.png" width="110" alt="Worried mood" />
+  <img src="https://raw.githubusercontent.com/kntucky-y/Moodiary/main/moodiary/assets/love.png" width="110" alt="Love mood" />
+</p>
+
+The app's expressive visual language uses illustrated mood states, guided
+activities, and small moments of feedback instead of treating journaling like
+a spreadsheet.
+
+## Architecture
+
+```text
+Flutter client
+  ├─ mobile / web / desktop UI
+  ├─ journal and mood flows
+  └─ realtime chat and notifications
+          │
+          ▼
+Node.js + Express API
+  ├─ JWT authentication and password recovery
+  ├─ journal, mood, forum, and friendship services
+  ├─ Socket.io realtime messaging
+  └─ Firebase / email / Groq integrations
+          │
+          ▼
+MongoDB + Mongoose
+```
 
 ## Tech stack
 
-- Flutter (mobile, web, desktop)
-- Node.js + Express API
-- MongoDB + Mongoose
-- Socket.io realtime messaging
-- Firebase Admin for push notifications
-- Groq SDK for AI-assisted content
+- **Client:** Flutter, Dart
+- **Backend:** Node.js, Express
+- **Database:** MongoDB, Mongoose
+- **Realtime:** Socket.io
+- **Notifications:** Firebase Admin SDK and Firebase Cloud Messaging
+- **AI:** Groq SDK
+- **Maps:** OpenStreetMap
+- **Email:** SMTP and Resend API
 
 ## Repository layout
 
-- backend/ - Node/Express API, sockets, and data models
-- moodiary/ - Flutter application
-- moodiary/docs/ - Product and methodology notes
+```text
+backend/             Node/Express API, sockets, and data models
+moodiary/             Flutter application
+moodiary/docs/        Product and methodology notes
+```
 
 ## Getting started
 
 ### Prerequisites
 
 - Node.js 18+
-- Flutter SDK (Dart 3.11+)
-- MongoDB instance (local or Atlas)
+- Flutter SDK with Dart 3.11+
+- MongoDB locally or through Atlas
 
-### Backend setup
+### Backend
 
-1. Install dependencies:
-
-```
+```bash
 cd backend
 npm install
 ```
 
-2. Create backend/.env with your runtime values:
+Create `backend/.env` with the values required for your environment, then
+start the API:
 
-```
-MONGO_URI=mongodb+srv://<user>:<pass>@cluster.example.mongodb.net/moodiary
-JWT_SECRET=replace_with_a_strong_secret
-PORT=5000
-
-# Optional: AI insights
-GROQ_API_KEY=your_groq_api_key
-GROQ_MODEL=llama-3.3-70b-versatile
-
-# Optional: Email (SMTP)
-MAIL_SERVICE=gmail
-MAIL_USER=you@example.com
-MAIL_PASS=your_app_password
-MAIL_FROM="Moodiary <no-reply@yourdomain.com>"
-
-# Optional: Email (custom SMTP)
-MAIL_HOST=smtp.mailgun.org
-MAIL_PORT=587
-MAIL_SECURE=false
-
-# Optional: Email via Resend API (SMTP-free)
-RESEND_API_KEY=re_xxxxxxxxxxxxxxxxxxxxx
-
-# Optional: Push notifications (Firebase Admin)
-FIREBASE_SERVICE_ACCOUNT_JSON={...}
-```
-
-3. Start the server:
-
-```
+```bash
 npm run dev
 ```
 
-Health check:
+The health endpoint is available at `GET /api/health`.
 
-```
-GET /api/health
-```
+### Flutter client
 
-### Flutter app setup
-
-1. Install dependencies:
-
-```
+```bash
 cd moodiary
 flutter pub get
-```
-
-2. Run the app with a backend URL:
-
-```
 flutter run --dart-define=BACKEND_BASE_URL=http://localhost:5000
 ```
 
-For production builds, set the backend URL at build time:
+For a production build:
 
-```
+```bash
 flutter build apk --dart-define=BACKEND_BASE_URL=https://api.your-domain.com
 ```
 
-## Security and sensitive data
+## Security
 
-- Do not commit secrets, API keys, passwords, or tokens.
-- Keep backend/.env out of version control.
-- Rotate credentials that were ever committed to git history.
-- Avoid embedding credentials in Flutter source; use --dart-define for non-secret runtime settings only.
+Never commit `.env` files, API keys, service-account credentials, passwords, or
+tokens. Use `--dart-define` for non-secret runtime configuration and rotate
+credentials that may have appeared in Git history.
 
-## Notes
+## Documentation and license
 
-- MBTI methodology details live in moodiary/docs/mbti_methodology.md.
-- This app is not a clinical diagnostic tool.
+- [MBTI methodology](moodiary/docs/mbti_methodology.md)
+- [License](LICENSE)
 
-## License
-
-All rights reserved. See LICENSE for details.
+All rights reserved. This project is not licensed for copying, redistribution,
+or derivative use.
